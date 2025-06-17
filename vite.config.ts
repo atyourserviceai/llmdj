@@ -7,7 +7,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [
     cloudflare({
-      inspectorPort: 9329, // Set inspector port to avoid conflicts
+      inspectorPort: 9429, // Set inspector port to avoid conflicts
     }),
     react(),
     tailwindcss(),
