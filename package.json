@@ -1,7 +1,7 @@
 {
-  "name": "foo-agent",
+  "name": "llmdj",
   "version": "1.0.0",
-  "description": "",
+  "description": "AI-powered Spotify DJ agent",
   "type": "module",
   "private": true,
   "scripts": {
@@ -15,10 +15,17 @@
   "keywords": [
     "cloudflare",
     "ai",
-    "agents"
+    "agents",
+    "spotify",
+    "music",
+    "dj"
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atyourserviceai/llmdj.git"
+  },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@cloudflare/puppeteer": "^1.0.2",
@@ -50,6 +57,7 @@
     "@radix-ui/react-dropdown-menu": "^2.1.14",
     "@radix-ui/react-slot": "^1.2.2",
     "@radix-ui/react-switch": "^1.2.4",
+    "@spotify/web-api-ts-sdk": "^1.2.0",
     "@types/marked": "^6.0.0",
     "agents": "^0.0.86",
     "ai": "^4.3.15",

@@ -1,5 +1,5 @@
 {
-  "name": "foo-agent",
+  "name": "llmdj",
   "main": "src/server.ts",
   "compatibility_date": "2025-05-07",
   "compatibility_flags": [
@@ -28,6 +28,9 @@
     "SETTINGS_ENVIRONMENT": "dev",
     "COMPOSIO_API_KEY": "",
     "BROWSERBASE_API_KEY": "",
+    "SPOTIFY_CLIENT_ID": "",
+    "SPOTIFY_CLIENT_SECRET": "",
+    "SPOTIFY_REDIRECT_URI": "https://llmdj-dev.atyourservice.ai/auth/callback",
   },
   "env": {
     "staging": {
@@ -36,10 +39,13 @@
         "SETTINGS_ENVIRONMENT": "staging",
         "COMPOSIO_API_KEY": "",
         "BROWSERBASE_API_KEY": "",
+        "SPOTIFY_CLIENT_ID": "",
+        "SPOTIFY_CLIENT_SECRET": "",
+        "SPOTIFY_REDIRECT_URI": "https://llmdj-staging.atyourservice.ai/auth/callback",
       },
       "routes": [
         {
-          "pattern": "foo-agent-staging.atyourservice.ai",
+          "pattern": "llmdj-staging.atyourservice.ai",
           "custom_domain": true,
         },
       ],
@@ -50,10 +56,13 @@
         "SETTINGS_ENVIRONMENT": "production",
         "COMPOSIO_API_KEY": "",
         "BROWSERBASE_API_KEY": "",
+        "SPOTIFY_CLIENT_ID": "",
+        "SPOTIFY_CLIENT_SECRET": "",
+        "SPOTIFY_REDIRECT_URI": "https://llmdj.atyourservice.ai/auth/callback",
       },
       "routes": [
         {
-          "pattern": "foo-agent.atyourservice.ai",
+          "pattern": "llmdj.atyourservice.ai",
           "custom_domain": true,
         },
       ],

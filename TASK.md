@@ -7,6 +7,7 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 ## Current State
 
 ✅ **Foundation Complete:**
+
 - App-agent-template foundation with four-mode architecture
 - Basic agent structure with onboarding/integration/plan/act modes
 - Chat interface and tool confirmation system
@@ -16,6 +17,7 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 ## Target State
 
 **LLMDJ Agent Capabilities:**
+
 - Control Spotify playback (play, pause, skip, volume)
 - Search Spotify catalog (tracks, artists, albums, playlists)
 - Create and manage playlists
@@ -25,6 +27,7 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 - Real-time music player integration
 
 **UI Features:**
+
 - Split layout: Chat interface on left, Spotify player on right
 - Embedded Spotify Web Player with visual feedback
 - Real-time playback status and controls
@@ -34,146 +37,139 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 
 ## Implementation Tasks
 
-### Phase 1: Project Configuration & Setup
+### Phase 1: Project Configuration & Setup ✅ **COMPLETE**
 
-#### 1.1 Update Project Metadata
-- [ ] **Update `package.json`**
-  - [ ] Change name to `"llmdj"`
-  - [ ] Update description to "AI-powered Spotify DJ agent"
-  - [ ] Add Spotify-specific dependencies:
-    - [ ] `@spotify/web-api-sdk` (latest)
-    - [ ] Add any additional audio/music related packages
-  - [ ] Update repository URL to LLMDJ repo
+#### 1.1 Update Project Metadata ✅ **COMPLETE**
 
-- [ ] **Update `wrangler.jsonc`**
-  - [ ] Change name to `"llmdj"`
-  - [ ] Update environment names (llmdj-dev, llmdj-staging, llmdj)
-  - [ ] Add Spotify-specific environment variables:
-    - [ ] `SPOTIFY_CLIENT_ID`
-    - [ ] `SPOTIFY_CLIENT_SECRET`
-    - [ ] `SPOTIFY_REDIRECT_URI`
+- [x] **Update `package.json`** ✅
 
-- [ ] **Update `.dev.vars.example`**
-  - [ ] Add Spotify environment variables template
-  - [ ] Add comments explaining how to get Spotify API credentials
+  - [x] Change name to `"llmdj"`
+  - [x] Update description to "AI-powered Spotify DJ agent"
+  - [x] Add Spotify-specific dependencies:
+    - [x] `@spotify/web-api-ts-sdk` (latest)
+    - [x] Add any additional audio/music related packages
+  - [x] Update repository URL to LLMDJ repo
 
-#### 1.2 Update Documentation
-- [ ] **Update `README.md`**
-  - [ ] Change title to "🎵 LLMDJ - AI Spotify DJ Agent"
-  - [ ] Add Spotify-specific setup instructions
-  - [ ] Document Spotify API setup process
-  - [ ] Add usage examples for music control
-  - [ ] Update deployment domains to llmdj.*
+- [x] **Update `wrangler.jsonc`** ✅
 
-- [ ] **Update `index.html`**
-  - [ ] Change title to "LLMDJ - AI Spotify DJ"
-  - [ ] Add music/audio related meta tags
-  - [ ] Add Spotify Web Playback SDK script tag
+  - [x] Change name to `"llmdj"`
+  - [x] Update environment names (llmdj-dev, llmdj-staging, llmdj)
+  - [x] Add Spotify-specific environment variables:
+    - [x] `SPOTIFY_CLIENT_ID`
+    - [x] `SPOTIFY_CLIENT_SECRET`
+    - [x] `SPOTIFY_REDIRECT_URI`
 
-### Phase 2: Agent Customization
+- [x] **Update `.dev.vars.example`** ✅
+  - [x] Add Spotify environment variables template
+  - [x] Add comments explaining how to get Spotify API credentials
 
-#### 2.1 Agent Core Updates
-- [ ] **Update `src/agent/AppAgent.ts`**
-  - [ ] Update agent description and capabilities for music domain
-  - [ ] Add music/Spotify domain knowledge
-  - [ ] Customize mode descriptions for music context:
-    - [ ] Onboarding: Music preferences, Spotify account setup
-    - [ ] Integration: Spotify API connection testing
-    - [ ] Plan: Music discovery, playlist planning
-    - [ ] Act: Playback control, playlist management
+#### 1.2 Update Documentation ✅ **COMPLETE**
 
-#### 2.2 Agent Prompts
-- [ ] **Update `src/agent/prompts/unified.ts`**
-  - [ ] Add Spotify DJ personality and expertise
-  - [ ] Include music terminology and concepts
-  - [ ] Add context about Spotify API capabilities
-  - [ ] Customize mode-specific prompts for music use cases
+- [x] **Update `README.md`** ✅
 
-#### 2.3 Agent Storage
+  - [x] Change title to "🎵 LLMDJ - AI Spotify DJ Agent"
+  - [x] Add Spotify-specific setup instructions
+  - [x] Document Spotify API setup process
+  - [x] Add usage examples for music control
+  - [x] Update deployment domains to llmdj.\*
+
+- [x] **Update `index.html`** ✅
+  - [x] Change title to "LLMDJ - AI Spotify DJ"
+  - [x] Add music/audio related meta tags
+  - [x] Add Spotify Web Playback SDK script tag
+
+### Phase 2: Agent Customization ✅ **COMPLETE**
+
+#### 2.1 Agent Core Updates ✅ **COMPLETE**
+
+- [x] **Update `src/agent/AppAgent.ts`** ✅
+  - [x] Update agent description and capabilities for music domain
+  - [x] Add music/Spotify domain knowledge
+  - [x] Customize mode descriptions for music context:
+    - [x] Onboarding: Music preferences, Spotify account setup
+    - [x] Integration: Spotify API connection testing
+    - [x] Plan: Music discovery, playlist planning
+    - [x] Act: Playback control, playlist management
+
+#### 2.2 Agent Prompts ✅ **COMPLETE**
+
+- [x] **Update `src/agent/prompts/unified.ts`** ✅
+  - [x] Add Spotify DJ personality and expertise
+  - [x] Include music terminology and concepts
+  - [x] Add context about Spotify API capabilities
+  - [x] Customize mode-specific prompts for music use cases
+
+#### 2.3 Agent Storage ✅ **COMPLETE**
+
 **Why we need music-specific storage:**
+
 - **Personalization**: Remember user's music taste and listening patterns for better recommendations
 - **Session Continuity**: Maintain context across conversations (current playlist, music mood, preferences)
 - **Learning**: Track successful interactions to improve future music suggestions
 - **Integration State**: Store Spotify connection status and user profile data
 - **Playbook Enhancement**: Capture music-specific workflows and preferences during onboarding
 
-- [ ] **Update `src/agent/storage/entities.ts`**
-  - [ ] Add Spotify-specific data structures:
-    - [ ] `SpotifyProfile` (user profile data and connection status)
-    - [ ] `PlaylistData` (custom playlists created through the agent)
-    - [ ] `ListeningHistory` (tracks played, skipped, liked during sessions)
-    - [ ] `MusicPreferences` (favorite genres, artists, discovered through interactions)
-    - [ ] `MusicSession` (current listening context, mood, activity)
+- [x] **Update `src/agent/storage/entities.ts`** ✅
 
-- [ ] **Update `src/agent/storage/history.ts`**
-  - [ ] Add music session tracking (what was played when, context)
-  - [ ] Store playlist creation history and evolution
-  - [ ] Track music recommendations and their success rate
-  - [ ] Maintain conversation context related to music discovery
+  - [x] Add Spotify-specific data structures:
+    - [x] `SpotifyProfile` (user profile data and connection status)
+    - [x] `PlaylistData` (custom playlists created through the agent)
+    - [x] `ListeningHistory` (tracks played, skipped, liked during sessions)
+    - [x] `MusicPreferences` (favorite genres, artists, discovered through interactions)
+    - [x] `MusicSession` (current listening context, mood, activity)
+
+- [x] **Update `src/agent/storage/history.ts`** ✅
+  - [x] Add music session tracking (what was played when, context)
+  - [x] Store playlist creation history and evolution
+  - [x] Track music recommendations and their success rate
+  - [x] Maintain conversation context related to music discovery
 
 ### Phase 3: Spotify Integration & Tools
 
-#### 3.1 Spotify API Setup
-- [ ] **Create `src/lib/spotify-api.ts`**
-  - [ ] Implement Spotify Web API client
-  - [ ] Handle OAuth authentication flow
-  - [ ] Implement token refresh logic
-  - [ ] Add error handling for API rate limits
-  - [ ] Create type-safe API wrappers
+#### 3.1 Spotify API Setup ✅ **COMPLETE**
 
-- [ ] **Create `src/lib/auth.ts`**
-  - [ ] Implement Spotify OAuth flow
-  - [ ] Handle authorization code exchange
-  - [ ] Store and refresh access tokens
-  - [ ] Implement logout functionality
+- [x] **Create `src/agent/tools/spotify.ts`** (comprehensive Spotify integration) ✅
 
-#### 3.2 Agent Tools Implementation
-- [ ] **Create `src/agent/tools/spotify-search.ts`**
-  - [ ] Search tracks by title, artist, album
-  - [ ] Search artists and get artist info
-  - [ ] Search albums and get album tracks
-  - [ ] Search playlists (public/featured)
-  - [ ] Advanced search with filters (genre, year, etc.)
+  - [x] Implement Spotify Web API client with @spotify/web-api-ts-sdk
+  - [x] Handle OAuth authentication flow with proper token management
+  - [x] Implement token refresh logic with proper storage
+  - [x] Add error handling for API rate limits and connection issues
+  - [x] Create type-safe API wrappers with comprehensive error handling
 
-- [ ] **Create `src/agent/tools/playback-control.ts`**
-  - [ ] Play/pause current track
-  - [ ] Skip to next/previous track
-  - [ ] Set volume level
-  - [ ] Seek to specific position in track
-  - [ ] Get current playback state
-  - [ ] Transfer playback to different device
+- [x] **Integrated OAuth flow within agent architecture** ✅
+  - [x] Implement Spotify OAuth flow within agent context
+  - [x] Handle authorization code exchange and storage
+  - [x] Store and refresh access tokens in agent storage
+  - [x] Implement connection status checking
 
-- [ ] **Create `src/agent/tools/playlist-management.ts`**
-  - [ ] Create new playlists
-  - [ ] Add tracks to existing playlists
-  - [ ] Remove tracks from playlists
-  - [ ] Reorder playlist tracks
-  - [ ] Get user's playlists
-  - [ ] Get playlist details and tracks
+#### 3.2 Agent Tools Implementation ✅ **COMPLETE**
 
-- [ ] **Create `src/agent/tools/music-analysis.ts`**
-  - [ ] Get user's top tracks/artists
-  - [ ] Analyze listening history
-  - [ ] Get audio features for tracks
-  - [ ] Generate music recommendations
-  - [ ] Get related artists
-  - [ ] Get track lyrics (if available)
+- [x] **Created comprehensive `src/agent/tools/spotify.ts`** ✅
 
-- [ ] **Create `src/agent/tools/queue-management.ts`**
-  - [ ] Add tracks to queue
-  - [ ] Get current queue
-  - [ ] Clear queue
-  - [ ] Reorder queue items
+  - [x] **connectSpotifyAccount** - OAuth connection with profile storage
+  - [x] **getSpotifyConnectionStatus** - Check connection and token validity
+  - [x] **searchSpotifyContent** - Search tracks, artists, albums, playlists
+  - [x] **getTrackDetails** - Detailed track info with audio features
+  - [x] **getSpotifyRecommendations** - AI-powered personalized recommendations
+  - [x] **getSpotifyDevices** - Available playback devices
+  - [x] **getCurrentPlayback** - Real-time playback state
+  - [x] **controlSpotifyPlayback** - Full playback control (play/pause/skip/shuffle/repeat)
 
-#### 3.3 Tool Registration
-- [ ] **Update `src/agent/index.ts`**
-  - [ ] Import and register all Spotify tools
-  - [ ] Configure tool availability by mode
-  - [ ] Set up tool confirmation requirements
+#### 3.3 Tool Registration ✅ **COMPLETE**
+
+- [x] **Update `src/utils/tool-registry.ts`** ✅
+  - [x] Import and register all Spotify tools with error handling
+  - [x] Configure tool availability by mode (onboarding/integration/plan/act)
+  - [x] Set up proper tool descriptions and parameters
+
+- [x] **Update `src/agent/AppAgent.ts`** ✅
+  - [x] Integrate Spotify tools with mode-based access control
+  - [x] Configure tool confirmation requirements for music actions
 
 ### Phase 4: UI Components & Layout
 
 #### 4.1 Layout Restructuring
+
 - [ ] **Update `src/app.tsx`**
   - [ ] Implement split layout (chat left, player right)
   - [ ] Add responsive design for mobile
@@ -181,7 +177,9 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [ ] Add music-themed styling and colors
 
 #### 4.2 Spotify Player Components
+
 - [ ] **Create `src/components/spotify-player/`**
+
   - [ ] **`SpotifyPlayer.tsx`** - Main player container
   - [ ] **`PlaybackControls.tsx`** - Play/pause/skip buttons
   - [ ] **`TrackDisplay.tsx`** - Current track info display
@@ -190,6 +188,7 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [ ] **`DeviceSelector.tsx`** - Choose playback device
 
 - [ ] **Create `src/components/playlist-display/`**
+
   - [ ] **`PlaylistGrid.tsx`** - Display user's playlists
   - [ ] **`PlaylistCard.tsx`** - Individual playlist component
   - [ ] **`TrackList.tsx`** - Display tracks in a playlist
@@ -202,7 +201,9 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [ ] **`MusicVisualizer.tsx`** - Audio visualization (optional)
 
 #### 4.3 Chat Integration
+
 - [ ] **Update `src/components/chat/ChatContainer.tsx`**
+
   - [ ] Add music context to chat interface
   - [ ] Show currently playing track in chat header
   - [ ] Add quick action buttons for common music commands
@@ -213,6 +214,7 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [ ] **`NowPlayingIndicator.tsx`** - Show what's playing
 
 #### 4.4 Authentication UI
+
 - [ ] **Create `src/components/auth/`**
   - [ ] **`SpotifyLogin.tsx`** - Spotify OAuth login button
   - [ ] **`AuthCallback.tsx`** - Handle OAuth callback
@@ -222,7 +224,9 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 ### Phase 5: Advanced Features
 
 #### 5.1 Web Playback SDK Integration
+
 - [ ] **Create `src/lib/spotify-player.ts`**
+
   - [ ] Initialize Spotify Web Playback SDK
   - [ ] Handle player ready/not ready events
   - [ ] Manage player state changes
@@ -234,13 +238,16 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [ ] Add player initialization script
 
 #### 5.2 Real-time State Management
+
 - [ ] **Create `src/hooks/useSpotifyPlayer.ts`**
+
   - [ ] Manage player state in React
   - [ ] Handle real-time playback updates
   - [ ] Provide player control functions
   - [ ] Handle connection status
 
 - [ ] **Create `src/hooks/useSpotifyAuth.ts`**
+
   - [ ] Manage authentication state
   - [ ] Handle token refresh
   - [ ] Provide auth status and functions
@@ -251,6 +258,7 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [ ] Implement request caching
 
 #### 5.3 Music Intelligence
+
 - [ ] **Create `src/lib/music-intelligence.ts`**
   - [ ] Analyze user's music taste
   - [ ] Generate smart recommendations
@@ -261,7 +269,9 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 ### Phase 6: Testing & Polish
 
 #### 6.1 Testing Setup
+
 - [ ] **Create `tests/spotify-integration.test.ts`**
+
   - [ ] Test Spotify API integration
   - [ ] Mock API responses for testing
   - [ ] Test authentication flow
@@ -273,7 +283,9 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [ ] Test playlist operations
 
 #### 6.2 Error Handling & UX
+
 - [ ] **Implement comprehensive error handling**
+
   - [ ] Spotify API rate limiting
   - [ ] Network connectivity issues
   - [ ] Authentication failures
@@ -287,7 +299,9 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [ ] Graceful degradation
 
 #### 6.3 Performance Optimization
+
 - [ ] **Optimize API calls**
+
   - [ ] Implement request caching
   - [ ] Batch API requests where possible
   - [ ] Implement pagination for large results
@@ -301,13 +315,16 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 ### Phase 7: Deployment & Documentation
 
 #### 7.1 Environment Setup
+
 - [ ] **Configure Cloudflare secrets**
   - [ ] Add Spotify API credentials to each environment
   - [ ] Configure redirect URIs for each domain
   - [ ] Test authentication in each environment
 
 #### 7.2 Final Documentation
+
 - [ ] **Update README.md with complete setup guide**
+
   - [ ] Spotify Developer App setup
   - [ ] API key configuration
   - [ ] Local development setup
@@ -322,6 +339,7 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 ## Success Criteria
 
 ### Core Functionality
+
 - [ ] User can authenticate with Spotify
 - [ ] Agent can control playback (play, pause, skip)
 - [ ] Agent can search and play specific songs/artists
@@ -329,18 +347,21 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 - [ ] Real-time player shows current track and controls
 
 ### Advanced Features
+
 - [ ] Agent provides intelligent music recommendations
 - [ ] Queue management works seamlessly
 - [ ] Multiple device support
 - [ ] Responsive design works on mobile
 
 ### Integration Quality
+
 - [ ] Four-mode architecture adapted for music domain
 - [ ] Error handling provides clear feedback
 - [ ] Performance is smooth for typical usage
 - [ ] Authentication flow is user-friendly
 
 ### Documentation & Deployment
+
 - [ ] Complete setup documentation
 - [ ] All environments deployed and working
 - [ ] User guide helps new users get started
@@ -349,17 +370,20 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 ## Technical Dependencies
 
 ### Required Spotify Setup
+
 1. **Spotify Developer Account** - Create app at developer.spotify.com
 2. **API Credentials** - Client ID and Client Secret
 3. **Redirect URIs** - Configure for each deployment environment
 4. **Premium Account** - Required for Web Playback SDK (playback control)
 
 ### External Libraries
+
 - `@spotify/web-api-sdk` - Official Spotify Web API SDK
 - Spotify Web Playback SDK (loaded via script tag)
 - Additional audio visualization libraries (optional)
 
 ### Cloudflare Configuration
+
 - Environment variables for Spotify credentials
 - CORS configuration for Spotify domains
 - OAuth redirect handling
@@ -367,18 +391,21 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 ## Implementation Notes
 
 ### Authentication Flow
+
 1. User clicks "Connect Spotify" → Redirect to Spotify OAuth
 2. User authorizes → Callback with authorization code
 3. Exchange code for access token → Store in agent state
 4. Initialize Web Playback SDK → Ready for music control
 
 ### Agent Mode Adaptations
+
 - **Onboarding**: Gather music preferences, setup Spotify connection
 - **Integration**: Test Spotify API connection, validate permissions
 - **Plan**: Music discovery, playlist planning, recommendation strategy
 - **Act**: Direct playback control, playlist management, music actions
 
 ### Key Technical Challenges
+
 1. **Token Management**: Refresh tokens, handle expiration
 2. **Real-time Sync**: Keep UI in sync with Spotify state
 3. **Device Management**: Handle multiple Spotify devices

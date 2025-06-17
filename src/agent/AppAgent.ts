@@ -236,17 +236,20 @@ export class AppAgent extends AIChatAgent<Env> {
     // Mode-specific tools
     switch (mode) {
       case "onboarding":
-        // Onboarding mode - enable configuration tools
+        // Onboarding mode - enable configuration tools and Spotify connection
         return {
           ...baseTools,
           saveSettings: tools.saveSettings,
           completeOnboarding: tools.completeOnboarding,
           checkExistingConfig: tools.checkExistingConfig,
           getOnboardingStatus: tools.getOnboardingStatus,
+          // Spotify connection tools for setup
+          connectSpotifyAccount: tools.connectSpotifyAccount,
+          getSpotifyConnectionStatus: tools.getSpotifyConnectionStatus,
         } as ToolSet;
 
       case "integration":
-        // Integration mode - enable testing and documentation tools
+        // Integration mode - enable testing and documentation tools including all Spotify tools for testing
         return {
           ...baseTools,
           recordTestResult: tools.recordTestResult,
@@ -254,19 +257,42 @@ export class AppAgent extends AIChatAgent<Env> {
           generateTestReport: tools.generateTestReport,
           completeIntegrationTesting: tools.completeIntegrationTesting,
           testErrorTool: tools.testErrorTool,
+          // All Spotify tools for comprehensive testing
+          connectSpotifyAccount: tools.connectSpotifyAccount,
+          getSpotifyConnectionStatus: tools.getSpotifyConnectionStatus,
+          searchSpotifyContent: tools.searchSpotifyContent,
+          getTrackDetails: tools.getTrackDetails,
+          getSpotifyRecommendations: tools.getSpotifyRecommendations,
+          getSpotifyDevices: tools.getSpotifyDevices,
+          getCurrentPlayback: tools.getCurrentPlayback,
+          controlSpotifyPlayback: tools.controlSpotifyPlayback,
         } as ToolSet;
 
       case "act":
-        // Action mode - enable all tools for execution
+        // Action mode - enable all tools for execution including full Spotify control
         return {
           ...baseTools,
           testErrorTool: tools.testErrorTool,
+          // Full Spotify control for live music operations
+          getSpotifyConnectionStatus: tools.getSpotifyConnectionStatus,
+          searchSpotifyContent: tools.searchSpotifyContent,
+          getTrackDetails: tools.getTrackDetails,
+          getSpotifyRecommendations: tools.getSpotifyRecommendations,
+          getSpotifyDevices: tools.getSpotifyDevices,
+          getCurrentPlayback: tools.getCurrentPlayback,
+          controlSpotifyPlayback: tools.controlSpotifyPlayback,
         } as ToolSet;
 
       default:
-        // Planning mode - basic tools for planning and analysis
+        // Planning mode - music discovery and planning tools
         return {
           ...baseTools,
+          // Spotify discovery tools for music planning
+          getSpotifyConnectionStatus: tools.getSpotifyConnectionStatus,
+          searchSpotifyContent: tools.searchSpotifyContent,
+          getTrackDetails: tools.getTrackDetails,
+          getSpotifyRecommendations: tools.getSpotifyRecommendations,
+          getCurrentPlayback: tools.getCurrentPlayback, // Read-only access to see what's playing
         } as ToolSet;
     }
   }

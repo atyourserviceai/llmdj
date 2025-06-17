@@ -17,6 +17,7 @@ import * as rawSchedulingTools from "./scheduling";
 import * as rawSearchTools from "./search";
 import * as rawSimpleFetchTools from "./simpleFetch";
 import * as rawStateTools from "./state";
+import { spotifyTools as rawSpotifyTools } from "./spotify";
 import { getGmailTools as getRawGmailTools } from "./composio";
 import { z } from "zod";
 import { tool } from "ai";
@@ -81,6 +82,9 @@ export const simpleFetchTools = wrapAllToolsWithErrorHandling(
 export const stateTools = wrapAllToolsWithErrorHandling(
   rawStateTools as unknown as ToolCollection
 );
+export const spotifyTools = wrapAllToolsWithErrorHandling(
+  rawSpotifyTools as unknown as ToolCollection
+);
 export const testErrorTool = wrapToolWithErrorHandling(
   rawTestErrorTool as unknown as Tool
 );
@@ -111,6 +115,7 @@ const toolCounts = {
   search: countTools(searchTools),
   simpleFetch: countTools(simpleFetchTools),
   state: countTools(stateTools),
+  spotify: countTools(spotifyTools),
   special: 2, // testErrorTool and suggestActions
 };
 
@@ -169,6 +174,16 @@ export const tools = {
   // Search tools
   ...searchTools,
   runResearch,
+
+  // Spotify tools (music functionality)
+  connectSpotifyAccount: spotifyTools.connectSpotifyAccount,
+  getSpotifyConnectionStatus: spotifyTools.getSpotifyConnectionStatus,
+  searchSpotifyContent: spotifyTools.searchSpotifyContent,
+  getTrackDetails: spotifyTools.getTrackDetails,
+  getSpotifyRecommendations: spotifyTools.getSpotifyRecommendations,
+  getSpotifyDevices: spotifyTools.getSpotifyDevices,
+  getCurrentPlayback: spotifyTools.getCurrentPlayback,
+  controlSpotifyPlayback: spotifyTools.controlSpotifyPlayback,
 
   // Test error tool
   testErrorTool,
