@@ -14,26 +14,34 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 - React + Cloudflare Workers setup
 - Git remotes configured (template, upstream, superfans)
 
+✅ **Spotify Integration Complete:**
+
+- OAuth authentication flow working end-to-end
+- Agent state-based token storage (immediate availability)
+- Basic Spotify tools: connection, search, playback control, analysis
+- Music taste analysis and recommendation tools
+- Comprehensive error handling and token management
+
 ## Target State
 
 **LLMDJ Agent Capabilities:**
 
-- Control Spotify playback (play, pause, skip, volume)
-- Search Spotify catalog (tracks, artists, albums, playlists)
-- Create and manage playlists
-- Analyze listening history and preferences
-- Recommend music based on conversation context
-- Queue songs based on natural language requests
-- Real-time music player integration
+- ✅ Control Spotify playback (play, pause, skip, volume)
+- ✅ Search Spotify catalog (tracks, artists, albums, playlists)
+- ✅ Analyze listening history and preferences
+- ✅ Recommend music based on conversation context
+- [ ] Create and manage playlists
+- [ ] Queue songs based on natural language requests
+- [ ] Real-time music player integration
 
 **UI Features:**
 
-- Split layout: Chat interface on left, Spotify player on right
-- Embedded Spotify Web Player with visual feedback
-- Real-time playback status and controls
-- Playlist creation and management interface
-- Music recommendation display
-- Queue visualization
+- [ ] Split layout: Chat interface on left, Spotify player on right
+- [ ] Embedded Spotify Web Player with visual feedback
+- [ ] Real-time playback status and controls
+- [ ] Playlist creation and management interface
+- [ ] Music recommendation display
+- [ ] Queue visualization
 
 ## Implementation Tasks
 
@@ -124,36 +132,27 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [x] Track music recommendations and their success rate
   - [x] Maintain conversation context related to music discovery
 
-### Phase 3: Spotify Integration & Tools
+### Phase 3: Spotify Integration & Tools ✅ **COMPLETE**
 
 #### 3.1 Spotify API Setup ✅ **COMPLETE**
 
-- [x] **Create `src/agent/tools/spotify.ts`** (comprehensive Spotify integration) ✅
-
-  - [x] Implement Spotify Web API client with @spotify/web-api-ts-sdk
-  - [x] Handle OAuth authentication flow with proper token management
-  - [x] Implement token refresh logic with proper storage
-  - [x] Add error handling for API rate limits and connection issues
-  - [x] Create type-safe API wrappers with comprehensive error handling
-
-- [x] **Integrated OAuth flow within agent architecture** ✅
-  - [x] Implement Spotify OAuth flow within agent context
-  - [x] Handle authorization code exchange and storage
-  - [x] Store and refresh access tokens in agent storage
-  - [x] Implement connection status checking
+- [x] **Create `src/agent/tools/spotify.ts`** ✅
 
 #### 3.2 Agent Tools Implementation ✅ **COMPLETE**
 
 - [x] **Created comprehensive `src/agent/tools/spotify.ts`** ✅
-
-  - [x] **connectSpotifyAccount** - OAuth connection with profile storage
-  - [x] **getSpotifyConnectionStatus** - Check connection and token validity
+  - [x] **connectSpotifyAccount** - OAuth connection with agent state storage
+  - [x] **getSpotifyConnectionStatus** - Check connection from agent state
   - [x] **searchSpotifyContent** - Search tracks, artists, albums, playlists
   - [x] **getTrackDetails** - Detailed track info with audio features
   - [x] **getSpotifyRecommendations** - AI-powered personalized recommendations
+  - [x] **getUserTopTracks** - User's most played tracks with analysis
+  - [x] **getUserTopArtists** - User's favorite artists with genre analysis
+  - [x] **getUserPlaylists** - User's playlists with behavior analysis
+  - [x] **analyzeMusicTaste** - Comprehensive music preference analysis
   - [x] **getSpotifyDevices** - Available playback devices
   - [x] **getCurrentPlayback** - Real-time playback state
-  - [x] **controlSpotifyPlayback** - Full playback control (play/pause/skip/shuffle/repeat)
+  - [x] **controlSpotifyPlayback** - Full playback control
 
 #### 3.3 Tool Registration ✅ **COMPLETE**
 
@@ -167,7 +166,38 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [x] Integrate Spotify tools with mode-based access control
   - [x] Configure tool confirmation requirements for music actions
 
-### Phase 4: UI Components & Layout
+### 🚨 **URGENT: Security Review** 🚨
+
+**HIGH PRIORITY SECURITY TASKS:**
+
+- [ ] **Audit token exposure in LLM requests**
+
+  - [ ] Review all tools that access `agent.state.spotifyAuth`
+  - [ ] Ensure sensitive tokens are never passed to LLM context
+  - [ ] Implement token masking/redaction in logs and tool results
+  - [ ] Add security middleware to filter sensitive data from tool outputs
+
+- [ ] **Implement secure token storage**
+
+  - [ ] Encrypt tokens before storing in agent state
+  - [ ] Implement secure token retrieval/decryption
+  - [ ] Add token rotation and cleanup mechanisms
+  - [ ] Consider moving tokens to separate encrypted storage
+
+- [ ] **Review tool result sanitization**
+
+  - [ ] Audit all Spotify tool return values for sensitive data
+  - [ ] Implement data sanitization layer
+  - [ ] Remove or mask user IDs, emails, and other PII
+  - [ ] Add security logging for token access
+
+- [ ] **Authentication security**
+  - [ ] Implement CSRF protection for OAuth flow
+  - [ ] Add state parameter validation
+  - [ ] Secure redirect URI handling
+  - [ ] Rate limiting for authentication attempts
+
+### Phase 4: UI Components & Layout 🎯 **NEXT PHASE**
 
 #### 4.1 Layout Restructuring
 
@@ -216,11 +246,12 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 
 #### 4.4 Authentication UI
 
-- [ ] **Create `src/components/auth/`**
-  - [ ] **`SpotifyLogin.tsx`** - Spotify OAuth login button
-  - [ ] **`AuthCallback.tsx`** - Handle OAuth callback
+- [x] **Create `src/components/auth/SpotifyAuth.tsx`** ✅ (Basic OAuth UI completed)
+- [ ] **Enhance authentication UI**
+  - [ ] **`AuthCallback.tsx`** - Better OAuth callback handling
   - [ ] **`UserProfile.tsx`** - Display Spotify user info
   - [ ] **`AuthRequired.tsx`** - Require auth wrapper
+  - [ ] **`ConnectionStatus.tsx`** - Show connection health
 
 ### Phase 5: Advanced Features
 
@@ -260,44 +291,30 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 
 #### 5.3 Music Intelligence
 
-- [ ] **Create `src/lib/music-intelligence.ts`**
-  - [ ] Analyze user's music taste
-  - [ ] Generate smart recommendations
-  - [ ] Create auto-playlists based on mood/activity
+- [x] **Music taste analysis implemented** ✅
+- [ ] **Enhanced music intelligence**
+  - [ ] Context-aware recommendations (time, weather, activity)
+  - [ ] Auto-playlists based on mood/activity
   - [ ] Music similarity algorithms
-  - [ ] Context-aware suggestions
+  - [ ] Learning from user feedback
 
 ### Phase 6: Testing & Polish
 
 #### 6.1 Testing Setup
 
 - [ ] **Create `tests/spotify-integration.test.ts`**
-
-  - [ ] Test Spotify API integration
-  - [ ] Mock API responses for testing
-  - [ ] Test authentication flow
-  - [ ] Test tool functionality
-
 - [ ] **Create `tests/player-functionality.test.ts`**
-  - [ ] Test player controls
-  - [ ] Test queue management
-  - [ ] Test playlist operations
+- [ ] **Create `tests/security.test.ts`** - Test token security
 
 #### 6.2 Error Handling & UX
 
-- [ ] **Implement comprehensive error handling**
-
+- [x] **Basic error handling implemented** ✅
+- [ ] **Enhanced error handling**
   - [ ] Spotify API rate limiting
   - [ ] Network connectivity issues
   - [ ] Authentication failures
   - [ ] Player device unavailable
   - [ ] Premium account requirements
-
-- [ ] **Add loading states and feedback**
-  - [ ] Loading indicators for API calls
-  - [ ] Success/error notifications
-  - [ ] Offline state handling
-  - [ ] Graceful degradation
 
 #### 6.3 Performance Optimization
 
@@ -318,9 +335,7 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 7.1 Environment Setup
 
 - [ ] **Configure Cloudflare secrets**
-  - [ ] Add Spotify API credentials to each environment
-  - [ ] Configure redirect URIs for each domain
-  - [ ] Test authentication in each environment
+- [ ] **Security audit for production**
 
 #### 7.2 Final Documentation
 
@@ -332,41 +347,47 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [ ] Deployment instructions
 
 - [ ] **Create user guide**
+
   - [ ] How to connect Spotify account
   - [ ] Available voice commands
   - [ ] Playlist management features
   - [ ] Troubleshooting guide
 
-## Success Criteria
+- [ ] **Security documentation**
 
-### Core Functionality
+## Current Status Summary
 
-- [ ] User can authenticate with Spotify
-- [ ] Agent can control playback (play, pause, skip)
-- [ ] Agent can search and play specific songs/artists
-- [ ] Agent can create and manage playlists
-- [ ] Real-time player shows current track and controls
+### ✅ **What's Working Now:**
 
-### Advanced Features
+1. **Complete OAuth flow** - Users can authenticate with Spotify
+2. **Agent state storage** - Tokens stored in agent state for immediate access
+3. **Music analysis** - Comprehensive taste analysis from user's Spotify data
+4. **Basic playback control** - Can control Spotify playback via tools
+5. **Search functionality** - Can search Spotify catalog
+6. **Recommendation system** - AI-powered music recommendations
 
-- [ ] Agent provides intelligent music recommendations
-- [ ] Queue management works seamlessly
-- [ ] Multiple device support
-- [ ] Responsive design works on mobile
+### 🎯 **Immediate Next Steps:**
 
-### Integration Quality
+1. **🚨 SECURITY REVIEW** - Address token exposure in LLM requests (CRITICAL)
+2. **UI Enhancement** - Split layout with embedded player
+3. **Web Playback SDK** - Real-time player integration
+4. **Playlist management** - Create and edit playlists
 
-- [ ] Four-mode architecture adapted for music domain
-- [ ] Error handling provides clear feedback
-- [ ] Performance is smooth for typical usage
-- [ ] Authentication flow is user-friendly
+### 📋 **Key Achievements:**
 
-### Documentation & Deployment
+- Solved complex database transaction issues by moving to agent state
+- Built comprehensive Spotify tool suite with error handling
+- Implemented working OAuth flow with proper token management
+- Created music intelligence for taste analysis and recommendations
 
-- [ ] Complete setup documentation
-- [ ] All environments deployed and working
-- [ ] User guide helps new users get started
-- [ ] Code is well-documented and maintainable
+### ⚠️ **Critical Security Concerns:**
+
+- Spotify access tokens currently stored in agent state
+- Potential exposure of sensitive tokens in LLM context
+- Need comprehensive security audit and token sanitization
+- Implement encrypted token storage and secure access patterns
+
+The foundation is solid and functional! Next phase focuses on UI improvements and critical security hardening.
 
 ## Technical Dependencies
 

@@ -252,17 +252,18 @@ export async function storeSpotifyProfile(
     await agent.sql`
       INSERT INTO spotify_profiles (
         id, spotify_user_id, display_name, email, country, product,
-        images, followers, is_connected, token_expires_at, last_sync_at,
+        images, followers, is_connected, access_token, refresh_token, token_expires_at, last_sync_at,
         created_at, updated_at
       ) VALUES (
         ${profile.id}, ${profile.spotifyUserId}, ${profile.displayName},
         ${profile.email || null}, ${profile.country || null}, ${profile.product},
         ${JSON.stringify(profile.images || null)}, ${profile.followers || null},
-        ${profile.isConnected}, ${profile.tokenExpiresAt?.toISOString() || null},
+        ${profile.isConnected}, ${profile.accessToken || null}, ${profile.refreshToken || null}, ${profile.tokenExpiresAt?.toISOString() || null},
         ${profile.lastSyncAt.toISOString()}, ${profile.createdAt.toISOString()},
         ${profile.updatedAt.toISOString()}
       )
-      ON CONFLICT (id) DO UPDATE SET
+      ON CONFLICT (spotify_user_id) DO UPDATE SET
+        id = EXCLUDED.id,
         display_name = EXCLUDED.display_name,
         email = EXCLUDED.email,
         country = EXCLUDED.country,
@@ -270,13 +271,45 @@ export async function storeSpotifyProfile(
         images = EXCLUDED.images,
         followers = EXCLUDED.followers,
         is_connected = EXCLUDED.is_connected,
+        access_token = EXCLUDED.access_token,
+        refresh_token = EXCLUDED.refresh_token,
         token_expires_at = EXCLUDED.token_expires_at,
         last_sync_at = EXCLUDED.last_sync_at,
         updated_at = EXCLUDED.updated_at
     `;
+    console.log(
+      `Successfully stored/updated Spotify profile for user ${profile.spotifyUserId}`
+    );
   } catch (error) {
     console.error("Error storing Spotify profile:", error);
     throw error;
+  }
+
+  // Debug: Always verify what was stored, regardless of errors above
+  try {
+    console.log("[storeSpotifyProfile] Verifying stored profile...");
+    const verifyResult = await agent.sql`
+      SELECT id, spotify_user_id, display_name, is_connected, access_token, refresh_token
+      FROM spotify_profiles
+      WHERE spotify_user_id = ${profile.spotifyUserId}
+    `;
+    console.log("[storeSpotifyProfile] Verification result:", {
+      found: verifyResult.length > 0,
+      count: verifyResult.length,
+      data:
+        verifyResult.length > 0
+          ? {
+              id: verifyResult[0].id,
+              spotify_user_id: verifyResult[0].spotify_user_id,
+              display_name: verifyResult[0].display_name,
+              is_connected: verifyResult[0].is_connected,
+              has_access_token: !!verifyResult[0].access_token,
+              has_refresh_token: !!verifyResult[0].refresh_token,
+            }
+          : null,
+    });
+  } catch (verifyError) {
+    console.error("[storeSpotifyProfile] Verification failed:", verifyError);
   }
 }
 
@@ -314,6 +347,83 @@ export async function getSpotifyProfile(
     };
   } catch (error) {
     console.error("Error getting Spotify profile:", error);
+    return null;
+  }
+}
+
+/**
+ * Get the connected Spotify profile for the app user (since this is a single-user agent)
+ * This is a helper function that finds the first connected Spotify profile
+ */
+export async function getConnectedSpotifyProfile(
+  agent: AppAgent
+): Promise<SpotifyProfile | null> {
+  try {
+    console.log("[getConnectedSpotifyProfile] Starting database query...");
+
+    const result = await agent.sql`
+      SELECT * FROM spotify_profiles
+      WHERE is_connected = 1
+      ORDER BY last_sync_at DESC
+      LIMIT 1
+    `;
+
+    console.log("[getConnectedSpotifyProfile] Query result:", {
+      resultCount: result.length,
+      hasResults: result.length > 0,
+    });
+
+    if (result.length === 0) {
+      console.log("[getConnectedSpotifyProfile] No connected profiles found");
+      return null;
+    }
+
+    const row = result[0] as any;
+    console.log("[getConnectedSpotifyProfile] Raw row data:", {
+      id: row.id,
+      spotify_user_id: row.spotify_user_id,
+      display_name: row.display_name,
+      is_connected: row.is_connected,
+      has_access_token: !!row.access_token,
+      has_refresh_token: !!row.refresh_token,
+    });
+
+    const profile = {
+      id: String(row.id),
+      spotifyUserId: String(row.spotify_user_id),
+      displayName: String(row.display_name),
+      email: row.email ? String(row.email) : undefined,
+      country: row.country ? String(row.country) : undefined,
+      product: String(row.product) as "premium" | "free",
+      images:
+        row.images && row.images !== "null"
+          ? JSON.parse(String(row.images))
+          : undefined,
+      followers: row.followers ? Number(row.followers) : undefined,
+      isConnected: Boolean(row.is_connected),
+      accessToken: row.access_token ? String(row.access_token) : undefined,
+      refreshToken: row.refresh_token ? String(row.refresh_token) : undefined,
+      tokenExpiresAt: row.token_expires_at
+        ? new Date(String(row.token_expires_at))
+        : undefined,
+      lastSyncAt: new Date(String(row.last_sync_at)),
+      createdAt: new Date(String(row.created_at)),
+      updatedAt: new Date(String(row.updated_at)),
+    };
+
+    console.log("[getConnectedSpotifyProfile] Mapped profile data:", {
+      id: profile.id,
+      spotifyUserId: profile.spotifyUserId,
+      displayName: profile.displayName,
+      isConnected: profile.isConnected,
+      hasAccessToken: !!profile.accessToken,
+      hasRefreshToken: !!profile.refreshToken,
+      tokenExpiresAt: profile.tokenExpiresAt?.toISOString(),
+    });
+
+    return profile;
+  } catch (error) {
+    console.error("Error getting connected Spotify profile:", error);
     return null;
   }
 }

@@ -34,48 +34,52 @@ export const debugSpotifyState = {
 
       // Check spotify_profiles table
       const profileResult = await agent.sql`
-        SELECT id, spotifyUserId, displayName, email, country, product, isConnected, lastSyncAt, createdAt
+        SELECT id, spotify_user_id, display_name, email, country, product, is_connected, last_sync_at, created_at
         FROM spotify_profiles
-        ORDER BY createdAt DESC
+        ORDER BY created_at DESC
       `;
 
       console.log("[debugSpotifyState] Debug results:", {
         tokenCount: tokenResult?.length || 0,
         profileCount: profileResult?.length || 0,
-        tokens: tokenResult?.map(t => ({
-          user_id: t.user_id,
-          hasAccessToken: !!t.access_token,
-          hasRefreshToken: !!t.refresh_token,
-          expires_at: t.expires_at,
-          created_at: t.created_at
-        })) || [],
-        profiles: profileResult?.map(p => ({
-          id: p.id,
-          spotifyUserId: p.spotifyUserId,
-          displayName: p.displayName,
-          isConnected: p.isConnected,
-          lastSyncAt: p.lastSyncAt
-        })) || []
+        tokens:
+          tokenResult?.map((t) => ({
+            user_id: t.user_id,
+            hasAccessToken: !!t.access_token,
+            hasRefreshToken: !!t.refresh_token,
+            expires_at: t.expires_at,
+            created_at: t.created_at,
+          })) || [],
+        profiles:
+          profileResult?.map((p) => ({
+            id: p.id,
+            spotifyUserId: p.spotify_user_id,
+            displayName: p.display_name,
+            isConnected: p.is_connected,
+            lastSyncAt: p.last_sync_at,
+          })) || [],
       });
 
       return {
         success: true,
         tokenCount: tokenResult?.length || 0,
         profileCount: profileResult?.length || 0,
-        tokens: tokenResult?.map(t => ({
-          user_id: t.user_id,
-          hasAccessToken: !!t.access_token,
-          hasRefreshToken: !!t.refresh_token,
-          expires_at: t.expires_at,
-          created_at: t.created_at
-        })) || [],
-        profiles: profileResult?.map(p => ({
-          id: p.id,
-          spotifyUserId: p.spotifyUserId,
-          displayName: p.displayName,
-          isConnected: p.isConnected,
-          lastSyncAt: p.lastSyncAt
-        })) || []
+        tokens:
+          tokenResult?.map((t) => ({
+            user_id: t.user_id,
+            hasAccessToken: !!t.access_token,
+            hasRefreshToken: !!t.refresh_token,
+            expires_at: t.expires_at,
+            created_at: t.created_at,
+          })) || [],
+        profiles:
+          profileResult?.map((p) => ({
+            id: p.id,
+            spotifyUserId: p.spotify_user_id,
+            displayName: p.display_name,
+            isConnected: p.is_connected,
+            lastSyncAt: p.last_sync_at,
+          })) || [],
       };
     } catch (error) {
       console.error("[debugSpotifyState] Error during debug:", error);

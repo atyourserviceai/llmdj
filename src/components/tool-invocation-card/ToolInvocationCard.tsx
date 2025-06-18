@@ -71,13 +71,16 @@ export function ToolInvocationCard({
     return null;
   }
 
-  // Check if the tool invocation has an error
+  // Check if the tool invocation has an error (either execution error or logical failure)
   const hasError =
     toolInvocation.state === "result" &&
     toolInvocation.result &&
     typeof toolInvocation.result === "object" &&
-    toolInvocation.result.success === false &&
-    toolInvocation.result.error;
+    // Traditional error with error field
+    ((toolInvocation.result.success === false && toolInvocation.result.error) ||
+      // Logical failure: success=false with a message (our Spotify tools pattern)
+      (toolInvocation.result.success === false &&
+        "message" in toolInvocation.result));
 
   // Format a human-readable summary of the tool action
   const getActionSummary = () => {
@@ -106,11 +109,16 @@ export function ToolInvocationCard({
     const result = toolInvocation.result;
 
     // Handle error results
-    if (hasError && result.error) {
-      // Return a cleaner error message without the stack trace
-      const errorMessage = result.error.message;
-      // Extract just the first line of the error message if it contains newlines
-      return `Error: ${errorMessage.split("\n")[0]}`;
+    if (hasError) {
+      if (result.error) {
+        // Traditional error with error object
+        const errorMessage = result.error.message;
+        // Extract just the first line of the error message if it contains newlines
+        return `Error: ${errorMessage.split("\n")[0]}`;
+      } else if ("message" in result && typeof result.message === "string") {
+        // Logical failure with message field (our Spotify tools pattern)
+        return result.message;
+      }
     }
 
     // If it has content array, extract meaningful text
@@ -313,22 +321,38 @@ export function ToolInvocationCard({
               )}
 
               {/* Error details when error is present */}
-              {hasError && toolInvocation.result?.error && (
+              {hasError && toolInvocation.result && (
                 <div className="bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 p-3 rounded-md text-sm text-red-700 dark:text-red-300 mb-3">
-                  <p className="font-semibold mb-1">
-                    Error:{" "}
-                    {formatErrorDetails(toolInvocation.result.error.message)}
-                  </p>
-                  {toolInvocation.result.error.details && (
-                    <p className="text-xs mt-1 text-red-600 dark:text-red-400 font-mono whitespace-pre-wrap">
-                      {formatErrorDetails(toolInvocation.result.error.details)}
-                    </p>
+                  {toolInvocation.result.error ? (
+                    <>
+                      <p className="font-semibold mb-1">
+                        Error:{" "}
+                        {formatErrorDetails(
+                          toolInvocation.result.error.message
+                        )}
+                      </p>
+                      {toolInvocation.result.error.details && (
+                        <p className="text-xs mt-1 text-red-600 dark:text-red-400 font-mono whitespace-pre-wrap">
+                          {formatErrorDetails(
+                            toolInvocation.result.error.details
+                          )}
+                        </p>
+                      )}
+                      <p className="text-xs mt-1 text-red-600/70 dark:text-red-400/70">
+                        {new Date(
+                          toolInvocation.result.error.timestamp
+                        ).toLocaleString()}
+                      </p>
+                    </>
+                  ) : "message" in toolInvocation.result &&
+                    typeof toolInvocation.result.message === "string" ? (
+                    <>
+                      <p className="font-semibold mb-1">Operation Failed</p>
+                      <p className="text-sm">{toolInvocation.result.message}</p>
+                    </>
+                  ) : (
+                    <p className="font-semibold">Unknown error occurred</p>
                   )}
-                  <p className="text-xs mt-1 text-red-600/70 dark:text-red-400/70">
-                    {new Date(
-                      toolInvocation.result.error.timestamp
-                    ).toLocaleString()}
-                  </p>
                 </div>
               )}
 

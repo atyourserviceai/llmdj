@@ -12,6 +12,7 @@ import type { AppAgent } from "../AppAgent";
 import {
   storeSpotifyProfile,
   getSpotifyProfile,
+  getConnectedSpotifyProfile,
   storeMusicPreferences,
   getMusicPreferences,
   addListeningRecord,
@@ -93,7 +94,8 @@ export const showSpotifyAuth = tool({
 });
 
 /**
- * Connect user's Spotify account using stored OAuth tokens
+ * Connect user's Spotify account using tokens from completed OAuth authentication
+ * Stores authentication in agent state for immediate availability
  */
 export const connectSpotifyAccount = tool({
   description:
@@ -222,41 +224,34 @@ export const connectSpotifyAccount = tool({
         }
       );
 
-      // Store Spotify profile in database
-      const spotifyProfile = {
-        id: crypto.randomUUID(),
-        spotifyUserId: userProfile.id,
-        displayName: userProfile.display_name || userProfile.id,
-        email: userProfile.email,
-        country: userProfile.country,
-        product: (userProfile.product === "premium" ? "premium" : "free") as
-          | "premium"
-          | "free",
-        images: userProfile.images,
-        followers: userProfile.followers?.total,
-        isConnected: true,
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token,
-        tokenExpiresAt: expiresAt,
-        lastSyncAt: new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
+      // Store Spotify auth in agent state instead of database
+      console.log(
+        "[connectSpotifyAccount] Storing auth data in agent state..."
+      );
+      const currentState = agent.state;
+      const newState = {
+        ...currentState,
+        spotifyAuth: {
+          isConnected: true,
+          profile: {
+            id: userProfile.id,
+            displayName: userProfile.display_name || userProfile.id,
+            email: userProfile.email,
+            country: userProfile.country,
+            product: (userProfile.product === "premium"
+              ? "premium"
+              : "free") as "premium" | "free",
+            followers: userProfile.followers?.total,
+          },
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          tokenExpiresAt: expiresAt.toISOString(),
+          connectedAt: new Date().toISOString(),
+        },
       };
 
-      console.log(
-        "[connectSpotifyAccount] Storing Spotify profile in database..."
-      );
-      await storeSpotifyProfile(agent, spotifyProfile);
-
-      // Track connection event
-      console.log("[connectSpotifyAccount] Adding music session entry...");
-      await addMusicSessionEntry(agent, {
-        userId: userProfile.id,
-        sessionId: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-        activityType: "session_start",
-        context: "spotify_connection",
-      });
+      // Update agent state
+      await agent.setState(newState);
 
       // Clean up the tokens from the temporary storage table
       console.log("[connectSpotifyAccount] Cleaning up temporary tokens...");
@@ -301,12 +296,21 @@ export const getSpotifyConnectionStatus = tool({
   }),
   execute: async ({ userId }) => {
     try {
-      const profile = await getSpotifyProfile(
-        this as unknown as AppAgent,
-        userId
-      );
+      const { agent } = getCurrentAgent<AppAgent>();
 
-      if (!profile) {
+      if (!agent) {
+        console.error(
+          "[getSpotifyConnectionStatus] Could not get agent reference"
+        );
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
+      }
+
+      const spotifyAuth = agent.state.spotifyAuth;
+
+      if (!spotifyAuth || !spotifyAuth.isConnected) {
         return {
           connected: false,
           message:
@@ -314,18 +318,17 @@ export const getSpotifyConnectionStatus = tool({
         };
       }
 
-      const isTokenValid = profile.tokenExpiresAt
-        ? profile.tokenExpiresAt.getTime() > Date.now()
-        : false;
+      const tokenExpiresAt = new Date(spotifyAuth.tokenExpiresAt);
+      const isTokenValid = tokenExpiresAt.getTime() > Date.now();
 
       return {
-        connected: profile.isConnected,
+        connected: spotifyAuth.isConnected,
         tokenValid: isTokenValid,
         profile: {
-          displayName: profile.displayName,
-          product: profile.product,
-          country: profile.country,
-          lastSync: profile.lastSyncAt,
+          displayName: spotifyAuth.profile.displayName,
+          product: spotifyAuth.profile.product,
+          country: spotifyAuth.profile.country,
+          lastSync: spotifyAuth.connectedAt,
         },
         needsReauth: !isTokenValid,
       };
@@ -333,7 +336,7 @@ export const getSpotifyConnectionStatus = tool({
       console.error("Error checking Spotify connection:", error);
       return {
         connected: false,
-        message: `Error checking connection: ${error.message}`,
+        message: `Error checking connection: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   },
@@ -911,7 +914,7 @@ export const controlSpotifyPlayback = tool({
       }
 
       // Get Spotify profile to access tokens
-      const profile = await getSpotifyProfile(agent, "default");
+      const profile = await getConnectedSpotifyProfile(agent);
       if (!profile || !profile.isConnected || !profile.accessToken) {
         return {
           success: false,
@@ -1027,12 +1030,632 @@ export const controlSpotifyPlayback = tool({
     }
   },
 });
+
+export const getUserTopTracks = tool({
+  name: "getUserTopTracks",
+  description:
+    "Get user's top tracks from Spotify to analyze their music preferences",
+  parameters: z.object({
+    timeRange: z
+      .enum(["short_term", "medium_term", "long_term"])
+      .default("medium_term")
+      .describe(
+        "Time range for top tracks: short_term (4 weeks), medium_term (6 months), long_term (several years)"
+      ),
+    limit: z
+      .number()
+      .min(1)
+      .max(50)
+      .default(20)
+      .describe("Number of top tracks to retrieve (1-50)"),
+  }),
+  execute: async ({ timeRange = "medium_term", limit = 20 }) => {
+    try {
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error("[getUserTopTracks] Could not get agent reference");
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
+      }
+
+      // Get Spotify profile to access tokens
+      const profile = await getConnectedSpotifyProfile(agent);
+      if (!profile || !profile.isConnected || !profile.accessToken) {
+        return {
+          success: false,
+          message:
+            "Spotify account not connected. Please connect your Spotify account first.",
+        };
+      }
+
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
+      if (!clientId) {
+        return {
+          success: false,
+          message: "Spotify client ID not configured",
+        };
+      }
+
+      // Initialize Spotify SDK
+      const spotify = SpotifyApi.withAccessToken(clientId, {
+        access_token: profile.accessToken,
+        token_type: "Bearer",
+        expires_in: Math.floor(
+          (profile.tokenExpiresAt!.getTime() - Date.now()) / 1000
+        ),
+        refresh_token: profile.refreshToken || "",
+      });
+
+      // Get user's top tracks
+      const topTracks = await spotify.currentUser.topItems(
+        "tracks",
+        timeRange,
+        limit
+      );
+
+      // Format track data for analysis
+      const tracks = topTracks.items.map((track) => ({
+        id: track.id,
+        name: track.name,
+        artists: track.artists.map((artist) => ({
+          id: artist.id,
+          name: artist.name,
+        })),
+        album: {
+          id: track.album.id,
+          name: track.album.name,
+          releaseDate: track.album.release_date,
+        },
+        popularity: track.popularity,
+        duration: track.duration_ms,
+        explicit: track.explicit,
+        previewUrl: track.preview_url,
+        uri: track.uri,
+      }));
+
+      // Analyze genres and audio features
+      const artistIds = Array.from(
+        new Set(tracks.flatMap((track) => track.artists.map((a) => a.id)))
+      );
+      const artists = await spotify.artists.get(artistIds);
+
+      const genres = artists.flatMap((artist) => artist.genres);
+      const genreCounts = genres.reduce(
+        (acc, genre) => {
+          acc[genre] = (acc[genre] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+
+      const topGenres = Object.entries(genreCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([genre, count]) => ({ genre, count }));
+
+      return {
+        success: true,
+        timeRange,
+        totalTracks: tracks.length,
+        tracks,
+        topGenres,
+        analysis: {
+          mostPopularTrack: tracks.reduce((max, track) =>
+            track.popularity > max.popularity ? track : max
+          ),
+          averagePopularity:
+            tracks.reduce((sum, track) => sum + track.popularity, 0) /
+            tracks.length,
+          explicitContentPercentage:
+            (tracks.filter((track) => track.explicit).length / tracks.length) *
+            100,
+        },
       };
     } catch (error) {
-      console.error("Error controlling Spotify playback:", error);
+      console.error("[getUserTopTracks] Error:", error);
       return {
         success: false,
-        message: `Playback control failed: ${error.message}`,
+        message: `Failed to get top tracks: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  },
+});
+
+export const getUserTopArtists = tool({
+  name: "getUserTopArtists",
+  description:
+    "Get user's top artists from Spotify to analyze their music preferences",
+  parameters: z.object({
+    timeRange: z
+      .enum(["short_term", "medium_term", "long_term"])
+      .default("medium_term")
+      .describe(
+        "Time range for top artists: short_term (4 weeks), medium_term (6 months), long_term (several years)"
+      ),
+    limit: z
+      .number()
+      .min(1)
+      .max(50)
+      .default(20)
+      .describe("Number of top artists to retrieve (1-50)"),
+  }),
+  execute: async ({ timeRange = "medium_term", limit = 20 }) => {
+    try {
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error("[getUserTopArtists] Could not get agent reference");
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
+      }
+
+      // Get Spotify profile to access tokens
+      const profile = await getConnectedSpotifyProfile(agent);
+      if (!profile || !profile.isConnected || !profile.accessToken) {
+        return {
+          success: false,
+          message:
+            "Spotify account not connected. Please connect your Spotify account first.",
+        };
+      }
+
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
+      if (!clientId) {
+        return {
+          success: false,
+          message: "Spotify client ID not configured",
+        };
+      }
+
+      // Initialize Spotify SDK
+      const spotify = SpotifyApi.withAccessToken(clientId, {
+        access_token: profile.accessToken,
+        token_type: "Bearer",
+        expires_in: Math.floor(
+          (profile.tokenExpiresAt!.getTime() - Date.now()) / 1000
+        ),
+        refresh_token: profile.refreshToken || "",
+      });
+
+      // Get user's top artists
+      const topArtists = await spotify.currentUser.topItems(
+        "artists",
+        timeRange,
+        limit
+      );
+
+      // Format artist data for analysis
+      const artists = topArtists.items.map((artist) => ({
+        id: artist.id,
+        name: artist.name,
+        genres: artist.genres,
+        popularity: artist.popularity,
+        followers: artist.followers.total,
+        images: artist.images,
+        uri: artist.uri,
+      }));
+
+      // Analyze genres
+      const allGenres = artists.flatMap((artist) => artist.genres);
+      const genreCounts = allGenres.reduce(
+        (acc, genre) => {
+          acc[genre] = (acc[genre] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+
+      const topGenres = Object.entries(genreCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 15)
+        .map(([genre, count]) => ({ genre, count }));
+
+      // Calculate popularity distribution
+      const popularityRanges = {
+        mainstream: artists.filter((a) => a.popularity >= 70).length,
+        popular: artists.filter((a) => a.popularity >= 50 && a.popularity < 70)
+          .length,
+        emerging: artists.filter((a) => a.popularity >= 30 && a.popularity < 50)
+          .length,
+        underground: artists.filter((a) => a.popularity < 30).length,
+      };
+
+      return {
+        success: true,
+        timeRange,
+        totalArtists: artists.length,
+        artists,
+        topGenres,
+        analysis: {
+          mostPopularArtist: artists.reduce((max, artist) =>
+            artist.popularity > max.popularity ? artist : max
+          ),
+          averagePopularity:
+            artists.reduce((sum, artist) => sum + artist.popularity, 0) /
+            artists.length,
+          popularityDistribution: popularityRanges,
+          genreDiversity: topGenres.length,
+        },
+      };
+    } catch (error) {
+      console.error("[getUserTopArtists] Error:", error);
+      return {
+        success: false,
+        message: `Failed to get top artists: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  },
+});
+
+export const getUserPlaylists = tool({
+  name: "getUserPlaylists",
+  description:
+    "Get user's Spotify playlists to analyze their music organization and preferences",
+  parameters: z.object({
+    limit: z
+      .number()
+      .min(1)
+      .max(50)
+      .default(20)
+      .describe("Number of playlists to retrieve (1-50)"),
+    includeTrackCounts: z
+      .boolean()
+      .default(true)
+      .describe("Whether to include track counts for each playlist"),
+  }),
+  execute: async ({ limit = 20, includeTrackCounts = true }) => {
+    try {
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error("[getUserPlaylists] Could not get agent reference");
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
+      }
+
+      // Get Spotify profile to access tokens
+      const profile = await getConnectedSpotifyProfile(agent);
+      if (!profile || !profile.isConnected || !profile.accessToken) {
+        return {
+          success: false,
+          message:
+            "Spotify account not connected. Please connect your Spotify account first.",
+        };
+      }
+
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
+      if (!clientId) {
+        return {
+          success: false,
+          message: "Spotify client ID not configured",
+        };
+      }
+
+      // Initialize Spotify SDK
+      const spotify = SpotifyApi.withAccessToken(clientId, {
+        access_token: profile.accessToken,
+        token_type: "Bearer",
+        expires_in: Math.floor(
+          (profile.tokenExpiresAt!.getTime() - Date.now()) / 1000
+        ),
+        refresh_token: profile.refreshToken || "",
+      });
+
+      // Get user's playlists
+      const userPlaylists =
+        await spotify.currentUser.playlists.playlists(limit);
+
+      // Format playlist data
+      const playlists = userPlaylists.items.map((playlist) => ({
+        id: playlist.id,
+        name: playlist.name,
+        description: playlist.description,
+        isPublic: playlist.public,
+        collaborative: playlist.collaborative,
+        owner: {
+          id: playlist.owner.id,
+          name: playlist.owner.display_name,
+        },
+        trackCount: includeTrackCounts ? playlist.tracks.total : undefined,
+        images: playlist.images,
+        uri: playlist.uri,
+        createdBy:
+          playlist.owner.id === profile.spotifyUserId ? "user" : "other",
+      }));
+
+      // Analyze playlist patterns
+      const userPlaylists_filtered = playlists.filter(
+        (p) => p.createdBy === "user"
+      );
+      const followedPlaylists = playlists.filter(
+        (p) => p.createdBy === "other"
+      );
+
+      const analysis = {
+        totalPlaylists: playlists.length,
+        userCreatedPlaylists: userPlaylists_filtered.length,
+        followedPlaylists: followedPlaylists.length,
+        averageTracksPerPlaylist: includeTrackCounts
+          ? Math.round(
+              playlists
+                .filter((p) => p.trackCount !== undefined)
+                .reduce((sum, p) => sum + (p.trackCount || 0), 0) /
+                playlists.length
+            )
+          : undefined,
+        collaborativePlaylists: playlists.filter((p) => p.collaborative).length,
+        publicPlaylists: playlists.filter((p) => p.isPublic).length,
+      };
+
+      return {
+        success: true,
+        totalPlaylists: playlists.length,
+        playlists,
+        analysis,
+      };
+    } catch (error) {
+      console.error("[getUserPlaylists] Error:", error);
+      return {
+        success: false,
+        message: `Failed to get user playlists: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  },
+});
+
+export const analyzeMusicTaste = tool({
+  name: "analyzeMusicTaste",
+  description:
+    "Comprehensive analysis of user's music taste by combining top tracks, artists, and playlists data",
+  parameters: z.object({
+    timeRange: z
+      .enum(["short_term", "medium_term", "long_term"])
+      .default("medium_term")
+      .describe(
+        "Time range for analysis: short_term (4 weeks), medium_term (6 months), long_term (several years)"
+      ),
+    includePlaylistAnalysis: z
+      .boolean()
+      .default(true)
+      .describe(
+        "Whether to include playlist analysis in the comprehensive report"
+      ),
+  }),
+  execute: async ({
+    timeRange = "medium_term",
+    includePlaylistAnalysis = true,
+  }) => {
+    try {
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error("[analyzeMusicTaste] Could not get agent reference");
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
+      }
+
+      // Get Spotify auth from agent state instead of database
+      const spotifyAuth = agent.state.spotifyAuth;
+      if (
+        !spotifyAuth ||
+        !spotifyAuth.isConnected ||
+        !spotifyAuth.accessToken
+      ) {
+        return {
+          success: false,
+          message:
+            "Spotify account not connected. Please connect your Spotify account first.",
+        };
+      }
+
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
+      if (!clientId) {
+        return {
+          success: false,
+          message: "Spotify client ID not configured",
+        };
+      }
+
+      // Check if token is still valid
+      const tokenExpiresAt = new Date(spotifyAuth.tokenExpiresAt);
+      const now = new Date();
+      if (tokenExpiresAt <= now) {
+        return {
+          success: false,
+          message:
+            "Spotify tokens have expired. Please reconnect your account.",
+        };
+      }
+
+      // Initialize Spotify SDK
+      const spotify = SpotifyApi.withAccessToken(clientId, {
+        access_token: spotifyAuth.accessToken,
+        token_type: "Bearer",
+        expires_in: Math.floor(
+          (tokenExpiresAt.getTime() - now.getTime()) / 1000
+        ),
+        refresh_token: spotifyAuth.refreshToken || "",
+      });
+
+      console.log(
+        "[analyzeMusicTaste] Starting comprehensive music taste analysis..."
+      );
+
+      // Parallel data fetching for performance
+      const [topTracks, topArtists, playlists] = await Promise.all([
+        spotify.currentUser.topItems("tracks", timeRange, 20),
+        spotify.currentUser.topItems("artists", timeRange, 20),
+        includePlaylistAnalysis
+          ? spotify.currentUser.playlists.playlists(20)
+          : Promise.resolve({ items: [] }),
+      ]);
+
+      // Process top tracks
+      const tracks = topTracks.items.map((track) => ({
+        id: track.id,
+        name: track.name,
+        artists: track.artists.map((artist) => ({
+          id: artist.id,
+          name: artist.name,
+        })),
+        popularity: track.popularity,
+        explicit: track.explicit,
+        durationMs: track.duration_ms,
+      }));
+
+      // Process top artists with genre analysis
+      const artists = topArtists.items.map((artist) => ({
+        id: artist.id,
+        name: artist.name,
+        genres: artist.genres,
+        popularity: artist.popularity,
+        followers: artist.followers.total,
+      }));
+
+      // Analyze genres from artists
+      const allGenres = artists.flatMap((artist) => artist.genres);
+      const genreCounts = allGenres.reduce(
+        (acc, genre) => {
+          acc[genre] = (acc[genre] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
+
+      const topGenres = Object.entries(genreCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([genre, count]) => ({
+          genre,
+          count,
+          percentage: (count / allGenres.length) * 100,
+        }));
+
+      // Analyze playlist behavior if included
+      let playlistAnalysis = null;
+      if (includePlaylistAnalysis && playlists.items.length > 0) {
+        const userCreatedPlaylists = playlists.items.filter(
+          (playlist) => playlist.owner.id === spotifyAuth.profile.id
+        );
+
+        playlistAnalysis = {
+          totalPlaylists: playlists.items.length,
+          userCreatedPlaylists: userCreatedPlaylists.length,
+          followedPlaylists:
+            playlists.items.length - userCreatedPlaylists.length,
+          averageTracksPerPlaylist: Math.round(
+            playlists.items.reduce((sum, p) => sum + p.tracks.total, 0) /
+              playlists.items.length
+          ),
+          playlistNames: userCreatedPlaylists.slice(0, 10).map((p) => p.name),
+        };
+      }
+
+      // Calculate music taste insights
+      const musicProfile = {
+        // Popularity preferences
+        popularityProfile: {
+          averageTrackPopularity: Math.round(
+            tracks.reduce((sum, track) => sum + track.popularity, 0) /
+              tracks.length
+          ),
+          averageArtistPopularity: Math.round(
+            artists.reduce((sum, artist) => sum + artist.popularity, 0) /
+              artists.length
+          ),
+          mainstreamVsUnderground:
+            artists.filter((a) => a.popularity >= 70).length >
+            artists.length / 2
+              ? "mainstream"
+              : "underground",
+        },
+
+        // Content preferences
+        contentProfile: {
+          explicitContentPercentage: Math.round(
+            (tracks.filter((t) => t.explicit).length / tracks.length) * 100
+          ),
+          averageTrackDuration: Math.round(
+            tracks.reduce((sum, track) => sum + track.durationMs, 0) /
+              tracks.length /
+              1000
+          ), // in seconds
+        },
+
+        // Diversity metrics
+        diversityMetrics: {
+          genreDiversity: topGenres.length,
+          artistRecurrence:
+            tracks.length -
+            new Set(tracks.flatMap((t) => t.artists.map((a) => a.id))).size,
+          topGenreConcentration: topGenres[0]?.percentage || 0,
+        },
+
+        // Key artists and tracks
+        favorites: {
+          topArtist: artists[0]?.name,
+          topTrack: tracks[0]?.name,
+          dominantGenre: topGenres[0]?.genre,
+        },
+      };
+
+      // Generate music taste summary
+      const tasteSummary = {
+        primaryGenres: topGenres.slice(0, 3).map((g) => g.genre),
+        listeningPersonality:
+          musicProfile.popularityProfile.mainstreamVsUnderground,
+        diversityLevel:
+          musicProfile.diversityMetrics.genreDiversity > 15
+            ? "high"
+            : musicProfile.diversityMetrics.genreDiversity > 8
+              ? "medium"
+              : "low",
+        contentPreference:
+          musicProfile.contentProfile.explicitContentPercentage > 30
+            ? "explicit-friendly"
+            : "clean-preferred",
+        playlistBehavior: playlistAnalysis
+          ? playlistAnalysis.userCreatedPlaylists > 5
+            ? "active-curator"
+            : "casual-listener"
+          : "unknown",
+      };
+
+      return {
+        success: true,
+        timeRange,
+        profile: {
+          displayName: spotifyAuth.profile.displayName,
+          spotifyUserId: spotifyAuth.profile.id,
+          accountType: spotifyAuth.profile.product,
+        },
+        musicProfile,
+        tasteSummary,
+        topGenres,
+        favoriteArtists: artists.slice(0, 5),
+        favoriteTracks: tracks.slice(0, 5),
+        playlistAnalysis,
+        insights: {
+          totalTracksAnalyzed: tracks.length,
+          totalArtistsAnalyzed: artists.length,
+          totalGenresIdentified: topGenres.length,
+          analysisDate: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      console.error("[analyzeMusicTaste] Error:", error);
+      return {
+        success: false,
+        message: `Failed to analyze music taste: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   },
@@ -1049,4 +1672,8 @@ export const spotifyTools = {
   getSpotifyDevices,
   getCurrentPlayback,
   controlSpotifyPlayback,
+  getUserTopTracks,
+  getUserTopArtists,
+  getUserPlaylists,
+  analyzeMusicTaste,
 };
