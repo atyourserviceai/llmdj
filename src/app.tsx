@@ -170,7 +170,7 @@ export default function Chat() {
   }, [theme]);
 
   // Use the agent state hook instead of implementing the logic directly
-  const { agent, agentState, agentMode, changeAgentMode } =
+  const { agent, agentState, agentMode, agentConfig, changeAgentMode } =
     useAgentState("onboarding");
 
   // Use the error handling hook
@@ -427,7 +427,9 @@ export default function Chat() {
       console.log("Received state:", state);
 
       // Get the stored code verifier and state from sessionStorage
-      const storedCodeVerifier = sessionStorage.getItem("spotify_code_verifier");
+      const storedCodeVerifier = sessionStorage.getItem(
+        "spotify_code_verifier"
+      );
       const storedState = sessionStorage.getItem("spotify_state");
 
       console.log("Stored state:", storedState);
@@ -445,7 +447,10 @@ export default function Chat() {
       if (!configResponse.ok) {
         throw new Error("Failed to load Spotify configuration");
       }
-      const config = await configResponse.json() as { SPOTIFY_CLIENT_ID: string; SPOTIFY_REDIRECT_URI: string };
+      const config = (await configResponse.json()) as {
+        SPOTIFY_CLIENT_ID: string;
+        SPOTIFY_REDIRECT_URI: string;
+      };
 
       // Exchange authorization code for tokens
       const tokenResponse = await fetch(
@@ -466,7 +471,10 @@ export default function Chat() {
       );
 
       if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json() as { error?: string; error_description?: string };
+        const errorData = (await tokenResponse.json()) as {
+          error?: string;
+          error_description?: string;
+        };
         throw new Error(
           `Token exchange failed: ${errorData.error_description || errorData.error}`
         );
@@ -479,7 +487,7 @@ export default function Chat() {
       sessionStorage.removeItem("spotify_code_verifier");
       sessionStorage.removeItem("spotify_state");
 
-      // Dispatch the success event
+      // Dispatch the success event with tokens
       const event = new CustomEvent("spotify-auth-success", {
         detail: { tokens },
       });
@@ -493,32 +501,108 @@ export default function Chat() {
   useEffect(() => {
     function handleSpotifyAuthSuccess(event: CustomEvent) {
       const { tokens } = event.detail;
-      console.log("Spotify auth success, connecting account...", tokens);
+      console.log("[App] handleSpotifyAuthSuccess called with tokens:", {
+        hasAccessToken: !!tokens?.access_token,
+        hasRefreshToken: !!tokens?.refresh_token,
+        expiresIn: tokens?.expires_in,
+        tokenType: tokens?.token_type,
+        scope: tokens?.scope,
+      });
 
-      // Create a user message that will trigger the connectSpotifyAccount tool
-      const authMessage = `spotify-auth-success:${JSON.stringify(tokens)}`;
+      // Call the agent endpoint to store tokens securely
+      const storeTokens = async () => {
+        console.log("[App] Starting token storage process...");
+        try {
+          const endpoint = `/agents/${agentConfig.agent}/${agentConfig.name}/store-spotify-tokens`;
+          console.log("[App] Calling endpoint:", endpoint);
 
-      // Create a new user message directly
-      const newMessage = {
-        id: crypto.randomUUID(),
-        role: "user" as const,
-        createdAt: new Date(),
-        content: authMessage,
-        parts: [
-          {
-            type: "text" as const,
-            text: authMessage,
-          },
-        ],
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              access_token: tokens.access_token,
+              refresh_token: tokens.refresh_token,
+              expires_in: tokens.expires_in,
+              token_type: tokens.token_type,
+              scope: tokens.scope,
+            }),
+          });
+
+          console.log(
+            "[App] Store tokens response:",
+            response.status,
+            response.ok
+          );
+
+          if (!response.ok) {
+            console.error(
+              "[App] Store tokens response not ok:",
+              response.status,
+              response.statusText
+            );
+            throw new Error(`Failed to store tokens: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          console.log("[App] Tokens stored successfully:", result);
+
+          // Create a user message indicating authentication completed
+          const authMessage =
+            "I've successfully completed Spotify authentication. Please connect my account and analyze my music preferences.";
+
+          console.log("[App] Creating user message:", authMessage);
+
+          const newMessage = {
+            id: crypto.randomUUID(),
+            role: "user" as const,
+            createdAt: new Date(),
+            content: authMessage,
+            parts: [
+              {
+                type: "text" as const,
+                text: authMessage,
+              },
+            ],
+          };
+
+          // Add the message to the chat
+          console.log("[App] Adding message to chat and triggering reload...");
+          setMessages([...agentMessages, newMessage]);
+
+          // Trigger the agent to respond
+          setTimeout(() => {
+            reload();
+          }, 100);
+        } catch (error) {
+          console.error("[App] Error storing Spotify tokens:", error);
+          // Show error message to user
+          const errorMessage = `Failed to store Spotify authentication. Error: ${error instanceof Error ? error.message : String(error)}`;
+
+          console.log("[App] Creating error message:", errorMessage);
+
+          const newMessage = {
+            id: crypto.randomUUID(),
+            role: "user" as const,
+            createdAt: new Date(),
+            content: errorMessage,
+            parts: [
+              {
+                type: "text" as const,
+                text: errorMessage,
+              },
+            ],
+          };
+
+          setMessages([...agentMessages, newMessage]);
+          setTimeout(() => {
+            reload();
+          }, 100);
+        }
       };
 
-      // Add the message to the chat
-      setMessages([...agentMessages, newMessage]);
-
-      // Trigger the agent to respond
-      setTimeout(() => {
-        reload();
-      }, 100);
+      storeTokens();
     }
 
     // Check for OAuth callback parameters on app load
@@ -533,7 +617,12 @@ export default function Chat() {
       const error = urlParams.get("error");
       const errorDescription = urlParams.get("error_description");
 
-      console.log("OAuth params:", { code: code?.substring(0, 20) + "...", state, error, errorDescription });
+      console.log("OAuth params:", {
+        code: code?.substring(0, 20) + "...",
+        state,
+        error,
+        errorDescription,
+      });
 
       if (error) {
         console.error("Spotify OAuth error:", error, errorDescription);

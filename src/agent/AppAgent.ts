@@ -31,6 +31,7 @@ import type {
   TransitionRecommendation,
   TypedRecord,
 } from "./types/generic";
+import { DEBUG_TOOLS } from "../utils/tool-registry";
 
 // AI @ Your Service Gateway configuration
 const getOpenAI = (env: Env) => {
@@ -247,6 +248,7 @@ export class AppAgent extends AIChatAgent<Env> {
           showSpotifyAuth: tools.showSpotifyAuth,
           connectSpotifyAccount: tools.connectSpotifyAccount,
           getSpotifyConnectionStatus: tools.getSpotifyConnectionStatus,
+          debugSpotifyState: DEBUG_TOOLS[0], // Add debug tool for troubleshooting
         } as ToolSet;
 
       case "integration":
@@ -436,6 +438,208 @@ export class AppAgent extends AIChatAgent<Env> {
         )
       `;
 
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS spotify_tokens (
+          user_id TEXT PRIMARY KEY,
+          access_token TEXT NOT NULL,
+          refresh_token TEXT,
+          expires_at TEXT NOT NULL,
+          token_type TEXT DEFAULT 'Bearer',
+          scope TEXT,
+          created_at TEXT NOT NULL
+        )
+      `;
+
+      // Spotify user profiles and connection data
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS spotify_profiles (
+          id TEXT PRIMARY KEY,
+          spotify_user_id TEXT UNIQUE NOT NULL,
+          display_name TEXT NOT NULL,
+          email TEXT,
+          country TEXT,
+          product TEXT NOT NULL,
+          images TEXT,
+          followers INTEGER,
+          is_connected BOOLEAN NOT NULL DEFAULT 1,
+          token_expires_at TEXT,
+          last_sync_at TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `;
+
+      // User music preferences and taste profiles
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS music_preferences (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          favorite_genres TEXT NOT NULL,
+          audio_feature_preferences TEXT NOT NULL,
+          context_preferences TEXT NOT NULL,
+          time_preferences TEXT NOT NULL,
+          discovery_settings TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `;
+
+      // Listening history and track interactions
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS listening_history (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          spotify_track_id TEXT NOT NULL,
+          track_name TEXT NOT NULL,
+          artist_name TEXT NOT NULL,
+          album_name TEXT NOT NULL,
+          genres TEXT NOT NULL,
+          audio_features TEXT,
+          played_at TEXT NOT NULL,
+          context TEXT,
+          context_id TEXT,
+          play_duration INTEGER,
+          skipped BOOLEAN NOT NULL,
+          liked BOOLEAN NOT NULL,
+          time_of_day TEXT NOT NULL,
+          listening_context TEXT,
+          mood TEXT,
+          created_at TEXT NOT NULL
+        )
+      `;
+
+      // Custom playlists and playlist management
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS playlist_data (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          spotify_playlist_id TEXT,
+          name TEXT NOT NULL,
+          description TEXT,
+          is_public BOOLEAN NOT NULL DEFAULT 0,
+          collaborative BOOLEAN NOT NULL DEFAULT 0,
+          purpose TEXT,
+          target_mood TEXT,
+          target_genres TEXT NOT NULL,
+          target_audio_features TEXT,
+          tracks TEXT NOT NULL,
+          metrics TEXT NOT NULL,
+          version INTEGER NOT NULL DEFAULT 1,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `;
+
+      // Music sessions for conversation context
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS music_sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          is_active BOOLEAN NOT NULL DEFAULT 1,
+          current_track TEXT,
+          current_context TEXT,
+          current_context_id TEXT,
+          current_mood TEXT,
+          current_activity TEXT,
+          session_genres TEXT NOT NULL,
+          session_preferences TEXT NOT NULL,
+          recommendations TEXT NOT NULL,
+          active_device_id TEXT,
+          device_name TEXT,
+          started_at TEXT NOT NULL,
+          ended_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `;
+
+      // Music session activity history
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS music_session_history (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          session_id TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          activity_type TEXT NOT NULL,
+          track_id TEXT,
+          track_name TEXT,
+          artist_name TEXT,
+          playlist_id TEXT,
+          playlist_name TEXT,
+          device_id TEXT,
+          device_name TEXT,
+          mood TEXT,
+          context TEXT,
+          duration INTEGER,
+          skip_position INTEGER,
+          user_rating INTEGER,
+          created_at TEXT NOT NULL
+        )
+      `;
+
+      // Playlist change history
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS playlist_history (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          playlist_id TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          action TEXT NOT NULL,
+          track_id TEXT,
+          track_name TEXT,
+          artist_name TEXT,
+          old_value TEXT,
+          new_value TEXT,
+          position INTEGER,
+          reason TEXT,
+          source TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      `;
+
+      // Recommendation tracking history
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS recommendation_history (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          session_id TEXT,
+          timestamp TEXT NOT NULL,
+          type TEXT NOT NULL,
+          recommendation_id TEXT NOT NULL,
+          recommendation_name TEXT NOT NULL,
+          artist_name TEXT,
+          reason TEXT NOT NULL,
+          based_on TEXT NOT NULL,
+          user_action TEXT,
+          response_time INTEGER,
+          play_duration INTEGER,
+          was_successful BOOLEAN,
+          confidence REAL NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      `;
+
+      // Music discovery history
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS discovery_history (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          timestamp TEXT NOT NULL,
+          discovery_type TEXT NOT NULL,
+          genre_name TEXT,
+          artist_id TEXT,
+          artist_name TEXT,
+          track_id TEXT,
+          track_name TEXT,
+          feature_name TEXT,
+          discovery_method TEXT NOT NULL,
+          source_context TEXT,
+          engagement_level TEXT NOT NULL,
+          follow_up_actions TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      `;
+
       console.log("Database tables initialized successfully");
     } catch (error) {
       console.error("Error initializing database tables:", error);
@@ -510,6 +714,72 @@ export class AppAgent extends AIChatAgent<Env> {
         return Response.json(result);
       } catch (error) {
         console.error("[AppAgent] Error processing mode change:", error);
+        return Response.json(
+          {
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Handle Spotify token storage requests
+    if (url.pathname.includes("/store-spotify-tokens")) {
+      console.log(
+        `[AppAgent] Detected store-spotify-tokens request: ${url.pathname}`
+      );
+
+      try {
+        // Only accept POST requests
+        if (request.method !== "POST") {
+          console.log(
+            "[AppAgent] Method not allowed for store-spotify-tokens:",
+            request.method
+          );
+          return Response.json(
+            {
+              success: false,
+              error: "Method not allowed, use POST",
+            },
+            { status: 405 }
+          );
+        }
+
+        const body = (await request.json()) as {
+          access_token: string;
+          refresh_token?: string;
+          expires_in?: number;
+          token_type?: string;
+          scope?: string;
+        };
+
+        const { access_token, refresh_token, expires_in, token_type, scope } =
+          body;
+
+        if (!access_token) {
+          return Response.json(
+            {
+              success: false,
+              error: "Missing access_token",
+            },
+            { status: 400 }
+          );
+        }
+
+        // Store tokens in the database
+        console.log("[AppAgent] Storing Spotify tokens in database");
+        const result = await this.storeSpotifyTokens({
+          access_token,
+          refresh_token,
+          expires_in,
+          token_type,
+          scope,
+        });
+
+        return Response.json(result);
+      } catch (error) {
+        console.error("[AppAgent] Error storing Spotify tokens:", error);
         return Response.json(
           {
             success: false,
@@ -739,6 +1009,48 @@ export class AppAgent extends AIChatAgent<Env> {
       previousMode,
       currentMode: mode,
     };
+  }
+
+  /**
+   * Store Spotify OAuth tokens in the database
+   */
+  async storeSpotifyTokens(tokens: {
+    access_token: string;
+    refresh_token?: string;
+    expires_in?: number;
+    token_type?: string;
+    scope?: string;
+  }) {
+    try {
+      // Calculate token expiration
+      const expiresAt = tokens.expires_in
+        ? new Date(Date.now() + tokens.expires_in * 1000)
+        : new Date(Date.now() + 3600 * 1000); // Default 1 hour
+
+      // Store tokens in the database
+      await this.sql`
+        INSERT OR REPLACE INTO spotify_tokens (
+          user_id, access_token, refresh_token, expires_at, token_type, scope, created_at
+        ) VALUES (
+          'default', ${tokens.access_token}, ${tokens.refresh_token || ""},
+          ${expiresAt.toISOString()}, ${tokens.token_type || "Bearer"},
+          ${tokens.scope || ""}, ${new Date().toISOString()}
+        )
+      `;
+
+      console.log("[AppAgent] Spotify tokens stored successfully");
+
+      return {
+        success: true,
+        message: "Spotify tokens stored successfully",
+      };
+    } catch (error) {
+      console.error("[AppAgent] Error storing Spotify tokens:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   /**

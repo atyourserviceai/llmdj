@@ -4,6 +4,7 @@
  * playlist management, and music analysis capabilities.
  */
 
+import { getCurrentAgent } from "agents";
 import { tool } from "ai";
 import { z } from "zod";
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
@@ -92,43 +93,134 @@ export const showSpotifyAuth = tool({
 });
 
 /**
- * Connect user's Spotify account and store profile
+ * Connect user's Spotify account using stored OAuth tokens
  */
 export const connectSpotifyAccount = tool({
   description:
-    "Connect user's Spotify account and store their profile information. This should be used during onboarding to establish Spotify integration.",
+    "Connect user's Spotify account using tokens from completed OAuth authentication. Call this when user indicates they've completed Spotify OAuth. This retrieves stored tokens from the database and establishes the Spotify integration.",
   parameters: z.object({
     userId: z.string().describe("User ID to associate with Spotify account"),
-    accessToken: z.string().describe("Spotify access token from OAuth flow"),
-    refreshToken: z
-      .string()
-      .optional()
-      .describe("Spotify refresh token for token renewal"),
-    expiresIn: z
-      .number()
-      .optional()
-      .describe("Token expiration time in seconds"),
   }),
-  execute: async ({ userId, accessToken, refreshToken, expiresIn }) => {
+  execute: async ({ userId }) => {
+    console.log(
+      "[connectSpotifyAccount] Tool execution started for userId:",
+      userId
+    );
     try {
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error("[connectSpotifyAccount] Could not get agent reference");
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
+      }
+
+      console.log(
+        "[connectSpotifyAccount] Agent reference obtained, querying database for tokens..."
+      );
+
+      // Get stored tokens from the database
+      const tokenResult = await agent.sql`
+        SELECT access_token, refresh_token, expires_at, token_type, scope
+        FROM spotify_tokens
+        WHERE user_id = 'default'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+
+      console.log("[connectSpotifyAccount] Database query result:", {
+        hasResults: !!tokenResult,
+        resultCount: tokenResult?.length || 0,
+      });
+
+      if (!tokenResult || tokenResult.length === 0) {
+        console.log("[connectSpotifyAccount] No tokens found in database");
+        return {
+          success: false,
+          message:
+            "No Spotify authentication tokens found. Please use the 'Connect to Spotify' button in the authentication interface to complete OAuth authentication first. Simply saying you've authenticated doesn't actually authenticate - you need to click the button and go through Spotify's OAuth flow.",
+        };
+      }
+
+      const tokenData = tokenResult[0] as {
+        access_token: string;
+        refresh_token: string;
+        expires_at: string;
+        token_type: string;
+        scope: string;
+      };
+
+      console.log("[connectSpotifyAccount] Token data retrieved:", {
+        hasAccessToken: !!tokenData.access_token,
+        hasRefreshToken: !!tokenData.refresh_token,
+        expiresAt: tokenData.expires_at,
+        tokenType: tokenData.token_type,
+        scope: tokenData.scope,
+      });
+
+      // Check if tokens are still valid (not expired)
+      const expiresAt = new Date(tokenData.expires_at);
+      const now = new Date();
+      console.log("[connectSpotifyAccount] Token expiration check:", {
+        expiresAt: expiresAt.toISOString(),
+        now: now.toISOString(),
+        isExpired: expiresAt <= now,
+      });
+
+      if (expiresAt <= new Date()) {
+        console.log("[connectSpotifyAccount] Tokens have expired");
+        return {
+          success: false,
+          message:
+            "Authentication tokens have expired. Please use the 'Connect to Spotify' button to re-authenticate with Spotify OAuth.",
+        };
+      }
+
+      // Get Spotify client ID from environment
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
+      console.log("[connectSpotifyAccount] Spotify client ID check:", {
+        hasClientId: !!clientId,
+      });
+
+      if (!clientId) {
+        console.error(
+          "[connectSpotifyAccount] Spotify client ID not configured"
+        );
+        return {
+          success: false,
+          message: "Spotify client ID not configured",
+        };
+      }
+
+      console.log("[connectSpotifyAccount] Initializing Spotify SDK...");
+
       // Initialize Spotify SDK to get user profile
-      const tempSDK = SpotifyApi.withAccessToken(
-        "temp_client_id", // This will be replaced with proper env var access
-        {
-          access_token: accessToken,
-          token_type: "Bearer",
-          expires_in: expiresIn || 3600,
-          refresh_token: refreshToken || "",
-        }
+      const tempSDK = SpotifyApi.withAccessToken(clientId, {
+        access_token: tokenData.access_token,
+        token_type: tokenData.token_type || "Bearer",
+        expires_in: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
+        refresh_token: tokenData.refresh_token || "",
+      });
+
+      console.log(
+        "[connectSpotifyAccount] Fetching user profile from Spotify API..."
       );
 
       // Fetch user profile from Spotify
       const userProfile = await tempSDK.currentUser.profile();
 
-      // Calculate token expiration
-      const tokenExpiresAt = expiresIn
-        ? new Date(Date.now() + expiresIn * 1000)
-        : new Date(Date.now() + 3600 * 1000); // Default 1 hour
+      console.log(
+        "[connectSpotifyAccount] User profile fetched successfully:",
+        {
+          id: userProfile.id,
+          displayName: userProfile.display_name,
+          email: userProfile.email,
+          country: userProfile.country,
+          product: userProfile.product,
+        }
+      );
 
       // Store Spotify profile in database
       const spotifyProfile = {
@@ -137,22 +229,28 @@ export const connectSpotifyAccount = tool({
         displayName: userProfile.display_name || userProfile.id,
         email: userProfile.email,
         country: userProfile.country,
-        product: userProfile.product || "free",
+        product: (userProfile.product === "premium" ? "premium" : "free") as
+          | "premium"
+          | "free",
         images: userProfile.images,
         followers: userProfile.followers?.total,
         isConnected: true,
-        accessToken,
-        refreshToken,
-        tokenExpiresAt,
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        tokenExpiresAt: expiresAt,
         lastSyncAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      await storeSpotifyProfile(this as unknown as AppAgent, spotifyProfile);
+      console.log(
+        "[connectSpotifyAccount] Storing Spotify profile in database..."
+      );
+      await storeSpotifyProfile(agent, spotifyProfile);
 
       // Track connection event
-      await addMusicSessionEntry(this as unknown as AppAgent, {
+      console.log("[connectSpotifyAccount] Adding music session entry...");
+      await addMusicSessionEntry(agent, {
         userId: userProfile.id,
         sessionId: crypto.randomUUID(),
         timestamp: new Date().toISOString(),
@@ -160,20 +258,33 @@ export const connectSpotifyAccount = tool({
         context: "spotify_connection",
       });
 
+      // Clean up the tokens from the temporary storage table
+      console.log("[connectSpotifyAccount] Cleaning up temporary tokens...");
+      await agent.sql`DELETE FROM spotify_tokens WHERE user_id = 'default'`;
+
+      console.log(
+        "[connectSpotifyAccount] Tool execution completed successfully"
+      );
       return {
         success: true,
-        message: `Successfully connected Spotify account for ${userProfile.display_name}`,
+        message: `Successfully connected to Spotify account: ${userProfile.display_name || userProfile.id} (${userProfile.product} user)`,
         profile: {
+          id: userProfile.id,
           displayName: userProfile.display_name,
-          product: userProfile.product,
+          email: userProfile.email,
           country: userProfile.country,
+          product: userProfile.product,
+          followers: userProfile.followers?.total,
         },
       };
     } catch (error) {
-      console.error("Error connecting Spotify account:", error);
+      console.error(
+        "[connectSpotifyAccount] Error during tool execution:",
+        error
+      );
       return {
         success: false,
-        message: `Failed to connect Spotify account: ${error.message}`,
+        message: `Failed to connect Spotify account: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   },
@@ -750,107 +861,172 @@ export const getCurrentPlayback = tool({
  * Control Spotify playback (play, pause, skip, etc.)
  */
 export const controlSpotifyPlayback = tool({
+  name: "controlSpotifyPlayback",
   description:
-    "Control Spotify playback with various actions like play, pause, skip, previous, shuffle, and repeat",
+    "Control Spotify playback including play, pause, skip, seek, and volume control",
   parameters: z.object({
-    userId: z.string().describe("User ID for Spotify access"),
     action: z
-      .enum(["play", "pause", "next", "previous", "shuffle", "repeat"])
-      .describe("Playback action to perform"),
+      .enum(["play", "pause", "skip_next", "skip_previous", "seek", "volume"])
+      .describe("The playback action to perform"),
     deviceId: z
       .string()
       .optional()
       .describe("Specific device ID to control (optional)"),
-    // Additional parameters for specific actions
-    shuffleState: z
-      .boolean()
+    trackUris: z
+      .array(z.string())
       .optional()
-      .describe("Shuffle state (for shuffle action)"),
-    repeatState: z
-      .enum(["off", "track", "context"])
+      .describe("Track URIs to play (for play action)"),
+    contextUri: z
+      .string()
       .optional()
-      .describe("Repeat state (for repeat action)"),
+      .describe("Playlist or album URI to play (for play action)"),
+    positionMs: z
+      .number()
+      .optional()
+      .describe("Position in track to seek to in milliseconds"),
+    volumePercent: z
+      .number()
+      .min(0)
+      .max(100)
+      .optional()
+      .describe("Volume level as percentage (0-100)"),
   }),
-  execute: async ({ userId, action, deviceId, shuffleState, repeatState }) => {
+  execute: async ({
+    action,
+    deviceId,
+    trackUris,
+    contextUri,
+    positionMs,
+    volumePercent,
+  }) => {
     try {
-      const spotifySDK = await getSpotifySDK(
-        this as unknown as AppAgent,
-        userId
-      );
-      if (!spotifySDK) {
-        return { success: false, message: "Spotify not connected" };
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error("[controlSpotifyPlayback] Could not get agent reference");
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
       }
 
-      let result;
-      let message;
+      // Get Spotify profile to access tokens
+      const profile = await getSpotifyProfile(agent, "default");
+      if (!profile || !profile.isConnected || !profile.accessToken) {
+        return {
+          success: false,
+          message:
+            "Spotify account not connected. Please connect your Spotify account first.",
+        };
+      }
 
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
+      if (!clientId) {
+        return {
+          success: false,
+          message: "Spotify client ID not configured",
+        };
+      }
+
+      // Initialize Spotify SDK
+      const spotify = SpotifyApi.withAccessToken(clientId, {
+        access_token: profile.accessToken,
+        token_type: "Bearer",
+        expires_in: Math.floor(
+          (profile.tokenExpiresAt!.getTime() - Date.now()) / 1000
+        ),
+        refresh_token: profile.refreshToken || "",
+      });
+
+      let result;
       switch (action) {
         case "play":
-          await spotifySDK.player.startResumePlayback(deviceId);
-          message = "Playback started";
+          if (trackUris || contextUri) {
+            await spotify.player.startResumePlayback(
+              deviceId,
+              contextUri,
+              trackUris
+            );
+            result = `Started playback${deviceId ? ` on device ${deviceId}` : ""}`;
+          } else {
+            await spotify.player.startResumePlayback(deviceId);
+            result = `Resumed playback${deviceId ? ` on device ${deviceId}` : ""}`;
+          }
           break;
 
         case "pause":
-          await spotifySDK.player.pausePlayback(deviceId);
-          message = "Playback paused";
+          await spotify.player.pausePlayback(deviceId);
+          result = `Paused playback${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
-        case "next":
-          await spotifySDK.player.skipToNext(deviceId);
-          message = "Skipped to next track";
+        case "skip_next":
+          await spotify.player.skipToNext(deviceId);
+          result = `Skipped to next track${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
-        case "previous":
-          await spotifySDK.player.skipToPrevious(deviceId);
-          message = "Skipped to previous track";
+        case "skip_previous":
+          await spotify.player.skipToPrevious(deviceId);
+          result = `Skipped to previous track${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
-        case "shuffle":
-          if (shuffleState === undefined) {
+        case "seek":
+          if (positionMs === undefined) {
             return {
               success: false,
-              message: "Shuffle state required for shuffle action",
+              message: "Position in milliseconds is required for seek action",
             };
           }
-          await spotifySDK.player.togglePlaybackShuffle(shuffleState, deviceId);
-          message = `Shuffle ${shuffleState ? "enabled" : "disabled"}`;
+          await spotify.player.seekToPosition(positionMs, deviceId);
+          result = `Seeked to position ${Math.floor(positionMs / 1000)}s${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
-        case "repeat":
-          if (!repeatState) {
+        case "volume":
+          if (volumePercent === undefined) {
             return {
               success: false,
-              message: "Repeat state required for repeat action",
+              message: "Volume percentage is required for volume action",
             };
           }
-          await spotifySDK.player.setRepeatMode(repeatState, deviceId);
-          message = `Repeat mode set to ${repeatState}`;
+          await spotify.player.setPlaybackVolume(volumePercent, deviceId);
+          result = `Set volume to ${volumePercent}%${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
         default:
-          return { success: false, message: "Invalid action" };
+          return {
+            success: false,
+            message: `Unknown action: ${action}`,
+          };
       }
 
-      // Track the control action
+      // Track the action in music session history
       await addMusicSessionEntry(this as unknown as AppAgent, {
-        userId,
-        sessionId: crypto.randomUUID(), // This should be managed per session
+        userId: profile.spotifyUserId,
+        sessionId: crypto.randomUUID(), // TODO: Use actual session tracking
         timestamp: new Date().toISOString(),
         activityType:
-          action === "next"
-            ? "track_skip"
-            : action === "play"
-              ? "track_play"
-              : (action as any),
-        deviceId,
-        context: `playback_control_${action}`,
+          action === "play"
+            ? "track_play"
+            : action === "skip_next" || action === "skip_previous"
+              ? "track_skip"
+              : "session_start",
+        context: "playback_control",
       });
 
       return {
         success: true,
+        message: result,
         action,
-        message,
-        device_id: deviceId,
+        deviceId,
+      };
+    } catch (error) {
+      console.error("[controlSpotifyPlayback] Error:", error);
+      return {
+        success: false,
+        message: `Failed to control playback: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  },
+});
       };
     } catch (error) {
       console.error("Error controlling Spotify playback:", error);
