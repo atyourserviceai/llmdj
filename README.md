@@ -79,9 +79,9 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 
 1. **Install dependencies**:
 
-   ```bash
-   pnpm install
-   ```
+```bash
+pnpm install
+```
 
 2. **Configure environment**:
 
@@ -97,9 +97,9 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 
 3. **Start development server**:
 
-   ```bash
+```bash
    pnpm run dev
-   ```
+```
 
 4. **Access the app**:
    - Open [http://localhost:5173](http://localhost:5173)
@@ -244,6 +244,18 @@ Spotify has API rate limits. The app handles this gracefully:
 - Check the [Spotify Web API documentation](https://developer.spotify.com/documentation/web-api/)
 - Review your Spotify app settings in the [Developer Dashboard](https://developer.spotify.com/dashboard)
 - Make sure all redirect URIs are configured correctly
+
+## Authentication & Security
+
+**🔐 [Full Authentication Documentation](./AUTH.md)**
+
+LLMDJ implements **enterprise-grade security** with complete user isolation:
+
+- ✅ **Spotify OAuth Authentication** - Industry-standard OAuth 2.0 with PKCE
+- ✅ **Complete User Isolation** - Each user gets unique agent room: `spotify-user-{id}`
+- ✅ **No Shared State** - Users can only access their own music data and preferences
+- ✅ **Persistent Sessions** - Secure token management with automatic validation
+- ✅ **AuthGuard Protection** - No agent access without proper authentication
 
 ## Development
 

@@ -16,9 +16,9 @@ export function useAgentState(initialMode: AgentMode = "onboarding") {
     return urlParams.get("room");
   }, []);
 
-  const [agentConfig] = useState(() => {
-    // Get initial config from URL
-    const name = getNameFromURL() || "default-room";
+  const [agentConfig, setAgentConfig] = useState(() => {
+    // Get initial config from URL or use temporary default
+    const name = getNameFromURL() || "auth-pending";
     console.log(`[UI] Initial agent config: ${name}`);
     return {
       agent: "app-agent",
@@ -33,7 +33,7 @@ export function useAgentState(initialMode: AgentMode = "onboarding") {
       if (!newName) return;
 
       console.log(`[UI] Changing agent config: ${agent} -> ${newName}`);
-      // Implementation would go here - when needed
+      setAgentConfig({ agent, name: newName });
     },
     []
   );
