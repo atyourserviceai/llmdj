@@ -7,7 +7,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [
     cloudflare({
-      inspectorPort: 9429, // Set inspector port to avoid conflicts
+      inspectorPort: 9529, // Set inspector port to avoid conflicts
     }),
     react(),
     tailwindcss(),
@@ -18,7 +18,9 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5273,
+    port: 5473,
+    host: "127.0.0.1", // Bind to 127.0.0.1 so Cloudflare tunnel can connect
     strictPort: true,
+    allowedHosts: ["llmdj.motin.eu"],
   },
 });
