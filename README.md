@@ -278,6 +278,41 @@ src/
 └── app.tsx              # Main application
 ```
 
+### Development Patterns & Best Practices
+
+#### 🗄️ **Database Migrations**
+
+- Auto-migration on startup with graceful duplicate column handling (see `src/agent/AppAgent.ts` `initialize()` method)
+- Expected errors logged as info, unexpected errors show stack traces
+- All migrations are idempotent and safe to run multiple times
+
+#### 🧠 **Agent State Management**
+
+- Spotify auth stored in `agent.state.spotifyAuth` for immediate tool access
+- Set state: `await agent.setState({ ...currentState, newData })`
+- Read in tools: `const { agent } = getCurrentAgent<AppAgent>(); const data = agent.state.someField`
+- UI access: Agent state available via `useAgent()` hook in React components
+- Automatic persistence across sessions with built-in serialization
+
+#### 🔧 **Tool Response Format**
+
+- **Success**: `{ success: true, message: "...", data?: any }`
+- **Logical failure**: `{ success: false, message: "..." }` (no error field)
+- **Execution error**: `throw new Error("...")` (shows stack trace)
+- UI detects failures via `success === false` + presence of `message` or `error`
+
+#### 🎯 **Tool Development**
+
+- Use descriptive, action-oriented names (`connectSpotifyAccount` not `spotifyTool`)
+- Proper logging with tool context: `console.log("[toolName] ...")`
+- Handle Spotify API rate limits with retry logic
+
+#### 📊 **Performance Notes**
+
+- Agent state preferred over DB queries for frequent access
+- Database for historical data and complex queries
+- Consider agent state size and clear unused data when possible
+
 ### Available Scripts
 
 - `pnpm run dev` - Start development server
