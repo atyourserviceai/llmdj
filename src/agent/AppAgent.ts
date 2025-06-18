@@ -244,6 +244,7 @@ export class AppAgent extends AIChatAgent<Env> {
           checkExistingConfig: tools.checkExistingConfig,
           getOnboardingStatus: tools.getOnboardingStatus,
           // Spotify connection tools for setup
+          showSpotifyAuth: tools.showSpotifyAuth,
           connectSpotifyAccount: tools.connectSpotifyAccount,
           getSpotifyConnectionStatus: tools.getSpotifyConnectionStatus,
         } as ToolSet;

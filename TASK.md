@@ -158,6 +158,7 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 3.3 Tool Registration ✅ **COMPLETE**
 
 - [x] **Update `src/utils/tool-registry.ts`** ✅
+
   - [x] Import and register all Spotify tools with error handling
   - [x] Configure tool availability by mode (onboarding/integration/plan/act)
   - [x] Set up proper tool descriptions and parameters

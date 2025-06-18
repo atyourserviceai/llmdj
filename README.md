@@ -21,21 +21,25 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 ## Four-Mode Architecture for Music
 
 ### 🎯 Onboarding Mode
+
 - Define your music preferences and listening habits
 - Set up your personal DJ style and preferences
 - Capture your music discovery methodology
 
 ### 🔧 Integration Mode
+
 - Connect and test your Spotify account
 - Verify API permissions and playback capabilities
 - Test music control tools before going live
 
 ### 🎯 Plan Mode
+
 - Discuss music discovery strategies
 - Plan playlists and listening sessions
 - Explore new genres and artists
 
 ### 🚀 Act Mode
+
 - Direct music playback control
 - Execute playlist management
 - Real-time music recommendations
@@ -52,12 +56,14 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 ### Spotify Developer Setup
 
 1. **Create Spotify App**:
+
    - Visit [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
    - Click "Create app"
    - Fill in app details (name: "LLMDJ", description: "AI DJ Agent")
 
 2. **Configure Redirect URIs**:
    Add these redirect URIs to your Spotify app:
+
    ```
    http://localhost:5173/auth/callback          # Local development
    https://llmdj-dev.atyourservice.ai/auth/callback     # Dev environment
@@ -72,13 +78,16 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 ### Local Development
 
 1. **Install dependencies**:
+
    ```bash
    pnpm install
    ```
 
 2. **Configure environment**:
+
    - Copy `.dev.vars.example` to `.dev.vars`
    - Add your Spotify credentials:
+
    ```env
    SPOTIFY_CLIENT_ID=your-spotify-client-id
    SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
@@ -87,6 +96,7 @@ An AI-powered Spotify DJ agent that controls your music through natural language
    ```
 
 3. **Start development server**:
+
    ```bash
    pnpm run dev
    ```
@@ -99,6 +109,7 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 ## Usage Examples
 
 ### Getting Started
+
 ```
 "Hey, let's set up my music preferences"
 → Switches to onboarding mode to capture your music taste
@@ -114,6 +125,7 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 ```
 
 ### Music Control
+
 ```
 "Play some jazz"
 "Skip this song"
@@ -125,6 +137,7 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 ```
 
 ### Smart Features
+
 ```
 "Recommend something based on my current mood"
 "Create a playlist for a dinner party"
@@ -136,10 +149,12 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 ## Architecture
 
 ### Split Layout
+
 - **Left Side**: Chat interface with your AI DJ
 - **Right Side**: Spotify Web Player with real-time controls
 
 ### Agent Capabilities
+
 - **Music Search**: Find any track, artist, album, or playlist
 - **Playback Control**: Play, pause, skip, volume, seeking
 - **Playlist Management**: Create, edit, and organize playlists
@@ -148,7 +163,9 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 - **Smart Learning**: Remembers your preferences and improves over time
 
 ### Storage & Learning
+
 The agent remembers:
+
 - Your music preferences and listening patterns
 - Successful music recommendations
 - Playlist creation history
@@ -160,15 +177,18 @@ The agent remembers:
 The project supports three environments:
 
 ### Development
+
 - **Domain**: `llmdj-dev.atyourservice.ai`
 - **Auto-deploy**: On push to `dev` branch
 - **Manual deploy**: `pnpm run deploy`
 
 ### Staging
+
 - **Domain**: `llmdj-staging.atyourservice.ai`
 - **Manual deploy**: `pnpm run deploy -- --env staging`
 
 ### Production
+
 - **Domain**: `llmdj.atyourservice.ai`
 - **Auto-deploy**: On push to `main` branch
 - **Manual deploy**: `pnpm run deploy -- --env production`
@@ -176,7 +196,9 @@ The project supports three environments:
 ## Spotify API Integration
 
 ### Required Permissions
+
 The app requests these Spotify scopes:
+
 - `user-read-playback-state` - Get current playback info
 - `user-modify-playback-state` - Control playback
 - `user-read-currently-playing` - See what's playing
@@ -188,7 +210,9 @@ The app requests these Spotify scopes:
 - `user-library-modify` - Save/unsave music
 
 ### Rate Limits
+
 Spotify has API rate limits. The app handles this gracefully:
+
 - Automatic retry with exponential backoff
 - User-friendly error messages
 - Graceful degradation when limits are hit
@@ -198,16 +222,19 @@ Spotify has API rate limits. The app handles this gracefully:
 ### Common Issues
 
 **"Playback not available"**
+
 - Ensure you have Spotify Premium
 - Make sure Spotify is open on at least one device
 - Check that your Spotify app is active
 
 **"Authentication failed"**
+
 - Verify your Spotify app credentials
 - Check that redirect URIs match exactly
 - Ensure your Spotify app is not in development mode restrictions
 
 **"No devices available"**
+
 - Open Spotify on your computer or phone
 - Start playing something first to activate the device
 - The Web Player will become available as a device
@@ -221,6 +248,7 @@ Spotify has API rate limits. The app handles this gracefully:
 ## Development
 
 ### Project Structure
+
 ```
 src/
 ├── agent/                 # AI agent implementation

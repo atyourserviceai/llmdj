@@ -69,6 +69,29 @@ async function getSpotifySDK(
 // =====================================
 
 /**
+ * Show Spotify authentication UI to user
+ */
+export const showSpotifyAuth = tool({
+  description:
+    "Display the Spotify authentication interface to the user. Use this when the user needs to connect their Spotify account. This will show an OAuth login button.",
+  parameters: z.object({
+    message: z
+      .string()
+      .optional()
+      .describe("Optional message to display with the auth interface"),
+  }),
+  execute: async ({ message }) => {
+    // This tool doesn't actually execute OAuth - it triggers the UI
+    // The React component will handle the actual OAuth flow
+    return {
+      type: "spotify_auth_ui",
+      message: message || "Please connect your Spotify account to continue",
+      action_required: true,
+    };
+  },
+});
+
+/**
  * Connect user's Spotify account and store profile
  */
 export const connectSpotifyAccount = tool({
@@ -90,7 +113,7 @@ export const connectSpotifyAccount = tool({
     try {
       // Initialize Spotify SDK to get user profile
       const tempSDK = SpotifyApi.withAccessToken(
-        process.env.SPOTIFY_CLIENT_ID || "",
+        "temp_client_id", // This will be replaced with proper env var access
         {
           access_token: accessToken,
           token_type: "Bearer",
@@ -841,6 +864,7 @@ export const controlSpotifyPlayback = tool({
 
 // Export all tools for registry
 export const spotifyTools = {
+  showSpotifyAuth,
   connectSpotifyAccount,
   getSpotifyConnectionStatus,
   searchSpotifyContent,

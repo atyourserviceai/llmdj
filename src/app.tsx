@@ -392,8 +392,6 @@ export default function Chat() {
     handleRetryLastUserMessage,
   } = useMessageEditing(agentMessages, setMessages, agentInput, reload);
 
-  console.log(`[Chat] agentData: ${JSON.stringify(agentData)}`);
-
   // Handle custom event for setting chat input from PlaybookPanel
   useEffect(() => {
     // Function to set input and switch to chat tab if needed
@@ -421,6 +419,164 @@ export default function Chat() {
       );
     };
   }, [setInput, activeTab]);
+
+  // Handle OAuth token exchange
+  const handleOAuthTokenExchange = async (code: string, state: string) => {
+    try {
+      console.log("Starting OAuth token exchange...");
+      console.log("Received state:", state);
+
+      // Get the stored code verifier and state from sessionStorage
+      const storedCodeVerifier = sessionStorage.getItem("spotify_code_verifier");
+      const storedState = sessionStorage.getItem("spotify_state");
+
+      console.log("Stored state:", storedState);
+      console.log("Code verifier exists:", !!storedCodeVerifier);
+
+      if (!storedCodeVerifier || storedState !== state) {
+        console.error("Invalid OAuth state or missing code verifier");
+        console.error("State match:", storedState === state);
+        console.error("Code verifier exists:", !!storedCodeVerifier);
+        return;
+      }
+
+      // Get Spotify config
+      const configResponse = await fetch("/config");
+      if (!configResponse.ok) {
+        throw new Error("Failed to load Spotify configuration");
+      }
+      const config = await configResponse.json() as { SPOTIFY_CLIENT_ID: string; SPOTIFY_REDIRECT_URI: string };
+
+      // Exchange authorization code for tokens
+      const tokenResponse = await fetch(
+        "https://accounts.spotify.com/api/token",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            grant_type: "authorization_code",
+            code: code,
+            redirect_uri: config.SPOTIFY_REDIRECT_URI,
+            client_id: config.SPOTIFY_CLIENT_ID,
+            code_verifier: storedCodeVerifier,
+          }),
+        }
+      );
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json() as { error?: string; error_description?: string };
+        throw new Error(
+          `Token exchange failed: ${errorData.error_description || errorData.error}`
+        );
+      }
+
+      const tokens = await tokenResponse.json();
+      console.log("Token exchange successful, tokens received");
+
+      // Clean up sessionStorage
+      sessionStorage.removeItem("spotify_code_verifier");
+      sessionStorage.removeItem("spotify_state");
+
+      // Dispatch the success event
+      const event = new CustomEvent("spotify-auth-success", {
+        detail: { tokens },
+      });
+      window.dispatchEvent(event);
+    } catch (error) {
+      console.error("OAuth token exchange failed:", error);
+    }
+  };
+
+  // Handle Spotify authentication success
+  useEffect(() => {
+    function handleSpotifyAuthSuccess(event: CustomEvent) {
+      const { tokens } = event.detail;
+      console.log("Spotify auth success, connecting account...", tokens);
+
+      // Create a user message that will trigger the connectSpotifyAccount tool
+      const authMessage = `spotify-auth-success:${JSON.stringify(tokens)}`;
+
+      // Create a new user message directly
+      const newMessage = {
+        id: crypto.randomUUID(),
+        role: "user" as const,
+        createdAt: new Date(),
+        content: authMessage,
+        parts: [
+          {
+            type: "text" as const,
+            text: authMessage,
+          },
+        ],
+      };
+
+      // Add the message to the chat
+      setMessages([...agentMessages, newMessage]);
+
+      // Trigger the agent to respond
+      setTimeout(() => {
+        reload();
+      }, 100);
+    }
+
+    // Check for OAuth callback parameters on app load
+    const checkOAuthCallback = () => {
+      console.log("Checking for OAuth callback parameters...");
+      console.log("Current URL:", window.location.href);
+      console.log("Search params:", window.location.search);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get("code");
+      const state = urlParams.get("state");
+      const error = urlParams.get("error");
+      const errorDescription = urlParams.get("error_description");
+
+      console.log("OAuth params:", { code: code?.substring(0, 20) + "...", state, error, errorDescription });
+
+      if (error) {
+        console.error("Spotify OAuth error:", error, errorDescription);
+        // Clean up URL
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+        return;
+      }
+
+      if (code && state) {
+        console.log("OAuth callback detected, triggering token exchange");
+        // Clean up URL first
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+
+        // Trigger the token exchange
+        handleOAuthTokenExchange(code, state);
+      } else {
+        console.log("No OAuth callback parameters found");
+      }
+    };
+
+    window.addEventListener(
+      "spotify-auth-success",
+      handleSpotifyAuthSuccess as EventListener
+    );
+
+    // Check for OAuth callback on initial load
+    checkOAuthCallback();
+
+    return () => {
+      window.removeEventListener(
+        "spotify-auth-success",
+        handleSpotifyAuthSuccess as EventListener
+      );
+    };
+  }, [setMessages, agentMessages, reload]);
 
   // Handle action button clicks from the suggestActions tool
   useEffect(() => {

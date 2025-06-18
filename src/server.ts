@@ -21,6 +21,65 @@ export default {
       });
     }
 
+    if (url.pathname === "/config") {
+      return Response.json(
+        {
+          SPOTIFY_CLIENT_ID: env.SPOTIFY_CLIENT_ID,
+          SPOTIFY_REDIRECT_URI: env.SPOTIFY_REDIRECT_URI,
+        },
+        {
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        }
+      );
+    }
+
+    if (url.pathname === "/auth/callback") {
+      // Handle Spotify OAuth callback
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+      const error = url.searchParams.get("error");
+
+      if (error) {
+        // Spotify OAuth error - redirect back to main app with error
+        const baseUrl = env.SPOTIFY_REDIRECT_URI.replace("/auth/callback", "/");
+        const redirectUrl = new URL(baseUrl);
+        redirectUrl.searchParams.set("error", error);
+        redirectUrl.searchParams.set(
+          "error_description",
+          url.searchParams.get("error_description") || ""
+        );
+
+        return Response.redirect(redirectUrl.toString(), 302);
+      }
+
+      if (!code || !state) {
+        // Missing required parameters
+        const baseUrl = env.SPOTIFY_REDIRECT_URI.replace("/auth/callback", "/");
+        const redirectUrl = new URL(baseUrl);
+        redirectUrl.searchParams.set("error", "invalid_request");
+        redirectUrl.searchParams.set(
+          "error_description",
+          "Missing authorization code or state"
+        );
+
+        return Response.redirect(redirectUrl.toString(), 302);
+      }
+
+      // Success - redirect back to main app with the authorization code
+      // The SpotifyAuth component will handle the token exchange
+      // Use the base domain from SPOTIFY_REDIRECT_URI to ensure we redirect to the correct domain
+      const baseUrl = env.SPOTIFY_REDIRECT_URI.replace("/auth/callback", "/");
+      const redirectUrl = new URL(baseUrl);
+      redirectUrl.searchParams.set("code", code);
+      redirectUrl.searchParams.set("state", state);
+
+      return Response.redirect(redirectUrl.toString(), 302);
+    }
+
     if (!env.GATEWAY_API_KEY) {
       console.error(
         "GATEWAY_API_KEY is not set, don't forget to set it locally in .dev.vars, and use `wrangler secret bulk .dev.vars` to upload it to production"

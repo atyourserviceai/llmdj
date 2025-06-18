@@ -1,6 +1,7 @@
 import { Button } from "@/components/button/Button";
 import { Card } from "@/components/card/Card";
 import { Tooltip } from "@/components/tooltip/Tooltip";
+import { SpotifyAuth } from "@/components/auth/SpotifyAuth";
 import { APPROVAL } from "@/shared";
 import { CaretDown, Eye, Robot } from "@phosphor-icons/react";
 import { useState } from "react";
@@ -44,7 +45,20 @@ export function ToolInvocationCard({
   needsConfirmation,
   addToolResult,
 }: ToolInvocationCardProps) {
-  const [isExpanded, setIsExpanded] = useState(needsConfirmation);
+  // Check if this is a Spotify auth tool that should be auto-expanded
+  const isSpotifyAuthTool =
+    toolInvocation.toolName === "showSpotifyAuth" &&
+    toolInvocation.result &&
+    typeof toolInvocation.result === "object" &&
+    "result" in toolInvocation.result &&
+    toolInvocation.result.result &&
+    typeof toolInvocation.result.result === "object" &&
+    "type" in toolInvocation.result.result &&
+    toolInvocation.result.result.type === "spotify_auth_ui";
+
+  const [isExpanded, setIsExpanded] = useState(
+    needsConfirmation || isSpotifyAuthTool
+  );
   const [showRawData, setShowRawData] = useState(false);
 
   // Special handling for suggestActions tool - don't render it at all
@@ -264,7 +278,39 @@ export function ToolInvocationCard({
           {/* Show result for completed tool invocations */}
           {!needsConfirmation && toolInvocation.state === "result" && (
             <div className="mt-1">
-              <p className="text-sm mb-2">{getResultSummary()}</p>
+              {/* Special handling for Spotify auth UI */}
+              {(() => {
+                // Check if this is a Spotify auth tool result with the correct structure
+                return (
+                  toolInvocation.toolName === "showSpotifyAuth" &&
+                  toolInvocation.result &&
+                  typeof toolInvocation.result === "object" &&
+                  "result" in toolInvocation.result &&
+                  toolInvocation.result.result &&
+                  typeof toolInvocation.result.result === "object" &&
+                  "type" in toolInvocation.result.result &&
+                  toolInvocation.result.result.type === "spotify_auth_ui"
+                );
+              })() ? (
+                <div className="mb-4">
+                  <SpotifyAuth
+                    onAuthSuccess={(tokens) => {
+                      // Call the connectSpotifyAccount tool with the received tokens
+                      // This will be handled by the app's message system
+                      const event = new CustomEvent("spotify-auth-success", {
+                        detail: { tokens },
+                      });
+                      window.dispatchEvent(event);
+                    }}
+                    onAuthError={(error) => {
+                      console.error("Spotify auth error:", error);
+                      // Could show an error message or dispatch an error event
+                    }}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm mb-2">{getResultSummary()}</p>
+              )}
 
               {/* Error details when error is present */}
               {hasError && toolInvocation.result?.error && (

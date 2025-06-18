@@ -176,6 +176,7 @@ export const tools = {
   runResearch,
 
   // Spotify tools (music functionality)
+  showSpotifyAuth: spotifyTools.showSpotifyAuth,
   connectSpotifyAccount: spotifyTools.connectSpotifyAccount,
   getSpotifyConnectionStatus: spotifyTools.getSpotifyConnectionStatus,
   searchSpotifyContent: spotifyTools.searchSpotifyContent,
