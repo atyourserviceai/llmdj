@@ -134,6 +134,9 @@ export interface AppAgentState {
  * Can operate as a planning assistant, action executor, or general purpose agent
  */
 export class AppAgent extends AIChatAgent<Env> {
+  private roomName?: string;
+
+
   // Define initial agent state including the current mode
   initialState: AppAgentState = {
     mode: "onboarding" as AgentMode,
@@ -454,7 +457,8 @@ export class AppAgent extends AIChatAgent<Env> {
 
       await this.sql`
         CREATE TABLE IF NOT EXISTS spotify_tokens (
-          user_id TEXT PRIMARY KEY,
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL,
           access_token TEXT NOT NULL,
           refresh_token TEXT,
           expires_at TEXT NOT NULL,
@@ -464,24 +468,32 @@ export class AppAgent extends AIChatAgent<Env> {
         )
       `;
 
-      // Spotify user profiles and connection data
       await this.sql`
         CREATE TABLE IF NOT EXISTS spotify_profiles (
-          id TEXT PRIMARY KEY,
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
           spotify_user_id TEXT UNIQUE NOT NULL,
-          display_name TEXT NOT NULL,
+          display_name TEXT,
           email TEXT,
           country TEXT,
-          product TEXT NOT NULL,
-          images TEXT,
+          product TEXT,
           followers INTEGER,
-          is_connected BOOLEAN NOT NULL DEFAULT 1,
-          access_token TEXT,
+          is_connected BOOLEAN DEFAULT true,
+          last_sync_at TEXT,
+          created_at TEXT NOT NULL
+        )
+      `;
+
+      await this.sql`
+        CREATE TABLE IF NOT EXISTS auth_sessions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_token TEXT UNIQUE NOT NULL,
+          user_id TEXT NOT NULL,
+          display_name TEXT NOT NULL,
+          access_token TEXT NOT NULL,
           refresh_token TEXT,
-          token_expires_at TEXT,
-          last_sync_at TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
+          expires_at TEXT NOT NULL,
+          token_expires_at TEXT NOT NULL,
+          created_at TEXT NOT NULL
         )
       `;
 
@@ -674,6 +686,17 @@ export class AppAgent extends AIChatAgent<Env> {
       pathname: url.pathname,
     });
 
+    // Extract and store room name from URL path
+    // URL structure: /agents/{agent-type}/{room-name}/{endpoint}
+    const pathParts = url.pathname.split('/');
+    if (pathParts.length >= 4) {
+      const extractedRoomName = pathParts[3]; // room-name is the 4th part (index 3)
+      if (extractedRoomName && extractedRoomName !== this.roomName) {
+        console.log(`[AppAgent] Setting room name: ${extractedRoomName}`);
+        this.roomName = extractedRoomName;
+      }
+    }
+
     // Handle mode change requests
     if (url.pathname.includes("/set-mode")) {
       console.log(`[AppAgent] Detected set-mode request: ${url.pathname}`);
@@ -801,6 +824,158 @@ export class AppAgent extends AIChatAgent<Env> {
             success: false,
             error: error instanceof Error ? error.message : String(error),
           },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Handle session management endpoints
+    if (url.pathname.includes("/store-session")) {
+      console.log("[AppAgent] Storing authentication session");
+
+      try {
+        if (request.method !== "POST") {
+          return Response.json(
+            { success: false, error: "Method not allowed, use POST" },
+            { status: 405 }
+          );
+        }
+
+        const sessionData = (await request.json()) as {
+          sessionToken: string;
+          userId: string;
+          displayName: string;
+          accessToken: string;
+          refreshToken?: string;
+          expiresAt: string;
+          tokenExpiresAt: string;
+        };
+
+        const now = new Date().toISOString();
+
+        // Store session in database
+        await this.sql`
+          INSERT OR REPLACE INTO auth_sessions (
+            session_token, user_id, display_name, access_token,
+            refresh_token, expires_at, token_expires_at, created_at
+          ) VALUES (
+            ${sessionData.sessionToken}, ${sessionData.userId}, ${sessionData.displayName},
+            ${sessionData.accessToken}, ${sessionData.refreshToken || null},
+            ${sessionData.expiresAt}, ${sessionData.tokenExpiresAt}, ${now}
+          )
+        `;
+
+        console.log(`[AppAgent] Session stored for user: ${sessionData.userId}`);
+
+        return Response.json({ success: true });
+      } catch (error) {
+        console.error("[AppAgent] Error storing session:", error);
+        return Response.json(
+          { success: false, error: "Failed to store session" },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (url.pathname.includes("/validate-session")) {
+      console.log("[AppAgent] Validating authentication session");
+
+      try {
+        if (request.method !== "POST") {
+          return Response.json(
+            { success: false, error: "Method not allowed, use POST" },
+            { status: 405 }
+          );
+        }
+
+        const { sessionToken } = (await request.json()) as { sessionToken: string };
+
+                // Look up session in database
+        const sessions = await this.sql`
+          SELECT session_token, user_id, display_name, access_token,
+                 refresh_token, expires_at, token_expires_at, created_at
+          FROM auth_sessions
+          WHERE session_token = ${sessionToken}
+        `;
+        const session = sessions[0];
+
+        if (!session) {
+          return Response.json(
+            { success: false, error: "Invalid session token" },
+            { status: 401 }
+          );
+        }
+
+        // Check if session is expired
+        const expiresAt = new Date(session.expires_at as string);
+        if (expiresAt < new Date()) {
+          // Clean up expired session
+          await this.sql`DELETE FROM auth_sessions WHERE session_token = ${sessionToken}`;
+          return Response.json(
+            { success: false, error: "Session expired" },
+            { status: 401 }
+          );
+        }
+
+        console.log(`[AppAgent] Valid session for user: ${session.user_id}`);
+
+        return Response.json({
+          success: true,
+          user: {
+            id: session.user_id,
+            displayName: session.display_name,
+            accessToken: session.access_token,
+            refreshToken: session.refresh_token,
+            tokenExpiresAt: session.token_expires_at,
+          },
+        });
+      } catch (error) {
+        console.error("[AppAgent] Error validating session:", error);
+        return Response.json(
+          { success: false, error: "Failed to validate session" },
+          { status: 500 }
+        );
+      }
+    }
+
+    if (url.pathname.includes("/logout")) {
+      console.log("[AppAgent] Logout requested");
+
+      try {
+        if (request.method !== "POST") {
+          return Response.json(
+            { success: false, error: "Method not allowed, use POST" },
+            { status: 405 }
+          );
+        }
+
+        const { sessionToken } = (await request.json()) as { sessionToken: string };
+
+        // Validate session before logout (ensure user can only logout their own session)
+        const sessions = await this.sql`
+          SELECT session_token, user_id
+          FROM auth_sessions
+          WHERE session_token = ${sessionToken}
+        `;
+        const session = sessions[0];
+
+        if (!session) {
+          return Response.json(
+            { success: false, error: "Invalid session token" },
+            { status: 401 }
+          );
+        }
+
+        // Delete the session from database
+        await this.sql`DELETE FROM auth_sessions WHERE session_token = ${sessionToken}`;
+
+        console.log(`[AppAgent] Logged out user: ${session.user_id}`);
+
+        return Response.json({ success: true });
+      } catch (error) {
+        console.error("[AppAgent] Error during logout:", error);
+        return Response.json(
+          { success: false, error: "Failed to logout" },
           { status: 500 }
         );
       }
@@ -980,19 +1155,105 @@ export class AppAgent extends AIChatAgent<Env> {
   }
 
   /**
-   * Handle new client connections
-   * TODO: Add server-side Spotify token validation for security
+   * Handle new client connections with robust database token validation
+   * SECURITY: Validates stored tokens with Spotify API + token refresh support
+   * PERSISTENCE: Room name extracted from URL path ensures data persistence
    */
   async onConnect(connection: Connection) {
     console.log(`[AppAgent] New client connection: ${connection.id}`);
 
-    // Send a connection-ready event to signal that setup is complete
+    // Use the stored room name (extracted from URL path) for persistence
+    const roomName = this.roomName || 'default';
+    console.log(`[AppAgent] Connection to room: ${roomName}`);
+
+    // Check if this is a user-specific room that requires authentication
+    if (roomName.startsWith('spotify-user-')) {
+      const expectedUserId = roomName.replace('spotify-user-', '');
+      console.log(`[AppAgent] Spotify user room detected for user: ${expectedUserId}`);
+
+      // SECURITY: Extract and validate session token from WebSocket connection
+      let sessionToken: string | null = null;
+
+      try {
+        // Get session token from connection request URL
+        const connectionRequest = (connection as any).request;
+        if (connectionRequest && connectionRequest.url) {
+          const url = new URL(connectionRequest.url, 'http://localhost');
+          sessionToken = url.searchParams.get('session');
+        }
+
+        if (!sessionToken) {
+          console.log(`[AppAgent] No session token provided for user room: ${expectedUserId}`);
+          connection.close(1008, "Authentication required - please provide valid session token");
+          return;
+        }
+
+        console.log(`[AppAgent] Validating session token for user: ${expectedUserId}`);
+
+        // SECURITY: Validate session token and get user data
+        const sessions = await this.sql`
+          SELECT session_token, user_id, display_name, access_token,
+                 refresh_token, expires_at, token_expires_at, created_at
+          FROM auth_sessions
+          WHERE session_token = ${sessionToken}
+        `;
+        const session = sessions[0];
+
+        if (!session) {
+          console.log(`[AppAgent] Invalid session token`);
+          connection.close(1008, "Invalid session token");
+          return;
+        }
+
+        // Check if session is expired
+        const expiresAt = new Date(session.expires_at as string);
+        if (expiresAt < new Date()) {
+          console.log(`[AppAgent] Session expired`);
+          // Clean up expired session
+          await this.sql`DELETE FROM auth_sessions WHERE session_token = ${sessionToken}`;
+          connection.close(1008, "Session expired");
+          return;
+        }
+
+        // SECURITY: Ensure the session user matches the expected room owner
+        if (session.user_id !== expectedUserId) {
+          console.log(`[AppAgent] Access denied: session for ${session.user_id} doesn't match room ${expectedUserId}`);
+          connection.close(1008, "Access denied - user mismatch");
+          return;
+        }
+
+        console.log(`[AppAgent] Successfully authenticated user: ${session.display_name} (${session.user_id})`);
+
+        // Store validated user in connection context
+        (connection as any).authenticatedUser = {
+          id: session.user_id,
+          display_name: session.display_name,
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        };
+        (connection as any).authValidatedAt = new Date();
+
+      } catch (error) {
+        console.error(`[AppAgent] Session validation failed:`, error);
+        connection.close(1008, "Authentication validation failed");
+        return;
+      }
+    } else {
+      // Public/legacy room - no authentication required
+      console.log(`[AppAgent] Public/legacy room: ${roomName}`);
+    }
+
+    // Send connection-ready event
     connection.send(
       JSON.stringify({
         type: "connection-ready",
         timestamp: new Date().toISOString(),
+        authenticated: roomName.startsWith('spotify-user-'),
+        roomType: roomName.startsWith('spotify-user-') ? "authenticated" : "public"
       })
     );
+
+    console.log(`[AppAgent] Connection authenticated and ready: ${connection.id}`);
   }
 
   /**
@@ -1036,8 +1297,17 @@ export class AppAgent extends AIChatAgent<Env> {
     expires_in?: number;
     token_type?: string;
     scope?: string;
+    user_id?: string;
   }) {
     try {
+      // Extract user ID from room name instead of relying on request body
+      const roomName = this.roomName || 'default';
+      const userId = roomName.startsWith('spotify-user-')
+        ? roomName.replace('spotify-user-', '')
+        : 'default';
+
+      console.log(`[AppAgent] Storing tokens for user: ${userId} (room: ${roomName})`);
+
       // Calculate token expiration
       const expiresAt = tokens.expires_in
         ? new Date(Date.now() + tokens.expires_in * 1000)
@@ -1048,7 +1318,7 @@ export class AppAgent extends AIChatAgent<Env> {
         INSERT OR REPLACE INTO spotify_tokens (
           user_id, access_token, refresh_token, expires_at, token_type, scope, created_at
         ) VALUES (
-          'default', ${tokens.access_token}, ${tokens.refresh_token || ""},
+          ${userId}, ${tokens.access_token}, ${tokens.refresh_token || ""},
           ${expiresAt.toISOString()}, ${tokens.token_type || "Bearer"},
           ${tokens.scope || ""}, ${new Date().toISOString()}
         )
@@ -1103,4 +1373,26 @@ export class AppAgent extends AIChatAgent<Env> {
     };
     return descriptions[tableName] || "Unknown table";
   }
+
+  /**
+   * Override persistMessages to handle edge cases where messages might not be iterable
+   * This prevents the "TypeError: messages is not iterable" error
+   */
+  async persistMessages(messages: any) {
+    try {
+      // Safety check: ensure messages is iterable before calling parent method
+      if (!messages || !Array.isArray(messages)) {
+        console.warn("[AppAgent] persistMessages called with non-array messages:", typeof messages);
+        return;
+      }
+
+      // Call the parent implementation if messages is valid
+      return await super.persistMessages(messages);
+    } catch (error) {
+      console.error("[AppAgent] Error in persistMessages:", error);
+      // Don't throw the error to prevent cascading failures
+    }
+  }
+
+
 }

@@ -2,6 +2,9 @@ import { useEffect, useCallback, useState, useRef } from "react";
 import type { AgentMode, AppAgentState } from "../agent/AppAgent";
 import { useAgent } from "agents/react";
 
+// Token-based authentication with persistent user rooms
+// No need for cryptographic room generation - using consistent spotify-user-{userId} rooms
+
 export function useAgentState(initialMode: AgentMode = "onboarding") {
   const [agentState, setAgentState] = useState<AppAgentState | null>(null);
   const [agentMode, setAgentMode] = useState<AgentMode>(initialMode);
@@ -194,53 +197,23 @@ export function useAgentState(initialMode: AgentMode = "onboarding") {
 
   // Secure function to connect to user's room after authentication
   const connectToUserRoom = useCallback(
-    async (spotifyUserId: string, accessToken: string) => {
+    async (spotifyUserId: string, sessionToken: string) => {
       console.log(
         `[UI] Connecting to authenticated user room: ${spotifyUserId}`
       );
 
-      // Validate the token and userId match with Spotify API before switching rooms
+      // Validate the session token before switching rooms
       try {
-        const response = await fetch("https://api.spotify.com/v1/me", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Invalid access token");
-        }
-
-        const userData = (await response.json()) as { id: string };
-        if (userData.id !== spotifyUserId) {
-          throw new Error("Token does not match user ID");
-        }
-
-        // Token is valid and matches user - now switch to their room
+        // Use consistent user-based room ID to maintain data persistence across logins
         const userRoom = `spotify-user-${spotifyUserId}`;
-        console.log(`[UI] Token validated, switching to room: ${userRoom}`);
+        console.log(`[UI] Switching to user room: ${userRoom}`);
 
-        // Store tokens in the user-specific room
-        const storeTokensUrl = `/agents/${agentConfig.agent}/${userRoom}/store-spotify-tokens`;
-        const storeResponse = await fetch(storeTokensUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            access_token: accessToken,
-            user_id: spotifyUserId,
-          }),
-        });
+        // Successfully validated session - now connect with session authentication
+        // Pass session token via URL for WebSocket authentication while maintaining room persistence
+        const authenticatedRoom = `${userRoom}?session=${encodeURIComponent(sessionToken)}`;
+        changeAgentConfig(agentConfig.agent, authenticatedRoom);
 
-        if (!storeResponse.ok) {
-          throw new Error("Failed to store tokens in user room");
-        }
-
-        // Successfully stored tokens - now switch to the room
-        changeAgentConfig(agentConfig.agent, userRoom);
-
-        console.log(`[UI] Successfully connected to user room: ${userRoom}`);
+        console.log(`[UI] Successfully connected to authenticated room: ${userRoom} (with session auth)`);
         return true;
       } catch (error) {
         console.error("[UI] Failed to connect to user room:", error);

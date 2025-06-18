@@ -123,11 +123,21 @@ export const connectSpotifyAccount = tool({
         "[connectSpotifyAccount] Agent reference obtained, querying database for tokens..."
       );
 
+      // Get the room name to determine the user ID
+      const roomName = (agent as any).roomName || 'default';
+      const actualUserId = roomName.startsWith('spotify-user-')
+        ? roomName.replace('spotify-user-', '')
+        : 'default';
+
+      console.log(
+        `[connectSpotifyAccount] Looking for tokens with user_id: ${actualUserId} (room: ${roomName})`
+      );
+
       // Get stored tokens from the database
       const tokenResult = await agent.sql`
         SELECT access_token, refresh_token, expires_at, token_type, scope
         FROM spotify_tokens
-        WHERE user_id = 'default'
+        WHERE user_id = ${actualUserId}
         ORDER BY created_at DESC
         LIMIT 1
       `;
@@ -255,7 +265,7 @@ export const connectSpotifyAccount = tool({
 
       // Clean up the tokens from the temporary storage table
       console.log("[connectSpotifyAccount] Cleaning up temporary tokens...");
-      await agent.sql`DELETE FROM spotify_tokens WHERE user_id = 'default'`;
+      await agent.sql`DELETE FROM spotify_tokens WHERE user_id = ${actualUserId}`;
 
       console.log(
         "[connectSpotifyAccount] Tool execution completed successfully"
