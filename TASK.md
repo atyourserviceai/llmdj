@@ -166,9 +166,46 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [x] Integrate Spotify tools with mode-based access control
   - [x] Configure tool confirmation requirements for music actions
 
+### 🚨 **CRITICAL: User Isolation & Authentication** 🚨
+
+**🔥 MOST CRITICAL SECURITY ISSUE - NO USER ISOLATION:**
+
+- [ ] **🔥 CRITICAL: Implement user authentication before agent access**
+  - [ ] **Problem**: Currently ALL users share the same agent state (`"default-room"`)
+  - [ ] **Risk**: Spotify tokens, music preferences, and personal data shared between all users
+  - [ ] **Impact**: Complete privacy breach - users see each other's music, playlists, recommendations
+
+  **Required Implementation:**
+  - [ ] **User authentication gate** - No agent access without login
+  - [ ] **Spotify OAuth as primary auth** - Use Spotify as the identity provider
+  - [ ] **Per-user agent rooms** - Agent name/room derived from authenticated user ID
+  - [ ] **Session management** - Secure session handling with proper logout
+
+  **Current Flow (BROKEN):**
+  ```
+  User visits URL → Loads agent with "default-room" → Everyone shares state
+  ```
+
+  **Required Flow (SECURE):**
+  ```
+  User visits URL → Spotify OAuth → Agent room = `spotify-user-{spotifyUserId}` → Isolated state
+  ```
+
+- [ ] **Multi-account support within session**
+  - [ ] Keep current Spotify OAuth tools for connecting additional accounts
+  - [ ] Allow household members to connect their Spotify accounts to shared session
+  - [ ] Implement account switching within authenticated session
+  - [ ] Maintain primary account as session owner
+
+- [ ] **URL-based room access (admin/support)**
+  - [ ] Implement admin authentication for URL-based room access
+  - [ ] Add impersonation/support capabilities for troubleshooting
+  - [ ] Audit logging for admin access to user rooms
+  - [ ] Secure room name generation (no guessable patterns)
+
 ### 🚨 **URGENT: Security Review** 🚨
 
-**HIGH PRIORITY SECURITY TASKS:**
+**HIGH PRIORITY SECURITY TASKS (after user isolation):**
 
 - [ ] **Audit token exposure in LLM requests**
 
@@ -382,12 +419,17 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 
 ### ⚠️ **Critical Security Concerns:**
 
+- **🔥 CRITICAL**: All users share the same agent state - complete privacy breach
+- **🔥 CRITICAL**: No user authentication gate - anyone can access anyone's data
+- **🔥 CRITICAL**: Spotify tokens, music preferences shared between all users
 - Spotify access tokens currently stored in agent state
 - Potential exposure of sensitive tokens in LLM context
 - Need comprehensive security audit and token sanitization
 - Implement encrypted token storage and secure access patterns
 
-The foundation is solid and functional! Next phase focuses on UI improvements and critical security hardening.
+**SECURITY STATUS: 🚨 CRITICAL ISSUES MUST BE FIXED BEFORE PRODUCTION 🚨**
+
+The foundation is technically solid and functional, but the **user isolation issue makes it completely unsuitable for production use**. Authentication and user isolation must be implemented immediately.
 
 ## Technical Dependencies
 
