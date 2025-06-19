@@ -3,17 +3,15 @@ import { SpotifyAuth } from "./SpotifyAuth";
 
 interface AuthGuardProps {
   children: React.ReactNode;
-  onAuthenticated?: (spotifyUserId: string, accessToken: string) => void;
+  onAuthenticated?: (spotifyUserId: string, sessionToken: string) => void;
 }
 
 interface SpotifyUserData {
   id: string;
   display_name: string;
   email?: string;
-  country?: string;
-  product: string;
   images?: Array<{ url: string }>;
-  followers?: { total: number };
+  product: string;
 }
 
 export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
@@ -22,181 +20,76 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
   const [userData, setUserData] = useState<SpotifyUserData | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  console.log("[AuthGuard] Component rendered, current state:", {
-    isLoading,
-    isAuthenticated,
-    hasUserData: !!userData,
-    userDataId: userData?.id,
-  });
-
-  // Check for existing authentication on mount
   useEffect(() => {
-    console.log("[AuthGuard] Initial mount, checking existing auth");
-    checkExistingAuth();
+    // Check for OAuth error first
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("error")) {
+      setAuthError(`Authentication failed: ${urlParams.get("error")}`);
+      setIsLoading(false);
+      return;
+    }
 
-    // Listen for successful authentication events
-    const handleAuthSuccess = () => {
-      console.log(
-        "[AuthGuard] Received auth success event, re-checking authentication"
-      );
-      checkExistingAuth();
-    };
-
-    // Listen for the spotify-auth-success event
-    window.addEventListener("spotify-auth-success", handleAuthSuccess);
-
-    // Listen for the auth-complete event from OAuth flow
-    window.addEventListener("auth-complete", handleAuthSuccess);
-
-    // Also listen for storage changes in case auth data is updated
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "llmdj_spotify_auth") {
-        console.log(
-          "[AuthGuard] localStorage auth data changed, re-checking authentication"
-        );
-        checkExistingAuth();
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("spotify-auth-success", handleAuthSuccess);
-      window.removeEventListener("auth-complete", handleAuthSuccess);
-      window.removeEventListener("storage", handleStorageChange);
-    };
+    // Check existing authentication (including successful OAuth callback)
+    checkAuthentication();
   }, []);
 
-  const checkExistingAuth = async () => {
-    console.log("[AuthGuard] checkExistingAuth called");
+  const getCookie = (name: string): string | null => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
+    return null;
+  };
+
+    const checkAuthentication = async () => {
     try {
-      // Check if we have stored authentication data
-      const storedAuth = localStorage.getItem("llmdj_spotify_auth");
-      console.log(
-        "[AuthGuard] Stored auth data:",
-        storedAuth ? "found" : "not found"
-      );
-      if (!storedAuth) {
+      const sessionToken = getCookie("llmdj_session");
+      const userId = getCookie("llmdj_user_id");
+
+      if (!sessionToken || !userId) {
         setIsLoading(false);
         return;
       }
 
-      const authData = JSON.parse(storedAuth);
-      console.log("[AuthGuard] Parsed auth data:", {
-        hasAccessToken: !!authData.access_token,
-        hasUserId: !!authData.user_id,
-        hasExpiresAt: !!authData.expires_at,
+      // Validate session with server
+      const response = await fetch("/api/auth/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionToken, userId }),
       });
 
-      // Validate stored auth data has required fields
-      if (!authData.access_token || !authData.expires_at || !authData.user_id) {
-        console.log("[AuthGuard] Invalid auth data, clearing");
-        localStorage.removeItem("llmdj_spotify_auth");
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if token is expired
-      const expiresAt = new Date(authData.expires_at);
-      console.log("[AuthGuard] Token expiration check:", {
-        expiresAt: expiresAt.toISOString(),
-        now: new Date().toISOString(),
-        isExpired: expiresAt <= new Date(),
-      });
-      if (expiresAt <= new Date()) {
-        console.log("[AuthGuard] Stored token expired, clearing auth");
-        localStorage.removeItem("llmdj_spotify_auth");
-        setIsLoading(false);
-        return;
-      }
-
-      // Verify token is still valid by making a test API call
-      console.log("[AuthGuard] Validating token with Spotify API...");
-      const response = await fetch("https://api.spotify.com/v1/me", {
-        headers: {
-          Authorization: `Bearer ${authData.access_token}`,
-        },
-      });
-
-      console.log(
-        "[AuthGuard] Spotify API response:",
-        response.status,
-        response.ok
-      );
       if (response.ok) {
-        const spotifyUser = (await response.json()) as SpotifyUserData;
-        console.log("[AuthGuard] User data from API:", {
-          id: spotifyUser.id,
-          display_name: spotifyUser.display_name,
+        const { access_token } = await response.json() as { access_token: string };
+
+        // Get user profile
+        const profileResponse = await fetch("https://api.spotify.com/v1/me", {
+          headers: { Authorization: `Bearer ${access_token}` },
         });
-        setUserData(spotifyUser);
-        setIsAuthenticated(true);
-        onAuthenticated?.(spotifyUser.id, authData.access_token);
-        console.log(
-          "[AuthGuard] Successfully restored authentication for user:",
-          spotifyUser.id
-        );
-      } else {
-        // Token is invalid, clear stored auth
-        console.log("[AuthGuard] Stored token invalid, clearing auth");
-        localStorage.removeItem("llmdj_spotify_auth");
+
+        if (profileResponse.ok) {
+          const profile = await profileResponse.json() as SpotifyUserData;
+          setUserData(profile);
+          setIsAuthenticated(true);
+          onAuthenticated?.(profile.id, sessionToken);
+        }
       }
     } catch (error) {
-      console.error("[AuthGuard] Error checking existing auth:", error);
-      localStorage.removeItem("llmdj_spotify_auth");
+      console.error("Auth check failed:", error);
     } finally {
-      console.log(
-        "[AuthGuard] checkExistingAuth completed, setting isLoading to false"
-      );
       setIsLoading(false);
     }
   };
 
-  const handleAuthSuccess = async (authData: {
-    access_token: string;
-    refresh_token?: string;
-    expires_in: number;
-    user_data: SpotifyUserData;
-  }) => {
-    try {
-      // Calculate expiration time
-      const expiresAt = new Date(Date.now() + authData.expires_in * 1000);
-
-      // Store authentication data securely
-      const authStorage = {
-        access_token: authData.access_token,
-        refresh_token: authData.refresh_token,
-        expires_at: expiresAt.toISOString(),
-        user_id: authData.user_data.id,
-        user_data: authData.user_data,
-      };
-
-      localStorage.setItem("llmdj_spotify_auth", JSON.stringify(authStorage));
-
-      setUserData(authData.user_data);
-      setIsAuthenticated(true);
-      setAuthError(null);
-
-      // Notify parent with Spotify user ID for room creation
-      onAuthenticated?.(authData.user_data.id, authData.access_token);
-
-      console.log(
-        "[AuthGuard] Authentication successful for user:",
-        authData.user_data.id
-      );
-    } catch (error) {
-      console.error("[AuthGuard] Error handling auth success:", error);
-      setAuthError("Failed to store authentication data");
-    }
+  const handleAuthSuccess = () => {
+    // Store user ID for session validation
+    // This would be set by the OAuth callback in a real implementation
+    checkAuthentication();
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("llmdj_spotify_auth");
+    document.cookie = "llmdj_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "llmdj_user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     setIsAuthenticated(false);
     setUserData(null);
-    setAuthError(null);
-
-    // Reload the page to reset agent state
     window.location.reload();
   };
 
@@ -240,32 +133,7 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
             )}
 
             <SpotifyAuth
-              onAuthSuccess={async (tokens) => {
-                // Need to fetch user data with the access token
-                try {
-                  const response = await fetch(
-                    "https://api.spotify.com/v1/me",
-                    {
-                      headers: {
-                        Authorization: `Bearer ${tokens.access_token}`,
-                      },
-                    }
-                  );
-
-                  if (response.ok) {
-                    const userData = (await response.json()) as SpotifyUserData;
-                    await handleAuthSuccess({
-                      ...tokens,
-                      expires_in: tokens.expires_in || 3600,
-                      user_data: userData,
-                    });
-                  } else {
-                    setAuthError("Failed to fetch user profile from Spotify");
-                  }
-                } catch (error) {
-                  setAuthError("Failed to complete authentication");
-                }
-              }}
+              onAuthSuccess={handleAuthSuccess}
               onAuthError={(error: string) => setAuthError(error)}
             />
 
@@ -282,10 +150,8 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
     );
   }
 
-  // User is authenticated, show main app with user info header
   return (
     <div className="min-h-screen">
-      {/* User info header */}
       <div className="bg-black/20 backdrop-blur-sm border-b border-green-500/20 px-4 py-2">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center space-x-3">
@@ -319,8 +185,6 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
           </button>
         </div>
       </div>
-
-      {/* Main app content */}
       {children}
     </div>
   );

@@ -672,76 +672,7 @@ export default function Chat() {
       storeTokens();
     }
 
-    // Check for OAuth callback parameters on app load
-    const checkOAuthCallback = () => {
-      console.log("Checking for OAuth callback parameters...");
-      console.log("Current URL:", window.location.href);
-      console.log("Search params:", window.location.search);
-
-      // Check URL parameters first (fallback)
-      const urlParams = new URLSearchParams(window.location.search);
-      let sessionToken = urlParams.get("session");
-      let userId = urlParams.get("user");
-      let authStatus = urlParams.get("auth");
-      const error = urlParams.get("error");
-      const errorDescription = urlParams.get("error_description");
-
-      // Check localStorage for session data (primary method)
-      try {
-        const storedCallback = localStorage.getItem('llmdj_oauth_callback');
-        if (storedCallback) {
-          console.log("Found OAuth callback data in localStorage");
-          const callbackData = JSON.parse(storedCallback);
-          sessionToken = callbackData.sessionToken;
-          userId = callbackData.userId;
-          authStatus = callbackData.authStatus;
-
-          // Clean up localStorage after use
-          localStorage.removeItem('llmdj_oauth_callback');
-          console.log("OAuth callback data loaded from localStorage:", {
-            userId,
-            authStatus,
-            hasSessionToken: !!sessionToken,
-          });
-        }
-      } catch (error) {
-        console.warn("Failed to parse OAuth callback from localStorage:", error);
-      }
-
-      console.log("OAuth session params:", {
-        hasSession: !!sessionToken,
-        userId,
-        authStatus,
-        error,
-        errorDescription,
-      });
-
-      if (error) {
-        console.error("Spotify OAuth error:", error, errorDescription);
-        // Clean up URL
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-        return;
-      }
-
-      if (sessionToken && userId && authStatus === "success") {
-        console.log("OAuth session callback detected, connecting to user room");
-        // Clean up URL first
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-
-        // Connect to authenticated user room using session token
-        handleSessionCallback(sessionToken, userId);
-            } else {
-        console.log("No OAuth session callback parameters found");
-      }
-    };
+    // OAuth callback handling is now done in AuthGuard component
 
 
 
@@ -750,8 +681,7 @@ export default function Chat() {
       handleSpotifyAuthSuccess as EventListener
     );
 
-    // Check for OAuth callback on initial load
-    checkOAuthCallback();
+    // OAuth callback handled by AuthGuard component
 
     return () => {
       window.removeEventListener(
