@@ -80,24 +80,27 @@ export default {
 
       try {
         // Exchange code for tokens
-        const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": `Basic ${btoa(`${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`)}`,
-          },
-          body: new URLSearchParams({
-            grant_type: "authorization_code",
-            code: code,
-            redirect_uri: env.SPOTIFY_REDIRECT_URI,
-          }),
-        });
+        const tokenResponse = await fetch(
+          "https://accounts.spotify.com/api/token",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Basic ${btoa(`${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`)}`,
+            },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code: code,
+              redirect_uri: env.SPOTIFY_REDIRECT_URI,
+            }),
+          }
+        );
 
         if (!tokenResponse.ok) {
           throw new Error(`Token exchange failed: ${tokenResponse.status}`);
         }
 
-        const tokens = await tokenResponse.json() as {
+        const tokens = (await tokenResponse.json()) as {
           access_token: string;
           refresh_token: string;
           expires_in: number;
@@ -105,14 +108,14 @@ export default {
 
         // Get user profile
         const profileResponse = await fetch("https://api.spotify.com/v1/me", {
-          headers: { "Authorization": `Bearer ${tokens.access_token}` },
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
         });
 
         if (!profileResponse.ok) {
           throw new Error(`Profile fetch failed: ${profileResponse.status}`);
         }
 
-        const profile = await profileResponse.json() as {
+        const profile = (await profileResponse.json()) as {
           id: string;
           display_name: string;
         };
@@ -128,33 +131,43 @@ export default {
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          tokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+          tokenExpiresAt: new Date(
+            Date.now() + tokens.expires_in * 1000
+          ).toISOString(),
         };
 
-        const storeResponse = await fetch(new URL(`/agents/app-agent/${userRoom}/store-session`, request.url), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(sessionData),
-        });
+        const storeResponse = await fetch(
+          new URL(`/agents/app-agent/${userRoom}/store-session`, request.url),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(sessionData),
+          }
+        );
 
         if (!storeResponse.ok) {
           throw new Error("Failed to store session");
         }
 
-                                // Redirect with session cookie and user ID
+        // Redirect with session cookie and user ID
         const redirectUrl = new URL(baseUrl);
 
         // Create headers with multiple Set-Cookie entries
         const headers = new Headers();
         headers.set("Location", redirectUrl.toString());
-        headers.append("Set-Cookie", `llmdj_session=${sessionToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`);
-        headers.append("Set-Cookie", `llmdj_user_id=${profile.id}; Secure; SameSite=Lax; Path=/; Max-Age=86400`);
+        headers.append(
+          "Set-Cookie",
+          `llmdj_session=${sessionToken}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`
+        );
+        headers.append(
+          "Set-Cookie",
+          `llmdj_user_id=${profile.id}; Secure; SameSite=Lax; Path=/; Max-Age=86400`
+        );
 
         return new Response(null, {
           status: 302,
-          headers: headers
+          headers: headers,
         });
-
       } catch (error) {
         console.error("[OAuth] Error:", error);
         const redirectUrl = new URL(baseUrl);
@@ -166,20 +179,29 @@ export default {
     // Session validation API
     if (url.pathname === "/api/auth/validate" && request.method === "POST") {
       try {
-        const { sessionToken, userId } = await request.json() as { sessionToken: string; userId: string };
+        const { sessionToken, userId } = (await request.json()) as {
+          sessionToken: string;
+          userId: string;
+        };
         const userRoom = `spotify-user-${userId}`;
 
-        const response = await fetch(new URL(`/agents/app-agent/${userRoom}/validate-session`, request.url), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionToken }),
-        });
+        const response = await fetch(
+          new URL(
+            `/agents/app-agent/${userRoom}/validate-session`,
+            request.url
+          ),
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionToken }),
+          }
+        );
 
         if (!response.ok) {
           return Response.json({ error: "Invalid session" }, { status: 401 });
         }
 
-        const sessionData = await response.json() as {
+        const sessionData = (await response.json()) as {
           success: boolean;
           user: {
             accessToken: string;
@@ -195,15 +217,17 @@ export default {
         return Response.json({
           access_token: sessionData.user.accessToken,
           refresh_token: sessionData.user.refreshToken,
-          expires_in: Math.floor((new Date(sessionData.user.tokenExpiresAt).getTime() - Date.now()) / 1000),
+          expires_in: Math.floor(
+            (new Date(sessionData.user.tokenExpiresAt).getTime() - Date.now()) /
+              1000
+          ),
         });
-
       } catch (error) {
         return Response.json({ error: "Validation failed" }, { status: 500 });
       }
     }
 
-        // Route all other requests to the agent
+    // Route all other requests to the agent
     return (
       (await routeAgentRequest(request, env, { cors: true })) ||
       new Response("Not found", { status: 404 })

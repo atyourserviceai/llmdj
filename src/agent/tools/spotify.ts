@@ -124,10 +124,10 @@ export const connectSpotifyAccount = tool({
       );
 
       // Get the room name to determine the user ID
-      const roomName = (agent as any).roomName || 'default';
-      const actualUserId = roomName.startsWith('spotify-user-')
-        ? roomName.replace('spotify-user-', '')
-        : 'default';
+      const roomName = (agent as any).roomName || "default";
+      const actualUserId = roomName.startsWith("spotify-user-")
+        ? roomName.replace("spotify-user-", "")
+        : "default";
 
       console.log(
         `[connectSpotifyAccount] Looking for tokens with user_id: ${actualUserId} (room: ${roomName})`
@@ -319,10 +319,10 @@ export const getSpotifyConnectionStatus = tool({
       }
 
       // Get the room name to determine the actual user ID
-      const roomName = (agent as any).roomName || 'default';
-      const actualUserId = roomName.startsWith('spotify-user-')
-        ? roomName.replace('spotify-user-', '')
-        : userId || 'default';
+      const roomName = (agent as any).roomName || "default";
+      const actualUserId = roomName.startsWith("spotify-user-")
+        ? roomName.replace("spotify-user-", "")
+        : userId || "default";
 
       console.log(
         `[getSpotifyConnectionStatus] Checking connection for user: ${actualUserId} (room: ${roomName})`
@@ -351,21 +351,29 @@ export const getSpotifyConnectionStatus = tool({
         const tokenExpiresAt = new Date(sessionData.token_expires_at);
         const isTokenValid = tokenExpiresAt.getTime() > Date.now();
 
-        console.log(`[getSpotifyConnectionStatus] Found valid session for user: ${actualUserId}`, {
-          hasAccessToken: !!sessionData.access_token,
-          tokenValid: isTokenValid,
-          tokenExpiresAt: tokenExpiresAt.toISOString()
-        });
+        console.log(
+          `[getSpotifyConnectionStatus] Found valid session for user: ${actualUserId}`,
+          {
+            hasAccessToken: !!sessionData.access_token,
+            tokenValid: isTokenValid,
+            tokenExpiresAt: tokenExpiresAt.toISOString(),
+          }
+        );
 
         if (isTokenValid) {
           // Try to get user profile from Spotify API to verify connection
           try {
-            const spotifySDK = SpotifyApi.withAccessToken(agent.getSpotifyClientId(), {
-              access_token: sessionData.access_token,
-              token_type: "Bearer",
-              expires_in: Math.floor((tokenExpiresAt.getTime() - Date.now()) / 1000),
-              refresh_token: sessionData.refresh_token || "",
-            });
+            const spotifySDK = SpotifyApi.withAccessToken(
+              agent.getSpotifyClientId(),
+              {
+                access_token: sessionData.access_token,
+                token_type: "Bearer",
+                expires_in: Math.floor(
+                  (tokenExpiresAt.getTime() - Date.now()) / 1000
+                ),
+                refresh_token: sessionData.refresh_token || "",
+              }
+            );
 
             const profile = await spotifySDK.currentUser.profile();
 
@@ -382,11 +390,15 @@ export const getSpotifyConnectionStatus = tool({
               message: `Connected to Spotify as ${profile.display_name}`,
             };
           } catch (error) {
-            console.error("[getSpotifyConnectionStatus] Failed to verify Spotify connection:", error);
+            console.error(
+              "[getSpotifyConnectionStatus] Failed to verify Spotify connection:",
+              error
+            );
             return {
               connected: false,
               tokenValid: false,
-              message: "Spotify tokens found but connection verification failed. Please re-authenticate.",
+              message:
+                "Spotify tokens found but connection verification failed. Please re-authenticate.",
             };
           }
         } else {
@@ -400,12 +412,14 @@ export const getSpotifyConnectionStatus = tool({
       }
 
       // If no valid session found, user is not authenticated
-      console.log(`[getSpotifyConnectionStatus] No authentication found for user: ${actualUserId}`);
+      console.log(
+        `[getSpotifyConnectionStatus] No authentication found for user: ${actualUserId}`
+      );
       return {
         connected: false,
-        message: "No Spotify account connected. Please connect your account first.",
+        message:
+          "No Spotify account connected. Please connect your account first.",
       };
-
     } catch (error) {
       console.error("Error checking Spotify connection:", error);
       return {

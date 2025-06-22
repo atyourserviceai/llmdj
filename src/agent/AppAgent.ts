@@ -136,7 +136,6 @@ export interface AppAgentState {
 export class AppAgent extends AIChatAgent<Env> {
   private roomName?: string;
 
-
   // Define initial agent state including the current mode
   initialState: AppAgentState = {
     mode: "onboarding" as AgentMode,
@@ -688,7 +687,7 @@ export class AppAgent extends AIChatAgent<Env> {
 
     // Extract and store room name from URL path
     // URL structure: /agents/{agent-type}/{room-name}/{endpoint}
-    const pathParts = url.pathname.split('/');
+    const pathParts = url.pathname.split("/");
     if (pathParts.length >= 4) {
       const extractedRoomName = pathParts[3]; // room-name is the 4th part (index 3)
       if (extractedRoomName && extractedRoomName !== this.roomName) {
@@ -865,7 +864,9 @@ export class AppAgent extends AIChatAgent<Env> {
           )
         `;
 
-        console.log(`[AppAgent] Session stored for user: ${sessionData.userId}`);
+        console.log(
+          `[AppAgent] Session stored for user: ${sessionData.userId}`
+        );
 
         return Response.json({ success: true });
       } catch (error) {
@@ -888,9 +889,11 @@ export class AppAgent extends AIChatAgent<Env> {
           );
         }
 
-        const { sessionToken } = (await request.json()) as { sessionToken: string };
+        const { sessionToken } = (await request.json()) as {
+          sessionToken: string;
+        };
 
-                // Look up session in database
+        // Look up session in database
         const sessions = await this.sql`
           SELECT session_token, user_id, display_name, access_token,
                  refresh_token, expires_at, token_expires_at, created_at
@@ -910,7 +913,8 @@ export class AppAgent extends AIChatAgent<Env> {
         const expiresAt = new Date(session.expires_at as string);
         if (expiresAt < new Date()) {
           // Clean up expired session
-          await this.sql`DELETE FROM auth_sessions WHERE session_token = ${sessionToken}`;
+          await this
+            .sql`DELETE FROM auth_sessions WHERE session_token = ${sessionToken}`;
           return Response.json(
             { success: false, error: "Session expired" },
             { status: 401 }
@@ -949,7 +953,9 @@ export class AppAgent extends AIChatAgent<Env> {
           );
         }
 
-        const { sessionToken } = (await request.json()) as { sessionToken: string };
+        const { sessionToken } = (await request.json()) as {
+          sessionToken: string;
+        };
 
         // Validate session before logout (ensure user can only logout their own session)
         const sessions = await this.sql`
@@ -967,7 +973,8 @@ export class AppAgent extends AIChatAgent<Env> {
         }
 
         // Delete the session from database
-        await this.sql`DELETE FROM auth_sessions WHERE session_token = ${sessionToken}`;
+        await this
+          .sql`DELETE FROM auth_sessions WHERE session_token = ${sessionToken}`;
 
         console.log(`[AppAgent] Logged out user: ${session.user_id}`);
 
@@ -1163,13 +1170,15 @@ export class AppAgent extends AIChatAgent<Env> {
     console.log(`[AppAgent] New client connection: ${connection.id}`);
 
     // Use the stored room name (extracted from URL path) for persistence
-    const roomName = this.roomName || 'default';
+    const roomName = this.roomName || "default";
     console.log(`[AppAgent] Connection to room: ${roomName}`);
 
     // Check if this is a user-specific room that requires authentication
-    if (roomName.startsWith('spotify-user-')) {
-      const expectedUserId = roomName.replace('spotify-user-', '');
-      console.log(`[AppAgent] Spotify user room detected for user: ${expectedUserId}`);
+    if (roomName.startsWith("spotify-user-")) {
+      const expectedUserId = roomName.replace("spotify-user-", "");
+      console.log(
+        `[AppAgent] Spotify user room detected for user: ${expectedUserId}`
+      );
 
       // SECURITY: Extract and validate session token from WebSocket connection
       let sessionToken: string | null = null;
@@ -1178,17 +1187,24 @@ export class AppAgent extends AIChatAgent<Env> {
         // Get session token from connection request URL
         const connectionRequest = (connection as any).request;
         if (connectionRequest && connectionRequest.url) {
-          const url = new URL(connectionRequest.url, 'http://localhost');
-          sessionToken = url.searchParams.get('session');
+          const url = new URL(connectionRequest.url, "http://localhost");
+          sessionToken = url.searchParams.get("session");
         }
 
         if (!sessionToken) {
-          console.log(`[AppAgent] No session token provided for user room: ${expectedUserId}`);
-          connection.close(1008, "Authentication required - please provide valid session token");
+          console.log(
+            `[AppAgent] No session token provided for user room: ${expectedUserId}`
+          );
+          connection.close(
+            1008,
+            "Authentication required - please provide valid session token"
+          );
           return;
         }
 
-        console.log(`[AppAgent] Validating session token for user: ${expectedUserId}`);
+        console.log(
+          `[AppAgent] Validating session token for user: ${expectedUserId}`
+        );
 
         // SECURITY: Validate session token and get user data
         const sessions = await this.sql`
@@ -1210,19 +1226,24 @@ export class AppAgent extends AIChatAgent<Env> {
         if (expiresAt < new Date()) {
           console.log(`[AppAgent] Session expired`);
           // Clean up expired session
-          await this.sql`DELETE FROM auth_sessions WHERE session_token = ${sessionToken}`;
+          await this
+            .sql`DELETE FROM auth_sessions WHERE session_token = ${sessionToken}`;
           connection.close(1008, "Session expired");
           return;
         }
 
         // SECURITY: Ensure the session user matches the expected room owner
         if (session.user_id !== expectedUserId) {
-          console.log(`[AppAgent] Access denied: session for ${session.user_id} doesn't match room ${expectedUserId}`);
+          console.log(
+            `[AppAgent] Access denied: session for ${session.user_id} doesn't match room ${expectedUserId}`
+          );
           connection.close(1008, "Access denied - user mismatch");
           return;
         }
 
-        console.log(`[AppAgent] Successfully authenticated user: ${session.display_name} (${session.user_id})`);
+        console.log(
+          `[AppAgent] Successfully authenticated user: ${session.display_name} (${session.user_id})`
+        );
 
         // Store validated user in connection context
         (connection as any).authenticatedUser = {
@@ -1232,7 +1253,6 @@ export class AppAgent extends AIChatAgent<Env> {
           refresh_token: session.refresh_token,
         };
         (connection as any).authValidatedAt = new Date();
-
       } catch (error) {
         console.error(`[AppAgent] Session validation failed:`, error);
         connection.close(1008, "Authentication validation failed");
@@ -1248,12 +1268,16 @@ export class AppAgent extends AIChatAgent<Env> {
       JSON.stringify({
         type: "connection-ready",
         timestamp: new Date().toISOString(),
-        authenticated: roomName.startsWith('spotify-user-'),
-        roomType: roomName.startsWith('spotify-user-') ? "authenticated" : "public"
+        authenticated: roomName.startsWith("spotify-user-"),
+        roomType: roomName.startsWith("spotify-user-")
+          ? "authenticated"
+          : "public",
       })
     );
 
-    console.log(`[AppAgent] Connection authenticated and ready: ${connection.id}`);
+    console.log(
+      `[AppAgent] Connection authenticated and ready: ${connection.id}`
+    );
   }
 
   /**
@@ -1301,12 +1325,14 @@ export class AppAgent extends AIChatAgent<Env> {
   }) {
     try {
       // Extract user ID from room name instead of relying on request body
-      const roomName = this.roomName || 'default';
-      const userId = roomName.startsWith('spotify-user-')
-        ? roomName.replace('spotify-user-', '')
-        : 'default';
+      const roomName = this.roomName || "default";
+      const userId = roomName.startsWith("spotify-user-")
+        ? roomName.replace("spotify-user-", "")
+        : "default";
 
-      console.log(`[AppAgent] Storing tokens for user: ${userId} (room: ${roomName})`);
+      console.log(
+        `[AppAgent] Storing tokens for user: ${userId} (room: ${roomName})`
+      );
 
       // Calculate token expiration
       const expiresAt = tokens.expires_in
@@ -1389,7 +1415,10 @@ export class AppAgent extends AIChatAgent<Env> {
     try {
       // Safety check: ensure messages is iterable before calling parent method
       if (!messages || !Array.isArray(messages)) {
-        console.warn("[AppAgent] persistMessages called with non-array messages:", typeof messages);
+        console.warn(
+          "[AppAgent] persistMessages called with non-array messages:",
+          typeof messages
+        );
         return;
       }
 
@@ -1400,6 +1429,4 @@ export class AppAgent extends AIChatAgent<Env> {
       // Don't throw the error to prevent cascading failures
     }
   }
-
-
 }

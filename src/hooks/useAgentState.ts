@@ -213,7 +213,9 @@ export function useAgentState(initialMode: AgentMode = "onboarding") {
         const authenticatedRoom = `${userRoom}?session=${encodeURIComponent(sessionToken)}`;
         changeAgentConfig(agentConfig.agent, authenticatedRoom);
 
-        console.log(`[UI] Successfully connected to authenticated room: ${userRoom} (with session auth)`);
+        console.log(
+          `[UI] Successfully connected to authenticated room: ${userRoom} (with session auth)`
+        );
         return true;
       } catch (error) {
         console.error("[UI] Failed to connect to user room:", error);

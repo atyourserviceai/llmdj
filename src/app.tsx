@@ -428,7 +428,10 @@ export default function Chat() {
   }, [setInput, activeTab]);
 
   // Handle session callback from OAuth
-  const handleSessionCallback = async (sessionToken: string, userId: string) => {
+  const handleSessionCallback = async (
+    sessionToken: string,
+    userId: string
+  ) => {
     console.log("Session callback - connecting to authenticated room");
     try {
       // Connect to user-specific room with session token
@@ -447,13 +450,15 @@ export default function Chat() {
       });
 
       if (response.ok) {
-        const sessionData = await response.json() as {
+        const sessionData = (await response.json()) as {
           access_token: string;
           refresh_token?: string;
           expires_in?: number;
         };
 
-        console.log("Session validation successful, storing auth data for AuthGuard...");
+        console.log(
+          "Session validation successful, storing auth data for AuthGuard..."
+        );
 
         // Get user profile for AuthGuard
         const profileResponse = await fetch("https://api.spotify.com/v1/me", {
@@ -463,7 +468,7 @@ export default function Chat() {
         });
 
         if (profileResponse.ok) {
-          const userData = await profileResponse.json() as {
+          const userData = (await profileResponse.json()) as {
             id: string;
             display_name: string;
             email?: string;
@@ -474,7 +479,9 @@ export default function Chat() {
           };
 
           // Store authentication data in localStorage for AuthGuard
-          const expiresAt = new Date(Date.now() + (sessionData.expires_in || 3600) * 1000);
+          const expiresAt = new Date(
+            Date.now() + (sessionData.expires_in || 3600) * 1000
+          );
           const authStorage = {
             access_token: sessionData.access_token,
             refresh_token: sessionData.refresh_token,
@@ -483,7 +490,10 @@ export default function Chat() {
             user_data: userData,
           };
 
-          localStorage.setItem("llmdj_spotify_auth", JSON.stringify(authStorage));
+          localStorage.setItem(
+            "llmdj_spotify_auth",
+            JSON.stringify(authStorage)
+          );
           console.log("Auth data stored in localStorage for AuthGuard");
 
           // Dispatch auth-complete event to notify AuthGuard
@@ -673,8 +683,6 @@ export default function Chat() {
     }
 
     // OAuth callback handling is now done in AuthGuard component
-
-
 
     window.addEventListener(
       "spotify-auth-success",
