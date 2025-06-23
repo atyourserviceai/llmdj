@@ -427,80 +427,6 @@ export default function Chat() {
     };
   }, [setInput, activeTab]);
 
-  // Handle session callback from OAuth
-  const handleSessionCallback = async (sessionToken: string, userId: string) => {
-    console.log("Session callback - connecting to authenticated room");
-    try {
-      // Connect to user-specific room with session token
-      await connectToUserRoom(userId, sessionToken);
-
-      console.log("Successfully connected to authenticated room:", userId);
-
-      // Validate session and get tokens for SpotifyAuth component
-      console.log("Validating session with server...");
-      const response = await fetch("/api/spotify/validate-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ sessionToken, userId }),
-      });
-
-      if (response.ok) {
-        const sessionData = await response.json() as {
-          access_token: string;
-          refresh_token?: string;
-          expires_in?: number;
-        };
-
-        console.log("Session validation successful, storing auth data for AuthGuard...");
-
-        // Get user profile for AuthGuard
-        const profileResponse = await fetch("https://api.spotify.com/v1/me", {
-          headers: {
-            Authorization: `Bearer ${sessionData.access_token}`,
-          },
-        });
-
-        if (profileResponse.ok) {
-          const userData = await profileResponse.json() as {
-            id: string;
-            display_name: string;
-            email?: string;
-            country?: string;
-            product: string;
-            images?: Array<{ url: string }>;
-            followers?: { total: number };
-          };
-
-          // Store authentication data in localStorage for AuthGuard
-          const expiresAt = new Date(Date.now() + (sessionData.expires_in || 3600) * 1000);
-          const authStorage = {
-            access_token: sessionData.access_token,
-            refresh_token: sessionData.refresh_token,
-            expires_at: expiresAt.toISOString(),
-            user_id: userData.id,
-            user_data: userData,
-          };
-
-          localStorage.setItem("llmdj_spotify_auth", JSON.stringify(authStorage));
-          console.log("Auth data stored in localStorage for AuthGuard");
-
-          // Dispatch auth-complete event to notify AuthGuard
-          const authCompleteEvent = new CustomEvent("auth-complete", {
-            detail: { userId: userData.id },
-          });
-          window.dispatchEvent(authCompleteEvent);
-          console.log("Dispatched auth-complete event for AuthGuard");
-        }
-      } else {
-        console.error("Session validation failed:", response.status);
-      }
-    } catch (error) {
-      console.error("Failed to connect to authenticated room:", error);
-    }
-  };
-
   // Handle OAuth token exchange
   const handleOAuthTokenExchange = async (code: string, state: string) => {
     try {
@@ -678,40 +604,15 @@ export default function Chat() {
       console.log("Current URL:", window.location.href);
       console.log("Search params:", window.location.search);
 
-      // Check URL parameters first (fallback)
       const urlParams = new URLSearchParams(window.location.search);
-      let sessionToken = urlParams.get("session");
-      let userId = urlParams.get("user");
-      let authStatus = urlParams.get("auth");
+      const code = urlParams.get("code");
+      const state = urlParams.get("state");
       const error = urlParams.get("error");
       const errorDescription = urlParams.get("error_description");
 
-      // Check localStorage for session data (primary method)
-      try {
-        const storedCallback = localStorage.getItem('llmdj_oauth_callback');
-        if (storedCallback) {
-          console.log("Found OAuth callback data in localStorage");
-          const callbackData = JSON.parse(storedCallback);
-          sessionToken = callbackData.sessionToken;
-          userId = callbackData.userId;
-          authStatus = callbackData.authStatus;
-
-          // Clean up localStorage after use
-          localStorage.removeItem('llmdj_oauth_callback');
-          console.log("OAuth callback data loaded from localStorage:", {
-            userId,
-            authStatus,
-            hasSessionToken: !!sessionToken,
-          });
-        }
-      } catch (error) {
-        console.warn("Failed to parse OAuth callback from localStorage:", error);
-      }
-
-      console.log("OAuth session params:", {
-        hasSession: !!sessionToken,
-        userId,
-        authStatus,
+      console.log("OAuth params:", {
+        code: code?.substring(0, 20) + "...",
+        state,
         error,
         errorDescription,
       });
@@ -727,8 +628,8 @@ export default function Chat() {
         return;
       }
 
-      if (sessionToken && userId && authStatus === "success") {
-        console.log("OAuth session callback detected, connecting to user room");
+      if (code && state) {
+        console.log("OAuth callback detected, triggering token exchange");
         // Clean up URL first
         window.history.replaceState(
           {},
@@ -736,14 +637,12 @@ export default function Chat() {
           window.location.pathname
         );
 
-        // Connect to authenticated user room using session token
-        handleSessionCallback(sessionToken, userId);
-            } else {
-        console.log("No OAuth session callback parameters found");
+        // Trigger the token exchange
+        handleOAuthTokenExchange(code, state);
+      } else {
+        console.log("No OAuth callback parameters found");
       }
     };
-
-
 
     window.addEventListener(
       "spotify-auth-success",
