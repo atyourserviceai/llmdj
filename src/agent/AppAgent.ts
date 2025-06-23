@@ -1361,13 +1361,6 @@ export class AppAgent extends AIChatAgent<Env> {
   }
 
   /**
-   * Get Spotify client ID safely for use in tools
-   */
-  getSpotifyClientId() {
-    return this.env.SPOTIFY_CLIENT_ID;
-  }
-
-  /**
    * Get table description for export/import
    * Get a description of a table based on its name
    * Used for the database export feature

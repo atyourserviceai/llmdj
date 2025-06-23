@@ -50,7 +50,7 @@ async function getSpotifySDK(
     }
 
     // Initialize Spotify SDK with stored access token
-    const spotifySDK = SpotifyApi.withAccessToken(agent.getSpotifyClientId(), {
+    const spotifySDK = SpotifyApi.withAccessToken(agent.env.SPOTIFY_CLIENT_ID, {
       access_token: profile.accessToken,
       token_type: "Bearer",
       expires_in: profile.tokenExpiresAt
@@ -191,7 +191,7 @@ export const connectSpotifyAccount = tool({
       }
 
       // Get Spotify client ID from environment
-      const clientId = agent.getSpotifyClientId();
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
       console.log("[connectSpotifyAccount] Spotify client ID check:", {
         hasClientId: !!clientId,
       });
@@ -318,94 +318,30 @@ export const getSpotifyConnectionStatus = tool({
         };
       }
 
-      // Get the room name to determine the actual user ID
-      const roomName = (agent as any).roomName || 'default';
-      const actualUserId = roomName.startsWith('spotify-user-')
-        ? roomName.replace('spotify-user-', '')
-        : userId || 'default';
+      const spotifyAuth = agent.state.spotifyAuth;
 
-      console.log(
-        `[getSpotifyConnectionStatus] Checking connection for user: ${actualUserId} (room: ${roomName})`
-      );
-
-      // Check for stored session tokens first (session-based auth)
-      const sessionResult = await agent.sql`
-        SELECT session_token, user_id, access_token, refresh_token, expires_at, token_expires_at
-        FROM auth_sessions
-        WHERE user_id = ${actualUserId}
-        AND expires_at > ${new Date().toISOString()}
-        ORDER BY created_at DESC
-        LIMIT 1
-      `;
-
-      if (sessionResult && sessionResult.length > 0) {
-        const sessionData = sessionResult[0] as {
-          session_token: string;
-          user_id: string;
-          access_token: string;
-          refresh_token: string;
-          expires_at: string;
-          token_expires_at: string;
+      if (!spotifyAuth || !spotifyAuth.isConnected) {
+        return {
+          connected: false,
+          message:
+            "No Spotify account connected. Please connect your account first.",
         };
-
-        const tokenExpiresAt = new Date(sessionData.token_expires_at);
-        const isTokenValid = tokenExpiresAt.getTime() > Date.now();
-
-        console.log(`[getSpotifyConnectionStatus] Found valid session for user: ${actualUserId}`, {
-          hasAccessToken: !!sessionData.access_token,
-          tokenValid: isTokenValid,
-          tokenExpiresAt: tokenExpiresAt.toISOString()
-        });
-
-        if (isTokenValid) {
-          // Try to get user profile from Spotify API to verify connection
-          try {
-            const spotifySDK = SpotifyApi.withAccessToken(agent.getSpotifyClientId(), {
-              access_token: sessionData.access_token,
-              token_type: "Bearer",
-              expires_in: Math.floor((tokenExpiresAt.getTime() - Date.now()) / 1000),
-              refresh_token: sessionData.refresh_token || "",
-            });
-
-            const profile = await spotifySDK.currentUser.profile();
-
-            return {
-              connected: true,
-              tokenValid: true,
-              profile: {
-                displayName: profile.display_name,
-                id: profile.id,
-                email: profile.email,
-                country: profile.country,
-                product: profile.product,
-              },
-              message: `Connected to Spotify as ${profile.display_name}`,
-            };
-          } catch (error) {
-            console.error("[getSpotifyConnectionStatus] Failed to verify Spotify connection:", error);
-            return {
-              connected: false,
-              tokenValid: false,
-              message: "Spotify tokens found but connection verification failed. Please re-authenticate.",
-            };
-          }
-        } else {
-          return {
-            connected: false,
-            tokenValid: false,
-            needsReauth: true,
-            message: "Spotify tokens have expired. Please re-authenticate.",
-          };
-        }
       }
 
-      // If no valid session found, user is not authenticated
-      console.log(`[getSpotifyConnectionStatus] No authentication found for user: ${actualUserId}`);
-      return {
-        connected: false,
-        message: "No Spotify account connected. Please connect your account first.",
-      };
+      const tokenExpiresAt = new Date(spotifyAuth.tokenExpiresAt);
+      const isTokenValid = tokenExpiresAt.getTime() > Date.now();
 
+      return {
+        connected: spotifyAuth.isConnected,
+        tokenValid: isTokenValid,
+        profile: {
+          displayName: spotifyAuth.profile.displayName,
+          product: spotifyAuth.profile.product,
+          country: spotifyAuth.profile.country,
+          lastSync: spotifyAuth.connectedAt,
+        },
+        needsReauth: !isTokenValid,
+      };
     } catch (error) {
       console.error("Error checking Spotify connection:", error);
       return {
@@ -997,7 +933,7 @@ export const controlSpotifyPlayback = tool({
         };
       }
 
-      const clientId = agent.getSpotifyClientId();
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
       if (!clientId) {
         return {
           success: false,
@@ -1145,7 +1081,7 @@ export const getUserTopTracks = tool({
         };
       }
 
-      const clientId = agent.getSpotifyClientId();
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
       if (!clientId) {
         return {
           success: false,
@@ -1278,7 +1214,7 @@ export const getUserTopArtists = tool({
         };
       }
 
-      const clientId = agent.getSpotifyClientId();
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
       if (!clientId) {
         return {
           success: false,
@@ -1404,7 +1340,7 @@ export const getUserPlaylists = tool({
         };
       }
 
-      const clientId = agent.getSpotifyClientId();
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
       if (!clientId) {
         return {
           success: false,
@@ -1531,7 +1467,7 @@ export const analyzeMusicTaste = tool({
         };
       }
 
-      const clientId = agent.getSpotifyClientId();
+      const clientId = agent.env.SPOTIFY_CLIENT_ID;
       if (!clientId) {
         return {
           success: false,
