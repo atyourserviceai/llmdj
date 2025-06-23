@@ -36,11 +36,11 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
   const getCookie = (name: string): string | null => {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()?.split(";").shift() || null;
+    if (parts.length === 2) return parts.pop()?.split(';').shift() || null;
     return null;
   };
 
-  const checkAuthentication = async () => {
+    const checkAuthentication = async () => {
     try {
       const sessionToken = getCookie("llmdj_session");
       const userId = getCookie("llmdj_user_id");
@@ -58,9 +58,7 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
       });
 
       if (response.ok) {
-        const { access_token } = (await response.json()) as {
-          access_token: string;
-        };
+        const { access_token } = await response.json() as { access_token: string };
 
         // Get user profile
         const profileResponse = await fetch("https://api.spotify.com/v1/me", {
@@ -68,7 +66,7 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
         });
 
         if (profileResponse.ok) {
-          const profile = (await profileResponse.json()) as SpotifyUserData;
+          const profile = await profileResponse.json() as SpotifyUserData;
           setUserData(profile);
           setIsAuthenticated(true);
           onAuthenticated?.(profile.id, sessionToken);
@@ -88,10 +86,8 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
   };
 
   const handleLogout = () => {
-    document.cookie =
-      "llmdj_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    document.cookie =
-      "llmdj_user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "llmdj_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    document.cookie = "llmdj_user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     setIsAuthenticated(false);
     setUserData(null);
     window.location.reload();

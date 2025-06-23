@@ -22,14 +22,12 @@ export const debugSpotifyState = {
       }
 
       // Get the room name to determine the user ID
-      const roomName = (agent as any).roomName || "default";
-      const actualUserId = roomName.startsWith("spotify-user-")
-        ? roomName.replace("spotify-user-", "")
-        : "default";
+      const roomName = (agent as any).roomName || 'default';
+      const actualUserId = roomName.startsWith('spotify-user-')
+        ? roomName.replace('spotify-user-', '')
+        : 'default';
 
-      console.log(
-        `[debugSpotifyState] Checking for user: ${actualUserId} (room: ${roomName})`
-      );
+      console.log(`[debugSpotifyState] Checking for user: ${actualUserId} (room: ${roomName})`);
       console.log("[debugSpotifyState] Checking spotify_tokens table...");
 
       // Check spotify_tokens table for the specific user
