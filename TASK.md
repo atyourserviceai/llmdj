@@ -500,50 +500,168 @@ The application now has **enterprise-grade security** with proper user isolation
 
 This comprehensive task list provides a complete roadmap for transforming the app-agent-template into a fully-functional LLMDJ Spotify agent.
 
-# LLMDJ Spotify Agent - SECURE AUTHENTICATION IMPLEMENTED ✅
+# LLMDJ Spotify Agent - PROPER SECURITY PLAN
 
-## ✅ MAJOR SECURITY FIXES COMPLETED
+## CRITICAL SECURITY ISSUE IDENTIFIED
 
-### 1. **Eliminated Client-Side Security Vulnerabilities** ✅
+The current approach has a **MAJOR SECURITY VULNERABILITY**:
 
-- **Removed insecure `setAuthenticatedRoom`**: No more client-side room switching
-- **Server-side token validation**: Tokens validated against Spotify API before room access
-- **No shared authentication state**: Each user gets isolated room access
+- `setAuthenticatedRoom(userData.id)` is client-side only
+- Anyone can run `setAuthenticatedRoom('another-user-id')` in DevTools to access other users' data
+- No server-side validation of room ownership
+- All authentication relies on client-side localStorage
 
-### 2. **Fixed Shared Chat Privacy Issue** ✅
+## OCCAM'S RAZOR SOLUTION
 
-- **Eliminated "auth-pending" flash**: No more shared chat visible to all users
-- **Proper auth-waiting state**: Users see loading screen instead of shared content
-- **Direct room connection**: Users connect directly to their `spotify-user-{id}` room
+**Simple, secure approach**: Move authentication to the server side where it belongs.
 
-### 3. **Removed Tokens from Persistent State** ✅
+### Core Principle
 
-- **No tokens in AppAgentState**: Tokens not stored in persistent agent state
-- **Fresh token validation**: Tokens validated on each authentication
-- **Separation of concerns**: Authentication separate from application state
+- **Server validates Spotify tokens on every request**
+- **Server enforces room ownership**
+- **No client-side room switching**
 
-## CURRENT SECURE FLOW
+### Implementation Plan
 
-1. **App starts** → "auth-waiting" state (no agent connection)
-2. **AuthGuard checks** → Validates stored localStorage auth
-3. **Token validation** → Confirms token with Spotify API
-4. **Secure room connection** → `connectToUserRoom()` validates & connects
-5. **User-specific room** → Direct connection to `spotify-user-{spotifyId}`
-6. **Tools work** → Agent tools have access to validated tokens
+#### 1. Server-Side Authentication (AppAgent.ts)
 
-## NEXT STEPS (Low Priority)
+```typescript
+// Add to onConnect method:
+async onConnect(connection: Connection) {
+  // Validate Spotify token from request headers or params
+  const spotifyToken = this.getSpotifyTokenFromRequest(connection);
+  if (!spotifyToken) {
+    connection.close(1008, "Authentication required");
+    return;
+  }
 
-- [ ] UI Enhancement: Better loading states and transitions
-- [ ] Tool Integration: Register Spotify tools with proper TypeScript support
-- [ ] Web Playbook SDK: Integration planning
-- [ ] Performance: Optimize authentication flow timing
+  // Verify token with Spotify API
+  const spotifyUser = await this.validateSpotifyToken(spotifyToken);
+  if (!spotifyUser) {
+    connection.close(1008, "Invalid Spotify token");
+    return;
+  }
 
-## STATUS: PRODUCTION READY ✅
+  // Ensure room matches user
+  const expectedRoom = `spotify-user-${spotifyUser.id}`;
+  if (this.ctx.name !== expectedRoom) {
+    connection.close(1008, "Room access denied");
+    return;
+  }
 
-The authentication system now provides:
+  // Store validated user in connection context
+  connection.userData = spotifyUser;
+  console.log(`[AppAgent] Authenticated connection: ${spotifyUser.id}`);
+}
+```
 
-- ✅ **Enterprise-grade security** with server-side validation
-- ✅ **User isolation** preventing access to other users' data
-- ✅ **No privacy leaks** through shared authentication states
-- ✅ **Single OAuth flow** handling both AuthGuard and agent authentication
-- ✅ **Clean UX** without confusing auth-pending chat flashes
+#### 2. Remove Client-Side Room Switching
+
+- Remove `setAuthenticatedRoom` function
+- Remove room-switching logic from useAgentState
+- Client only connects to one authenticated room
+
+#### 3. OAuth Flow Simplification
+
+```typescript
+// In app.tsx handleSpotifyAuthSuccess:
+const handleSpotifyAuthSuccess = async (tokens) => {
+  // Store in localStorage for client
+  localStorage.setItem("spotify_access_token", tokens.access_token);
+
+  // Get user profile
+  const profile = await fetchSpotifyProfile(tokens.access_token);
+
+  // Send welcome message via agent (no page reload)
+  agent.sendMessage({
+    role: "user",
+    content: `I've successfully connected my Spotify account: ${profile.display_name}`,
+  });
+
+  // Update UI to show authenticated state
+  setIsAuthenticated(true);
+};
+```
+
+#### 4. AuthGuard Component
+
+```typescript
+// AuthGuard checks token and renders agent only if valid
+const AuthGuard = ({ children }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [spotifyUser, setSpotifyUser] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('spotify_access_token');
+    if (token) {
+      validateTokenWithSpotify(token).then(user => {
+        if (user) {
+          setSpotifyUser(user);
+          setIsAuthenticated(true);
+        }
+      });
+    }
+  }, []);
+
+  if (!isAuthenticated) {
+    return <SpotifyConnectButton onSuccess={handleSpotifyAuthSuccess} />;
+  }
+
+  // Render agent with user-specific room
+  return (
+    <AgentProvider
+      agentConfig={{
+        agent: "app-agent",
+        name: `spotify-user-${spotifyUser.id}`,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('spotify_access_token')}`
+        }
+      }}
+    >
+      {children}
+    </AgentProvider>
+  );
+};
+```
+
+#### 5. Tool Security
+
+- All Spotify tools validate token on server-side
+- Tools get user context from validated connection
+- No client-side user ID passing
+
+### Benefits of This Approach
+
+✅ **Secure**: Server validates every connection
+✅ **Simple**: No complex client-side room switching
+✅ **Clean**: No page reloads, smooth chat flow
+✅ **Bulletproof**: Impossible to access other users' data
+✅ **Stateless**: Each request is independently validated
+
+### Migration Steps
+
+1. **Add server-side token validation to AppAgent.ts**
+2. **Remove setAuthenticatedRoom from useAgentState.ts**
+3. **Update AuthGuard to pass tokens in headers**
+4. **Remove window.location.reload from OAuth flow**
+5. **Update Spotify tools to use server-validated user context**
+
+### Expected Flow
+
+1. User visits site
+2. AuthGuard checks localStorage for token
+3. If no token: Show "Connect Spotify" button
+4. User clicks → OAuth → Store token → AuthGuard validates → Render agent
+5. Agent connection includes auth headers
+6. Server validates token → Gets user ID → Ensures room ownership
+7. User interacts with their secure, isolated agent
+
+### Security Guarantees
+
+- ✅ No client-side room switching possible
+- ✅ Server validates every single request
+- ✅ Impossible to access other users' data
+- ✅ Tokens validated against Spotify API
+- ✅ Room ownership enforced server-side
+
+**Status**: SECURITY REDESIGN REQUIRED - Current implementation is vulnerable

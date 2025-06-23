@@ -171,14 +171,8 @@ export default function Chat() {
   }, [theme]);
 
   // Use the agent state hook instead of implementing the logic directly
-  const {
-    agent,
-    agentState,
-    agentMode,
-    agentConfig,
-    changeAgentMode,
-    connectToUserRoom,
-  } = useAgentState("onboarding");
+  const { agent, agentState, agentMode, agentConfig, changeAgentMode } =
+    useAgentState("onboarding");
 
   // Use the error handling hook
   const { isErrorMessage, parseErrorData, formatErrorForMessage } =
@@ -579,11 +573,9 @@ export default function Chat() {
           // This requires proper integration with the agent's message flow
 
           // Trigger a custom event to notify AuthGuard to re-check authentication
-          console.log(
-            "[App] Dispatching auth-complete event to notify AuthGuard"
-          );
+          console.log("[App] Dispatching auth-complete event to notify AuthGuard");
           const authCompleteEvent = new CustomEvent("auth-complete", {
-            detail: { userId: userData.id },
+            detail: { userId: userData.id }
           });
           window.dispatchEvent(authCompleteEvent);
         } catch (error) {
@@ -1046,80 +1038,52 @@ export default function Chat() {
   }, [agentMessages, isLoading, temporaryLoading, reload]);
 
   return (
-    <AuthGuard
-      onAuthenticated={async (spotifyUserId, accessToken) => {
-        console.log(
-          `[App] User authenticated: ${spotifyUserId}, connecting to their room...`
-        );
-        const success = await connectToUserRoom(spotifyUserId, accessToken);
-        if (success) {
-          console.log(
-            `[App] Successfully connected to user room for ${spotifyUserId}`
-          );
-        } else {
-          console.error(
-            `[App] Failed to connect to user room for ${spotifyUserId}`
-          );
-        }
-      }}
-    >
+    <AuthGuard>
       <div className="h-[100vh] w-full p-4 flex justify-center items-center bg-fixed overflow-hidden">
         <HasOpenAIKey />
 
-        {/* Prevent rendering chat when waiting for authentication */}
-        {agentConfig.name === "auth-waiting" ? (
-          <div className="text-center">
-            <div className="text-lg font-medium mb-2">Loading...</div>
-            <div className="text-sm text-muted-foreground">
-              Checking authentication
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Main Container - Responsive layout with chat and playbook */}
-            <div className="h-[calc(100vh-2rem)] w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 pb-14 md:pb-0">
-              {/* Chat UI */}
-              <ChatContainer
-                theme={theme}
-                showDebug={showDebug}
-                agentMode={agentMode}
-                inputValue={agentInput}
-                isLoading={isLoading}
-                pendingConfirmation={pendingToolCallConfirmation}
-                activeTab={activeTab}
-                onToggleTheme={toggleTheme}
-                onToggleDebug={() => setShowDebug((prev) => !prev)}
-                onChangeMode={(newMode) => {
-                  // Use a temporary loading indicator for better UX
-                  // We need this because mode changes don't naturally trigger the isLoading state
-                  // since they don't involve an AI response - they're just UI state changes
-                  // This gives visual feedback that something is happening
-                  setTemporaryLoading(true);
-                  setTimeout(() => setTemporaryLoading(false), 1500);
-                  changeAgentMode(newMode);
-                }}
-                onClearHistory={handleClearHistory}
-                onInputChange={handleAgentInputChange}
-                onInputSubmit={(e) => {
-                  handleSubmitWithRetry(e);
-                }}
-              >
-                {renderMessages()}
-              </ChatContainer>
+        {/* Main Container - Responsive layout with chat and playbook */}
+        <div className="h-[calc(100vh-2rem)] w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 pb-14 md:pb-0">
+          {/* Chat UI */}
+          <ChatContainer
+            theme={theme}
+            showDebug={showDebug}
+            agentMode={agentMode}
+            inputValue={agentInput}
+            isLoading={isLoading}
+            pendingConfirmation={pendingToolCallConfirmation}
+            activeTab={activeTab}
+            onToggleTheme={toggleTheme}
+            onToggleDebug={() => setShowDebug((prev) => !prev)}
+            onChangeMode={(newMode) => {
+              // Use a temporary loading indicator for better UX
+              // We need this because mode changes don't naturally trigger the isLoading state
+              // since they don't involve an AI response - they're just UI state changes
+              // This gives visual feedback that something is happening
+              setTemporaryLoading(true);
+              setTimeout(() => setTemporaryLoading(false), 1500);
+              changeAgentMode(newMode);
+            }}
+            onClearHistory={handleClearHistory}
+            onInputChange={handleAgentInputChange}
+            onInputSubmit={(e) => {
+              handleSubmitWithRetry(e);
+            }}
+          >
+            {renderMessages()}
+          </ChatContainer>
 
-              {/* Playbook Panel */}
-              <PlaybookContainer
-                activeTab={activeTab}
-                agentMode={agentMode}
-                agentState={agentState}
-                showDebug={showDebug}
-              />
-            </div>
+          {/* Playbook Panel */}
+          <PlaybookContainer
+            activeTab={activeTab}
+            agentMode={agentMode}
+            agentState={agentState}
+            showDebug={showDebug}
+          />
+        </div>
 
-            {/* Mobile Tabs at the bottom */}
-            <ChatTabs activeTab={activeTab} setActiveTab={setActiveTab} />
-          </>
-        )}
+        {/* Mobile Tabs at the bottom */}
+        <ChatTabs activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
     </AuthGuard>
   );

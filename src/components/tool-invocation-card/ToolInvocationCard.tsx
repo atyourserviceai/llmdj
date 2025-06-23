@@ -303,10 +303,12 @@ export function ToolInvocationCard({
                 <div className="mb-4">
                   <SpotifyAuth
                     onAuthSuccess={(tokens) => {
-                      // This should never be called since tools should not trigger auth UI
-                      console.warn(
-                        "[ToolInvocationCard] SpotifyAuth should not be triggered from tools"
-                      );
+                      // Call the connectSpotifyAccount tool with the received tokens
+                      // This will be handled by the app's message system
+                      const event = new CustomEvent("spotify-auth-success", {
+                        detail: { tokens },
+                      });
+                      window.dispatchEvent(event);
                     }}
                     onAuthError={(error) => {
                       console.error("Spotify auth error:", error);

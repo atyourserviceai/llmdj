@@ -17,12 +17,12 @@ export function useAgentState(initialMode: AgentMode = "onboarding") {
   }, []);
 
   const [agentConfig, setAgentConfig] = useState(() => {
-    // Get initial config from URL or wait for authentication
-    const name = getNameFromURL() || null; // Don't default to auth-pending
-    console.log(`[UI] Initial agent config: ${name || "waiting for auth"}`);
+    // Get initial config from URL or use temporary default
+    const name = getNameFromURL() || "auth-pending";
+    console.log(`[UI] Initial agent config: ${name}`);
     return {
       agent: "app-agent",
-      name: name || "auth-waiting", // Use a special state for waiting
+      name,
     };
   });
 
@@ -56,7 +56,7 @@ export function useAgentState(initialMode: AgentMode = "onboarding") {
   // Initialize the agent EARLY to get mode info as soon as possible
   const agent = useAgent({
     agent: agentConfig.agent,
-    name: agentConfig.name === "auth-waiting" ? undefined : agentConfig.name, // Don't connect during auth-waiting
+    name: agentConfig.name,
     onStateUpdate: (newState: AppAgentState) => {
       console.log("[UI] Agent state updated:", newState);
 
@@ -192,64 +192,6 @@ export function useAgentState(initialMode: AgentMode = "onboarding") {
     changeAgentConfig(agentConfig.agent, roomName);
   };
 
-  // Secure function to connect to user's room after authentication
-  const connectToUserRoom = useCallback(
-    async (spotifyUserId: string, accessToken: string) => {
-      console.log(
-        `[UI] Connecting to authenticated user room: ${spotifyUserId}`
-      );
-
-      // Validate the token and userId match with Spotify API before switching rooms
-      try {
-        const response = await fetch("https://api.spotify.com/v1/me", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Invalid access token");
-        }
-
-        const userData = (await response.json()) as { id: string };
-        if (userData.id !== spotifyUserId) {
-          throw new Error("Token does not match user ID");
-        }
-
-        // Token is valid and matches user - now switch to their room
-        const userRoom = `spotify-user-${spotifyUserId}`;
-        console.log(`[UI] Token validated, switching to room: ${userRoom}`);
-
-        // Store tokens in the user-specific room
-        const storeTokensUrl = `/agents/${agentConfig.agent}/${userRoom}/store-spotify-tokens`;
-        const storeResponse = await fetch(storeTokensUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            access_token: accessToken,
-            user_id: spotifyUserId,
-          }),
-        });
-
-        if (!storeResponse.ok) {
-          throw new Error("Failed to store tokens in user room");
-        }
-
-        // Successfully stored tokens - now switch to the room
-        changeAgentConfig(agentConfig.agent, userRoom);
-
-        console.log(`[UI] Successfully connected to user room: ${userRoom}`);
-        return true;
-      } catch (error) {
-        console.error("[UI] Failed to connect to user room:", error);
-        return false;
-      }
-    },
-    [agentConfig.agent, changeAgentConfig]
-  );
-
   return {
     agent,
     agentState,
@@ -258,6 +200,5 @@ export function useAgentState(initialMode: AgentMode = "onboarding") {
     changeAgentConfig,
     changeAgentMode,
     navigateToRoom,
-    connectToUserRoom,
   };
 }
