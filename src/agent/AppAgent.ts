@@ -492,57 +492,6 @@ export class AppAgent extends AIChatAgent<Env> {
         )
       `;
 
-      // Add missing columns to existing spotify_profiles table (if they don't exist)
-      try {
-        await this
-          .sql`ALTER TABLE spotify_profiles ADD COLUMN access_token TEXT`;
-        console.log(
-          "[initialize] Added access_token column to spotify_profiles"
-        );
-      } catch (error) {
-        // Column already exists - this is expected in most cases
-        if (
-          error &&
-          typeof error === "object" &&
-          "message" in error &&
-          (error.message as string).includes("duplicate column")
-        ) {
-          console.log(
-            "[initialize] access_token column already exists in spotify_profiles"
-          );
-        } else {
-          console.error(
-            "[initialize] Unexpected error adding access_token column:",
-            error
-          );
-        }
-      }
-
-      try {
-        await this
-          .sql`ALTER TABLE spotify_profiles ADD COLUMN refresh_token TEXT`;
-        console.log(
-          "[initialize] Added refresh_token column to spotify_profiles"
-        );
-      } catch (error) {
-        // Column already exists - this is expected in most cases
-        if (
-          error &&
-          typeof error === "object" &&
-          "message" in error &&
-          (error.message as string).includes("duplicate column")
-        ) {
-          console.log(
-            "[initialize] refresh_token column already exists in spotify_profiles"
-          );
-        } else {
-          console.error(
-            "[initialize] Unexpected error adding refresh_token column:",
-            error
-          );
-        }
-      }
-
       // User music preferences and taste profiles
       await this.sql`
         CREATE TABLE IF NOT EXISTS music_preferences (
