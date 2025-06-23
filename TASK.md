@@ -171,27 +171,32 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 **🔥 MOST CRITICAL SECURITY ISSUE - NO USER ISOLATION:**
 
 - [ ] **🔥 CRITICAL: Implement user authentication before agent access**
+
   - [ ] **Problem**: Currently ALL users share the same agent state (`"default-room"`)
   - [ ] **Risk**: Spotify tokens, music preferences, and personal data shared between all users
   - [ ] **Impact**: Complete privacy breach - users see each other's music, playlists, recommendations
 
   **Required Implementation:**
+
   - [ ] **User authentication gate** - No agent access without login
   - [ ] **Spotify OAuth as primary auth** - Use Spotify as the identity provider
   - [ ] **Per-user agent rooms** - Agent name/room derived from authenticated user ID
   - [ ] **Session management** - Secure session handling with proper logout
 
   **Current Flow (BROKEN):**
+
   ```
   User visits URL → Loads agent with "default-room" → Everyone shares state
   ```
 
   **Required Flow (SECURE):**
+
   ```
   User visits URL → Spotify OAuth → Agent room = `spotify-user-{spotifyUserId}` → Isolated state
   ```
 
 - [ ] **Multi-account support within session**
+
   - [ ] Keep current Spotify OAuth tools for connecting additional accounts
   - [ ] Allow household members to connect their Spotify accounts to shared session
   - [ ] Implement account switching within authenticated session
