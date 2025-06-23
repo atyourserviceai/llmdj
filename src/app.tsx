@@ -20,7 +20,6 @@ import { PlaybookContainer } from "@/components/chat/PlaybookContainer";
 import { MemoizedMarkdown } from "@/components/memoized-markdown";
 import { ToolInvocationCard } from "@/components/tool-invocation-card/ToolInvocationCard";
 import { ActionButtons } from "@/components/action-buttons/ActionButtons";
-import { AuthGuard } from "@/components/auth/AuthGuard";
 
 // Define agent data interface for typing
 interface AgentData {
@@ -362,7 +361,7 @@ export default function Chat() {
       );
 
       // Add the error message to the messages
-      setMessages((prev: Message[]) => [...prev, newErrorMessage]);
+      setMessages([...currentMessages, newErrorMessage]);
 
       // Reset retry state
       setIsRetrying(false);
@@ -510,73 +509,96 @@ export default function Chat() {
         scope: tokens?.scope,
       });
 
-      // Complete both AuthGuard authentication and agent token storage
+      // Call the agent endpoint to store tokens securely
       const storeTokens = async () => {
         console.log("[App] Starting token storage process...");
         try {
-          // 1. First, fetch user profile for AuthGuard authentication
-          console.log("[App] Fetching user profile from Spotify...");
-          const profileResponse = await fetch("https://api.spotify.com/v1/me", {
+          const endpoint = `/agents/${agentConfig.agent}/${agentConfig.name}/store-spotify-tokens`;
+          console.log("[App] Calling endpoint:", endpoint);
+
+          const response = await fetch(endpoint, {
+            method: "POST",
             headers: {
-              Authorization: `Bearer ${tokens.access_token}`,
+              "Content-Type": "application/json",
             },
+            body: JSON.stringify({
+              access_token: tokens.access_token,
+              refresh_token: tokens.refresh_token,
+              expires_in: tokens.expires_in,
+              token_type: tokens.token_type,
+              scope: tokens.scope,
+            }),
           });
 
-          if (!profileResponse.ok) {
-            throw new Error("Failed to fetch user profile from Spotify");
+          console.log(
+            "[App] Store tokens response:",
+            response.status,
+            response.ok
+          );
+
+          if (!response.ok) {
+            console.error(
+              "[App] Store tokens response not ok:",
+              response.status,
+              response.statusText
+            );
+            throw new Error(`Failed to store tokens: ${response.statusText}`);
           }
 
-          const userData = (await profileResponse.json()) as {
-            id: string;
-            display_name: string;
-            email?: string;
-            country?: string;
-            product: string;
-            images?: Array<{ url: string }>;
-            followers?: { total: number };
+          const result = await response.json();
+          console.log("[App] Tokens stored successfully:", result);
+
+          // Create a user message indicating authentication completed
+          const authMessage =
+            "I've successfully completed Spotify authentication. Please connect my account and analyze my music preferences.";
+
+          console.log("[App] Creating user message:", authMessage);
+
+          const newMessage = {
+            id: crypto.randomUUID(),
+            role: "user" as const,
+            createdAt: new Date(),
+            content: authMessage,
+            parts: [
+              {
+                type: "text" as const,
+                text: authMessage,
+              },
+            ],
           };
 
-          console.log("[App] User profile fetched:", {
-            id: userData.id,
-            display_name: userData.display_name,
-            product: userData.product,
-          });
+          // Add the message to the chat
+          console.log("[App] Adding message to chat and triggering reload...");
+          setMessages([...agentMessages, newMessage]);
 
-          // 2. Store authentication data in localStorage for AuthGuard
-          const expiresAt = new Date(
-            Date.now() + (tokens.expires_in || 3600) * 1000
-          );
-          const authStorage = {
-            access_token: tokens.access_token,
-            refresh_token: tokens.refresh_token,
-            expires_at: expiresAt.toISOString(),
-            user_id: userData.id,
-            user_data: userData,
-          };
-
-          localStorage.setItem(
-            "llmdj_spotify_auth",
-            JSON.stringify(authStorage)
-          );
-          console.log("[App] Authentication data stored in localStorage");
-
-          // 3. Authentication completed successfully - no page reload needed
-          console.log(
-            "[App] Authentication completed successfully for user:",
-            userData.display_name
-          );
-          console.log(
-            "[App] User will see the authenticated UI without page reload"
-          );
-
-          // TODO: Send welcome message via agent instead of direct setMessages
-          // This requires proper integration with the agent's message flow
+          // Trigger the agent to respond
+          setTimeout(() => {
+            reload();
+          }, 100);
         } catch (error) {
           console.error("[App] Error storing Spotify tokens:", error);
-          // Show error message to user instead of reloading
-          alert(
-            `Failed to complete authentication: ${error instanceof Error ? error.message : String(error)}`
-          );
+          // Show error message to user
+          const errorMessage = `Failed to store Spotify authentication. Error: ${error instanceof Error ? error.message : String(error)}`;
+
+          console.log("[App] Creating error message:", errorMessage);
+
+          const newMessage = {
+            id: crypto.randomUUID(),
+            role: "user" as const,
+            createdAt: new Date(),
+            content: errorMessage,
+            parts: [
+              {
+                type: "text" as const,
+                text: errorMessage,
+              },
+            ],
+          };
+
+          setMessages([...agentMessages, newMessage]);
+          setTimeout(() => {
+            reload();
+          }, 100);
         }
       };
 
@@ -692,7 +714,7 @@ export default function Chat() {
             };
 
             // Add the message to the chat
-            setMessages((prev: Message[]) => [...prev, newMessage]);
+            setMessages([...agentMessages, newMessage]);
 
             // Clear the input field
             setInput("");
@@ -1031,54 +1053,52 @@ export default function Chat() {
   }, [agentMessages, isLoading, temporaryLoading, reload]);
 
   return (
-    <AuthGuard>
-      <div className="h-[100vh] w-full p-4 flex justify-center items-center bg-fixed overflow-hidden">
-        <HasOpenAIKey />
+    <div className="h-[100vh] w-full p-4 flex justify-center items-center bg-fixed overflow-hidden">
+      <HasOpenAIKey />
 
-        {/* Main Container - Responsive layout with chat and playbook */}
-        <div className="h-[calc(100vh-2rem)] w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 pb-14 md:pb-0">
-          {/* Chat UI */}
-          <ChatContainer
-            theme={theme}
-            showDebug={showDebug}
-            agentMode={agentMode}
-            inputValue={agentInput}
-            isLoading={isLoading}
-            pendingConfirmation={pendingToolCallConfirmation}
-            activeTab={activeTab}
-            onToggleTheme={toggleTheme}
-            onToggleDebug={() => setShowDebug((prev) => !prev)}
-            onChangeMode={(newMode) => {
-              // Use a temporary loading indicator for better UX
-              // We need this because mode changes don't naturally trigger the isLoading state
-              // since they don't involve an AI response - they're just UI state changes
-              // This gives visual feedback that something is happening
-              setTemporaryLoading(true);
-              setTimeout(() => setTemporaryLoading(false), 1500);
-              changeAgentMode(newMode);
-            }}
-            onClearHistory={handleClearHistory}
-            onInputChange={handleAgentInputChange}
-            onInputSubmit={(e) => {
-              handleSubmitWithRetry(e);
-            }}
-          >
-            {renderMessages()}
-          </ChatContainer>
+      {/* Main Container - Responsive layout with chat and playbook */}
+      <div className="h-[calc(100vh-2rem)] w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 pb-14 md:pb-0">
+        {/* Chat UI */}
+        <ChatContainer
+          theme={theme}
+          showDebug={showDebug}
+          agentMode={agentMode}
+          inputValue={agentInput}
+          isLoading={isLoading}
+          pendingConfirmation={pendingToolCallConfirmation}
+          activeTab={activeTab}
+          onToggleTheme={toggleTheme}
+          onToggleDebug={() => setShowDebug((prev) => !prev)}
+          onChangeMode={(newMode) => {
+            // Use a temporary loading indicator for better UX
+            // We need this because mode changes don't naturally trigger the isLoading state
+            // since they don't involve an AI response - they're just UI state changes
+            // This gives visual feedback that something is happening
+            setTemporaryLoading(true);
+            setTimeout(() => setTemporaryLoading(false), 1500);
+            changeAgentMode(newMode);
+          }}
+          onClearHistory={handleClearHistory}
+          onInputChange={handleAgentInputChange}
+          onInputSubmit={(e) => {
+            handleSubmitWithRetry(e);
+          }}
+        >
+          {renderMessages()}
+        </ChatContainer>
 
-          {/* Playbook Panel */}
-          <PlaybookContainer
-            activeTab={activeTab}
-            agentMode={agentMode}
-            agentState={agentState}
-            showDebug={showDebug}
-          />
-        </div>
-
-        {/* Mobile Tabs at the bottom */}
-        <ChatTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+        {/* Playbook Panel */}
+        <PlaybookContainer
+          activeTab={activeTab}
+          agentMode={agentMode}
+          agentState={agentState}
+          showDebug={showDebug}
+        />
       </div>
-    </AuthGuard>
+
+      {/* Mobile Tabs at the bottom */}
+      <ChatTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+    </div>
   );
 }
 

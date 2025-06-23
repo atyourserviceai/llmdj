@@ -115,14 +115,21 @@ export interface AppAgentState {
   isIntegrationComplete?: boolean;
   transitionRecommendation?: TransitionRecommendation;
 
-  // Current authenticated user (populated from server-side validation)
-  currentUser?: {
-    spotifyId: string;
-    displayName: string;
-    email?: string;
-    country?: string;
-    product: "premium" | "free";
-    followers?: number;
+  // Spotify authentication state
+  spotifyAuth?: {
+    isConnected: boolean;
+    profile: {
+      id: string;
+      displayName: string;
+      email?: string;
+      country?: string;
+      product: "premium" | "free";
+      followers?: number;
+    };
+    accessToken: string;
+    refreshToken?: string;
+    tokenExpiresAt: string; // ISO string
+    connectedAt: string; // ISO string
   };
 
   // Optional metadata
@@ -484,6 +491,57 @@ export class AppAgent extends AIChatAgent<Env> {
           updated_at TEXT NOT NULL
         )
       `;
+
+      // Add missing columns to existing spotify_profiles table (if they don't exist)
+      try {
+        await this
+          .sql`ALTER TABLE spotify_profiles ADD COLUMN access_token TEXT`;
+        console.log(
+          "[initialize] Added access_token column to spotify_profiles"
+        );
+      } catch (error) {
+        // Column already exists - this is expected in most cases
+        if (
+          error &&
+          typeof error === "object" &&
+          "message" in error &&
+          (error.message as string).includes("duplicate column")
+        ) {
+          console.log(
+            "[initialize] access_token column already exists in spotify_profiles"
+          );
+        } else {
+          console.error(
+            "[initialize] Unexpected error adding access_token column:",
+            error
+          );
+        }
+      }
+
+      try {
+        await this
+          .sql`ALTER TABLE spotify_profiles ADD COLUMN refresh_token TEXT`;
+        console.log(
+          "[initialize] Added refresh_token column to spotify_profiles"
+        );
+      } catch (error) {
+        // Column already exists - this is expected in most cases
+        if (
+          error &&
+          typeof error === "object" &&
+          "message" in error &&
+          (error.message as string).includes("duplicate column")
+        ) {
+          console.log(
+            "[initialize] refresh_token column already exists in spotify_profiles"
+          );
+        } else {
+          console.error(
+            "[initialize] Unexpected error adding refresh_token column:",
+            error
+          );
+        }
+      }
 
       // User music preferences and taste profiles
       await this.sql`
@@ -981,12 +1039,12 @@ export class AppAgent extends AIChatAgent<Env> {
 
   /**
    * Handle new client connections
-   * TODO: Add server-side Spotify token validation for security
    */
   async onConnect(connection: Connection) {
     console.log(`[AppAgent] New client connection: ${connection.id}`);
 
     // Send a connection-ready event to signal that setup is complete
+    // The client can listen for this to know when to check for messages
     connection.send(
       JSON.stringify({
         type: "connection-ready",
