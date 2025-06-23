@@ -24,59 +24,22 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
 
   // Check for existing authentication on mount
   useEffect(() => {
-    console.log("[AuthGuard] Initial mount, checking existing auth");
     checkExistingAuth();
-
-    // Listen for successful authentication events
-    const handleAuthSuccess = () => {
-      console.log("[AuthGuard] Received auth success event, re-checking authentication");
-      checkExistingAuth();
-    };
-
-    // Listen for the spotify-auth-success event
-    window.addEventListener("spotify-auth-success", handleAuthSuccess);
-
-    // Listen for the auth-complete event from OAuth flow
-    window.addEventListener("auth-complete", handleAuthSuccess);
-
-    // Also listen for storage changes in case auth data is updated
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "llmdj_spotify_auth") {
-        console.log("[AuthGuard] localStorage auth data changed, re-checking authentication");
-        checkExistingAuth();
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("spotify-auth-success", handleAuthSuccess);
-      window.removeEventListener("auth-complete", handleAuthSuccess);
-      window.removeEventListener("storage", handleStorageChange);
-    };
   }, []);
 
   const checkExistingAuth = async () => {
-    console.log("[AuthGuard] checkExistingAuth called");
     try {
       // Check if we have stored authentication data
       const storedAuth = localStorage.getItem("llmdj_spotify_auth");
-      console.log("[AuthGuard] Stored auth data:", storedAuth ? "found" : "not found");
       if (!storedAuth) {
         setIsLoading(false);
         return;
       }
 
       const authData = JSON.parse(storedAuth);
-      console.log("[AuthGuard] Parsed auth data:", {
-        hasAccessToken: !!authData.access_token,
-        hasUserId: !!authData.user_id,
-        hasExpiresAt: !!authData.expires_at
-      });
 
       // Validate stored auth data has required fields
       if (!authData.access_token || !authData.expires_at || !authData.user_id) {
-        console.log("[AuthGuard] Invalid auth data, clearing");
         localStorage.removeItem("llmdj_spotify_auth");
         setIsLoading(false);
         return;
@@ -84,11 +47,6 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
 
       // Check if token is expired
       const expiresAt = new Date(authData.expires_at);
-      console.log("[AuthGuard] Token expiration check:", {
-        expiresAt: expiresAt.toISOString(),
-        now: new Date().toISOString(),
-        isExpired: expiresAt <= new Date()
-      });
       if (expiresAt <= new Date()) {
         console.log("[AuthGuard] Stored token expired, clearing auth");
         localStorage.removeItem("llmdj_spotify_auth");
@@ -97,20 +55,14 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
       }
 
       // Verify token is still valid by making a test API call
-      console.log("[AuthGuard] Validating token with Spotify API...");
       const response = await fetch("https://api.spotify.com/v1/me", {
         headers: {
           Authorization: `Bearer ${authData.access_token}`,
         },
       });
 
-      console.log("[AuthGuard] Spotify API response:", response.status, response.ok);
       if (response.ok) {
         const spotifyUser = (await response.json()) as SpotifyUserData;
-        console.log("[AuthGuard] User data from API:", {
-          id: spotifyUser.id,
-          display_name: spotifyUser.display_name
-        });
         setUserData(spotifyUser);
         setIsAuthenticated(true);
         onAuthenticated?.(spotifyUser.id);
@@ -127,7 +79,6 @@ export function AuthGuard({ children, onAuthenticated }: AuthGuardProps) {
       console.error("[AuthGuard] Error checking existing auth:", error);
       localStorage.removeItem("llmdj_spotify_auth");
     } finally {
-      console.log("[AuthGuard] checkExistingAuth completed, setting isLoading to false");
       setIsLoading(false);
     }
   };

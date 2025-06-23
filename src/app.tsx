@@ -571,13 +571,6 @@ export default function Chat() {
 
           // TODO: Send welcome message via agent instead of direct setMessages
           // This requires proper integration with the agent's message flow
-
-          // Trigger a custom event to notify AuthGuard to re-check authentication
-          console.log("[App] Dispatching auth-complete event to notify AuthGuard");
-          const authCompleteEvent = new CustomEvent("auth-complete", {
-            detail: { userId: userData.id }
-          });
-          window.dispatchEvent(authCompleteEvent);
         } catch (error) {
           console.error("[App] Error storing Spotify tokens:", error);
           // Show error message to user instead of reloading
