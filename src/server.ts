@@ -178,26 +178,8 @@ export default {
             }
           }
 
-          // Store user info in agent state (includes OAuth token as API key)
-          try {
-            const agentBaseUrl = `${url.origin}/agents/app-agent/${userInfo.id}`;
-            await fetch(`${agentBaseUrl}/store-user-info`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                user_id: userInfo.id,
-                api_key: token, // OAuth token IS the gateway API key
-                email: userInfo.email,
-                credits: userInfo.credits,
-                payment_method: userInfo.payment_method,
-              }),
-            });
-            console.log(
-              `[Auth] Stored user info in agent for user: ${userInfo.id}`
-            );
-          } catch (error) {
-            console.error("[Auth] Failed to store user info in agent:", error);
-          }
+          // Don't try to store user info here - let the agent fetch it when needed
+          // This avoids timing issues with agent initialization
 
           return undefined; // Continue to agent
         },
@@ -337,6 +319,11 @@ async function handleOAuthCallback(
 
     console.log(
       `[OAuth Callback] Token exchange successful for user: ${tokenData.user_info.id}`
+    );
+
+    // User info will be loaded by the agent when it initializes using the OAuth token
+    console.log(
+      `[OAuth Callback] Authentication successful for user: ${tokenData.user_info.id}`
     );
 
     return new Response(getCallbackHTML(null, tokenData), {
