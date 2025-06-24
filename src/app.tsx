@@ -10,6 +10,7 @@ import { useMessageEditing } from "./hooks/useMessageEditing";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { AuthGuard } from "./components/auth/AuthGuard";
 import { useAgentAuth } from "./hooks/useAgentAuth";
+import { ErrorBoundary } from "./components/error/ErrorBoundary";
 
 import { Avatar } from "@/components/avatar/Avatar";
 // Component imports
@@ -48,8 +49,11 @@ function SuggestedActions({
   addToolResult: (args: { toolCallId: string; result: string }) => void;
   reload: () => void;
 }) {
+  // SAFETY: Ensure messages is an array before processing
+  const safeMessages = Array.isArray(messages) ? messages : [];
+
   // Find the latest message with suggestActions
-  const lastAssistantMessage = [...messages]
+  const lastAssistantMessage = [...safeMessages]
     .reverse()
     .find((msg) => msg.role === "assistant");
 
@@ -143,8 +147,55 @@ function SuggestedActions({
 }
 
 function Chat() {
+  // Add global error handlers for better error handling
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error("Unhandled promise rejection:", event.reason);
+
+      // Check if it's a JSON parsing error
+      if (event.reason?.message?.includes("JSON")) {
+        console.error("JSON parsing error detected:", event.reason);
+        // Prevent the error from causing a blank screen
+        event.preventDefault();
+      }
+    };
+
+    const handleError = (event: ErrorEvent) => {
+      console.error("Global error caught:", event.error);
+
+      // Check if it's a JSON parsing error
+      if (event.error?.message?.includes("JSON")) {
+        console.error("JSON parsing error detected:", event.error);
+      }
+    };
+
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    window.addEventListener("error", handleError);
+
+    return () => {
+      window.removeEventListener(
+        "unhandledrejection",
+        handleUnhandledRejection
+      );
+      window.removeEventListener("error", handleError);
+    };
+  }, []);
+
   // Get authenticated agent configuration
   const agentConfig = useAgentAuth();
+
+  // Use the agent configuration (only available when authenticated)
+  if (!agentConfig) {
+    // This should never happen inside AuthGuard, but just in case
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-900 via-black to-green-900 dark:from-green-900 dark:via-black dark:to-green-900">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-white mb-4">Loading...</h1>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto" />
+        </div>
+      </div>
+    );
+  }
 
   // UI-related state
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -184,7 +235,7 @@ function Chat() {
     agentMode,
     agentConfig: finalAgentConfig,
     changeAgentMode,
-  } = useAgentState("onboarding", agentConfig);
+  } = useAgentState("onboarding", agentConfig!); // Non-null assertion: agentConfig is guaranteed to exist here due to AuthGuard
 
   // Use the error handling hook
   const { isErrorMessage, parseErrorData, formatErrorForMessage } =
@@ -198,7 +249,7 @@ function Chat() {
   }, [agentMode, agentState]);
 
   const {
-    messages: agentMessages,
+    messages: agentMessagesRaw,
     input: agentInput,
     handleInputChange: handleAgentInputChange,
     handleSubmit: handleAgentSubmit,
@@ -385,6 +436,9 @@ function Chat() {
       editedMessageContentRef.current = "";
     },
   });
+
+  // SAFETY: Ensure agentMessages is always an array to prevent "messages.map is not a function" errors
+  const agentMessages = Array.isArray(agentMessagesRaw) ? agentMessagesRaw : [];
 
   // Use the message editing hook to manage message editing and retry logic
   const {
@@ -780,7 +834,8 @@ function Chat() {
 
   // Handle message rendering loop
   const renderMessages = () => {
-    if (agentMessages.length === 0) {
+    // SAFETY: Double-check that agentMessages is a valid array
+    if (!Array.isArray(agentMessages) || agentMessages.length === 0) {
       return <EmptyChat />;
     }
 
@@ -1029,7 +1084,12 @@ function Chat() {
   useEffect(() => {
     // If we have no messages but the agent is connected, show a loading indicator
     // This helps with the initial loading experience for new chatrooms
-    if (agent && agentMessages.length === 0 && !isLoading) {
+    if (
+      agent &&
+      Array.isArray(agentMessages) &&
+      agentMessages.length === 0 &&
+      !isLoading
+    ) {
       setTemporaryLoading(true);
 
       // Set a timeout to clear the loading state if no messages arrive
@@ -1043,7 +1103,12 @@ function Chat() {
 
   // Single simplified auto-response for system messages (welcome or transition)
   useEffect(() => {
-    if (agentMessages.length > 0 && !isLoading && !temporaryLoading) {
+    if (
+      Array.isArray(agentMessages) &&
+      agentMessages.length > 0 &&
+      !isLoading &&
+      !temporaryLoading
+    ) {
       const lastMessage = agentMessages[agentMessages.length - 1];
 
       // Check if last message is a system message with isModeMessage data
@@ -1117,11 +1182,13 @@ function Chat() {
 export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-900 via-black to-green-900 dark:from-green-900 dark:via-black dark:to-green-900">
-      <AuthProvider>
-        <AuthGuard>
-          <Chat />
-        </AuthGuard>
-      </AuthProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <AuthGuard>
+            <Chat />
+          </AuthGuard>
+        </AuthProvider>
+      </ErrorBoundary>
     </div>
   );
 }
