@@ -31,7 +31,7 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
     const fetchConfig = async () => {
       console.log("[SpotifyAuth] Starting config fetch...");
       try {
-        const response = await fetch("/config");
+        const response = await fetch("/spotify/config");
         console.log(
           "[SpotifyAuth] Config response:",
           response.status,

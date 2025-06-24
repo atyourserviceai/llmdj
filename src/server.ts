@@ -90,6 +90,24 @@ export default {
       );
     }
 
+    // Spotify configuration endpoint
+    if (url.pathname === "/spotify/config") {
+      return new Response(
+        JSON.stringify({
+          SPOTIFY_CLIENT_ID: env.SPOTIFY_CLIENT_ID,
+          SPOTIFY_REDIRECT_URI: env.SPOTIFY_REDIRECT_URI,
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET",
+            "Access-Control-Allow-Headers": "Content-Type",
+          },
+        }
+      );
+    }
+
     // User info proxy endpoint
     if (url.pathname === "/api/user/info") {
       const authHeader = request.headers.get("Authorization");
