@@ -178,6 +178,27 @@ export default {
             }
           }
 
+          // Store user info in agent state (includes OAuth token as API key)
+          try {
+            const agentBaseUrl = `${url.origin}/agents/app-agent/${userInfo.id}`;
+            await fetch(`${agentBaseUrl}/store-user-info`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                user_id: userInfo.id,
+                api_key: token, // OAuth token IS the gateway API key
+                email: userInfo.email,
+                credits: userInfo.credits,
+                payment_method: userInfo.payment_method,
+              }),
+            });
+            console.log(
+              `[Auth] Stored user info in agent for user: ${userInfo.id}`
+            );
+          } catch (error) {
+            console.error("[Auth] Failed to store user info in agent:", error);
+          }
+
           return undefined; // Continue to agent
         },
         onBeforeRequest: async (request) => {
