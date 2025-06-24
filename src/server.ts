@@ -1,7 +1,59 @@
-import { routeAgentRequest } from "agents";
+import { Agent, routeAgentRequest } from "agents";
 import { AppAgent } from "./agent";
 
 export { AppAgent };
+
+interface UserInfo {
+  id: string;
+  email: string;
+  credits: number;
+  payment_method: string;
+}
+
+interface TokenData {
+  access_token: string;
+  user_info: UserInfo;
+}
+
+// Token verification function
+async function verifyOAuthToken(
+  token: string,
+  env: Env
+): Promise<UserInfo | null> {
+  try {
+    // Use the OAuth provider URL (website) for token verification
+    const oauthProviderUrl =
+      env.OAUTH_PROVIDER_BASE_URL || "https://atyourservice.ai";
+    const verifyEndpoint = `${oauthProviderUrl}/oauth/verify`;
+
+    console.log(`[Auth] Verifying token at: ${verifyEndpoint}`);
+
+    const response = await fetch(verifyEndpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log(`[Auth] Verification response status: ${response.status}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(
+        `[Auth] Verification failed: ${response.status} - ${errorText}`
+      );
+      return null;
+    }
+
+    const userInfo = (await response.json()) as UserInfo;
+    console.log(`[Auth] Verification successful for user: ${userInfo.id}`);
+    return userInfo;
+  } catch (error) {
+    console.error("Token verification failed:", error);
+    return null;
+  }
+}
 
 /**
  * Worker entry point that routes incoming requests to the appropriate handler
@@ -14,77 +66,60 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === "/check-open-ai-key") {
-      const hasApiKey = !!env.GATEWAY_API_KEY;
-      return Response.json({
-        success: hasApiKey,
-      });
+    // Handle OAuth callback directly on the server
+    if (url.pathname === "/auth/callback") {
+      return handleOAuthCallback(request, env);
     }
 
-    if (url.pathname === "/config") {
-      return Response.json(
+    // Handle OAuth token exchange
+    if (url.pathname === "/api/oauth/token-exchange") {
+      return handleTokenExchange(request, env);
+    }
+
+    // OAuth configuration endpoint
+    if (url.pathname === "/api/oauth/config") {
+      return new Response(
+        JSON.stringify({
+          client_id: "llmdj",
+          auth_url: `${env.OAUTH_PROVIDER_BASE_URL}/oauth/authorize`,
+          token_url: `${env.OAUTH_PROVIDER_BASE_URL}/oauth/token`,
+        }),
         {
-          SPOTIFY_CLIENT_ID: env.SPOTIFY_CLIENT_ID,
-          SPOTIFY_REDIRECT_URI: env.SPOTIFY_REDIRECT_URI,
-        },
-        {
-          headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET",
-            "Access-Control-Allow-Headers": "Content-Type",
-          },
+          headers: { "Content-Type": "application/json" },
         }
       );
     }
 
-    if (url.pathname === "/auth/callback") {
-      // Handle Spotify OAuth callback
-      const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state");
-      const error = url.searchParams.get("error");
-
-      if (error) {
-        // Spotify OAuth error - redirect back to main app with error
-        const baseUrl = env.SPOTIFY_REDIRECT_URI.replace("/auth/callback", "/");
-        const redirectUrl = new URL(baseUrl);
-        redirectUrl.searchParams.set("error", error);
-        redirectUrl.searchParams.set(
-          "error_description",
-          url.searchParams.get("error_description") || ""
+    // User info proxy endpoint
+    if (url.pathname === "/api/user/info") {
+      const authHeader = request.headers.get("Authorization");
+      if (!authHeader) {
+        return new Response(
+          JSON.stringify({ error: "Missing Authorization header" }),
+          {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          }
         );
-
-        return Response.redirect(redirectUrl.toString(), 302);
       }
 
-      if (!code || !state) {
-        // Missing required parameters
-        const baseUrl = env.SPOTIFY_REDIRECT_URI.replace("/auth/callback", "/");
-        const redirectUrl = new URL(baseUrl);
-        redirectUrl.searchParams.set("error", "invalid_request");
-        redirectUrl.searchParams.set(
-          "error_description",
-          "Missing authorization code or state"
-        );
-
-        return Response.redirect(redirectUrl.toString(), 302);
-      }
-
-      // Success - redirect back to main app with the authorization code
-      // The SpotifyAuth component will handle the token exchange
-      // Use the base domain from SPOTIFY_REDIRECT_URI to ensure we redirect to the correct domain
-      const baseUrl = env.SPOTIFY_REDIRECT_URI.replace("/auth/callback", "/");
-      const redirectUrl = new URL(baseUrl);
-      redirectUrl.searchParams.set("code", code);
-      redirectUrl.searchParams.set("state", state);
-
-      return Response.redirect(redirectUrl.toString(), 302);
-    }
-
-    if (!env.GATEWAY_API_KEY) {
-      console.error(
-        "GATEWAY_API_KEY is not set, don't forget to set it locally in .dev.vars, and use `wrangler secret bulk .dev.vars` to upload it to production"
+      const gatewayResponse = await fetch(
+        `${env.GATEWAY_BASE_URL}/v1/user/info`,
+        {
+          method: "GET",
+          headers: { Authorization: authHeader },
+        }
       );
-      return new Response("GATEWAY_API_KEY is not set", { status: 500 });
+
+      return new Response(await gatewayResponse.text(), {
+        status: gatewayResponse.status,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      });
     }
 
     // Check if this is a request for an unknown agent namespace before routing
@@ -113,13 +148,99 @@ export default {
     }
 
     try {
-      return (
-        // Route the request to our agent or return 404 if not found
-        (await routeAgentRequest(request, env, { cors: true })) ||
-        new Response("Not found", { status: 404 })
-      );
+      // Try to route to agent first
+      const agentResponse = await routeAgentRequest(request, env, {
+        cors: true,
+        onBeforeConnect: async (request) => {
+          const url = new URL(request.url);
+          const token = url.searchParams.get("token");
+
+          if (!token) {
+            return new Response("Authentication required", { status: 401 });
+          }
+
+          // If token provided, verify it
+          const userInfo = await verifyOAuthToken(token, env);
+          if (!userInfo) {
+            return new Response("Invalid auth token", { status: 403 });
+          }
+
+          // Ensure user can only access their own agent instance
+          const pathMatch = url.pathname.match(
+            /\/agents\/([^\/]+)\/([^\/\?]+)/
+          );
+          if (pathMatch) {
+            const [, , roomName] = pathMatch;
+            if (roomName !== userInfo.id) {
+              return new Response("Access denied: User ID mismatch", {
+                status: 403,
+              });
+            }
+          }
+
+          return undefined; // Continue to agent
+        },
+        onBeforeRequest: async (request) => {
+          const url = new URL(request.url);
+
+          // Skip auth for API routes and static assets
+          if (
+            url.pathname.startsWith("/api/") ||
+            url.pathname.startsWith("/assets/") ||
+            url.pathname === "/"
+          ) {
+            return undefined;
+          }
+
+          const token =
+            url.searchParams.get("token") ||
+            request.headers.get("Authorization")?.replace("Bearer ", "");
+
+          // Require auth for all agent requests
+          const pathMatch = url.pathname.match(
+            /\/agents\/([^\/]+)\/([^\/\?]+)/
+          );
+          if (pathMatch) {
+            if (!token) {
+              return new Response("Authentication required", { status: 401 });
+            }
+
+            const userInfo = await verifyOAuthToken(token, env);
+            if (!userInfo) {
+              return new Response("Invalid auth token", { status: 403 });
+            }
+
+            const [, , roomName] = pathMatch;
+            if (userInfo.id !== roomName) {
+              return new Response("Access denied", { status: 403 });
+            }
+          }
+
+          return undefined; // Continue to agent
+        },
+      });
+
+      if (agentResponse) {
+        return agentResponse;
+      }
+
+      // For the root route and other non-API routes, serve a simple HTML page
+      if (
+        url.pathname === "/" ||
+        (!url.pathname.includes("/api/") && !url.pathname.includes("."))
+      ) {
+        return new Response(getMainHTML(), {
+          headers: {
+            "Content-Type": "text/html",
+            "Access-Control-Allow-Origin": "*",
+          },
+        });
+      }
+
+      // For other requests, return 404
+      return new Response("Not found", { status: 404 });
     } catch (error) {
-      console.error("Error routing agent request:", error);
+      console.error("Error routing request:", error);
 
       // For other errors, return a generic error response
       return new Response(
@@ -138,3 +259,210 @@ export default {
     }
   },
 } satisfies ExportedHandler<Env>;
+
+/**
+ * Handle OAuth callback directly on the server
+ */
+async function handleOAuthCallback(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const error = url.searchParams.get("error");
+
+  if (error) {
+    console.error("OAuth error:", error);
+    return new Response(
+      getCallbackHTML(`Authentication failed: ${error}`, null),
+      {
+        headers: { "Content-Type": "text/html" },
+      }
+    );
+  }
+
+  if (!code || !state) {
+    console.error("Missing OAuth parameters");
+    return new Response(
+      getCallbackHTML("Authentication failed: Missing parameters", null),
+      {
+        headers: { "Content-Type": "text/html" },
+      }
+    );
+  }
+
+  try {
+    console.log("[OAuth Callback] Exchanging authorization code for token...");
+
+    // Exchange code for token using our API endpoint
+    const tokenResponse = await fetch(
+      `${url.origin}/api/oauth/token-exchange`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          grant_type: "authorization_code",
+        }),
+      }
+    );
+
+    if (!tokenResponse.ok) {
+      throw new Error(`Token exchange failed: ${tokenResponse.status}`);
+    }
+
+    const tokenData = (await tokenResponse.json()) as TokenData;
+
+    console.log(
+      `[OAuth Callback] Token exchange successful for user: ${tokenData.user_info.id}`
+    );
+
+    return new Response(getCallbackHTML(null, tokenData), {
+      headers: { "Content-Type": "text/html" },
+    });
+  } catch (err) {
+    console.error("Token exchange failed:", err);
+    return new Response(
+      getCallbackHTML("Authentication failed: Could not exchange token", null),
+      {
+        headers: { "Content-Type": "text/html" },
+      }
+    );
+  }
+}
+
+async function handleTokenExchange(request: Request, env: Env) {
+  if (request.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
+
+  try {
+    const body = (await request.json()) as { code: string; grant_type: string };
+    const { code, grant_type } = body;
+
+    if (grant_type !== "authorization_code" || !code) {
+      return new Response(JSON.stringify({ error: "invalid_request" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Exchange code for token with the OAuth provider
+    const tokenResponse = await fetch(
+      `${env.OAUTH_PROVIDER_BASE_URL}/oauth/token`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          client_id: "llmdj",
+          client_secret: env.ATYOURSERVICE_OAUTH_CLIENT_SECRET,
+          grant_type: "authorization_code",
+        }),
+      }
+    );
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error(`OAuth token exchange failed: ${errorText}`);
+      return new Response(JSON.stringify({ error: "token_exchange_failed" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const tokenData = await tokenResponse.json();
+    return new Response(JSON.stringify(tokenData), {
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error("Token exchange error:", error);
+    return new Response(JSON.stringify({ error: "internal_server_error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+}
+
+/**
+ * Generate HTML for OAuth callback handling
+ */
+function getCallbackHTML(
+  error: string | null,
+  tokenData: TokenData | null
+): string {
+  if (error) {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Authentication Failed</title>
+  <style>
+    body { font-family: system-ui; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+    .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+    .error { color: #e53e3e; margin-bottom: 1rem; }
+    button { background: #3182ce; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Authentication Failed</h2>
+    <p class="error">${error}</p>
+    <button onclick="window.location.href = '/'">Try Again</button>
+  </div>
+</body>
+</html>`;
+  }
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Authentication Successful</title>
+  <style>
+    body { font-family: system-ui; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+    .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+    .success { color: #38a169; margin-bottom: 1rem; }
+    .spinner { border: 2px solid #f3f3f3; border-top: 2px solid #3182ce; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h2>Authentication Successful!</h2>
+    <p class="success">Redirecting to your LLMDJ agent...</p>
+  </div>
+  <script>
+    // Store auth data and redirect
+    localStorage.setItem('auth_method', JSON.stringify({
+      type: 'atyourservice',
+      apiKey: ${JSON.stringify(tokenData?.access_token)},
+      userInfo: ${JSON.stringify(tokenData?.user_info)}
+    }));
+
+    // Redirect to main app
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 1500);
+  </script>
+</body>
+</html>`;
+}
+
+function getMainHTML(): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLMDJ - AI Spotify DJ</title>
+    <script type="module" crossorigin src="/src/client.tsx"></script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>`;
+}

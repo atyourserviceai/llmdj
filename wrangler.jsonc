@@ -24,45 +24,51 @@
     },
   ],
   "vars": {
-    "GATEWAY_BASE_URL": "https://gateway.atyourservice.ai",
+    "GATEWAY_BASE_URL": "https://api.atyourservice.ai",
     "SETTINGS_ENVIRONMENT": "dev",
     "COMPOSIO_API_KEY": "",
     "BROWSERBASE_API_KEY": "",
     "SPOTIFY_CLIENT_ID": "",
     "SPOTIFY_CLIENT_SECRET": "",
-    "SPOTIFY_REDIRECT_URI": "https://llmdj-dev.atyourservice.ai/auth/callback",
+    "SPOTIFY_REDIRECT_URI": "https://llmdj.motin.eu/auth/callback",
+    "OAUTH_PROVIDER_BASE_URL": "http://127.0.0.1:45173",
+    "ATYOURSERVICE_OAUTH_CLIENT_SECRET": "",
   },
   "env": {
     "staging": {
       "vars": {
-        "GATEWAY_BASE_URL": "https://gateway.atyourservice.ai",
+        "GATEWAY_BASE_URL": "https://api.atyourservice.ai",
         "SETTINGS_ENVIRONMENT": "staging",
         "COMPOSIO_API_KEY": "",
         "BROWSERBASE_API_KEY": "",
         "SPOTIFY_CLIENT_ID": "",
         "SPOTIFY_CLIENT_SECRET": "",
         "SPOTIFY_REDIRECT_URI": "https://llmdj-staging.atyourservice.ai/auth/callback",
+        "OAUTH_PROVIDER_BASE_URL": "https://staging.atyourservice.ai",
+        "ATYOURSERVICE_OAUTH_CLIENT_SECRET": "",
       },
       "routes": [
         {
-          "pattern": "llmdj-staging.atyourservice.ai",
+          "pattern": "llmdj-staging.atyourservice.workers.dev",
           "custom_domain": true,
         },
       ],
     },
     "production": {
       "vars": {
-        "GATEWAY_BASE_URL": "https://gateway.atyourservice.ai",
+        "GATEWAY_BASE_URL": "https://api.atyourservice.ai",
         "SETTINGS_ENVIRONMENT": "production",
         "COMPOSIO_API_KEY": "",
         "BROWSERBASE_API_KEY": "",
         "SPOTIFY_CLIENT_ID": "",
         "SPOTIFY_CLIENT_SECRET": "",
         "SPOTIFY_REDIRECT_URI": "https://llmdj.atyourservice.ai/auth/callback",
+        "OAUTH_PROVIDER_BASE_URL": "https://atyourservice.ai",
+        "ATYOURSERVICE_OAUTH_CLIENT_SECRET": "",
       },
       "routes": [
         {
-          "pattern": "llmdj.atyourservice.ai",
+          "pattern": "llmdj.com",
           "custom_domain": true,
         },
       ],

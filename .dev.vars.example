@@ -1,5 +1,4 @@
-GATEWAY_API_KEY=foo
-GATEWAY_BASE_URL=https://gateway.atyourservice.ai
+ATYOURSERVICE_OAUTH_CLIENT_SECRET=llmdj-secret-dev
 BROWSERBASE_API_KEY=your-browserbase-api-key
 COMPOSIO_API_KEY=your-composio-api-key
 
