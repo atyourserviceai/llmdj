@@ -227,7 +227,7 @@ export async function addMusicSessionEntry(
 export async function getSessionHistory(
   agent: AppAgent,
   sessionId: string,
-  limit: number = 100
+  limit = 100
 ): Promise<MusicSessionEntry[]> {
   try {
     const result = await agent.sql`
@@ -237,12 +237,14 @@ export async function getSessionHistory(
       LIMIT ${limit}
     `;
 
-    return result.map((row: any) => ({
+    return result.map((row: Record<string, unknown>) => ({
       id: String(row.id),
       userId: String(row.user_id),
       sessionId: String(row.session_id),
       timestamp: String(row.timestamp),
-      activityType: String(row.activity_type),
+      activityType: String(
+        row.activity_type
+      ) as MusicSessionEntry["activityType"],
       trackId: row.track_id ? String(row.track_id) : undefined,
       trackName: row.track_name ? String(row.track_name) : undefined,
       artistName: row.artist_name ? String(row.artist_name) : undefined,
@@ -305,7 +307,7 @@ export async function addPlaylistHistoryEntry(
 export async function getPlaylistHistory(
   agent: AppAgent,
   playlistId: string,
-  limit: number = 50
+  limit = 50
 ): Promise<PlaylistHistoryEntry[]> {
   try {
     const result = await agent.sql`
@@ -315,12 +317,12 @@ export async function getPlaylistHistory(
       LIMIT ${limit}
     `;
 
-    return result.map((row: any) => ({
+    return result.map((row: Record<string, unknown>) => ({
       id: String(row.id),
       userId: String(row.user_id),
       playlistId: String(row.playlist_id),
       timestamp: String(row.timestamp),
-      action: String(row.action),
+      action: String(row.action) as PlaylistHistoryEntry["action"],
       trackId: row.track_id ? String(row.track_id) : undefined,
       trackName: row.track_name ? String(row.track_name) : undefined,
       artistName: row.artist_name ? String(row.artist_name) : undefined,
@@ -328,7 +330,7 @@ export async function getPlaylistHistory(
       newValue: row.new_value ? String(row.new_value) : undefined,
       position: row.position ? Number(row.position) : undefined,
       reason: row.reason ? String(row.reason) : undefined,
-      source: String(row.source),
+      source: String(row.source) as PlaylistHistoryEntry["source"],
       createdAt: new Date(String(row.created_at)),
     }));
   } catch (error) {
@@ -380,7 +382,7 @@ export async function addRecommendationEntry(
 export async function getRecommendationHistory(
   agent: AppAgent,
   userId: string,
-  limit: number = 50
+  limit = 50
 ): Promise<RecommendationHistoryEntry[]> {
   try {
     const result = await agent.sql`
@@ -390,18 +392,20 @@ export async function getRecommendationHistory(
       LIMIT ${limit}
     `;
 
-    return result.map((row: any) => ({
+    return result.map((row: Record<string, unknown>) => ({
       id: String(row.id),
       userId: String(row.user_id),
       sessionId: row.session_id ? String(row.session_id) : undefined,
       timestamp: String(row.timestamp),
-      type: String(row.type),
+      type: String(row.type) as RecommendationHistoryEntry["type"],
       recommendationId: String(row.recommendation_id),
       recommendationName: String(row.recommendation_name),
       artistName: row.artist_name ? String(row.artist_name) : undefined,
       reason: String(row.reason),
       basedOn: JSON.parse(String(row.based_on)),
-      userAction: row.user_action ? String(row.user_action) : undefined,
+      userAction: row.user_action
+        ? (String(row.user_action) as RecommendationHistoryEntry["userAction"])
+        : undefined,
       responseTime: row.response_time ? Number(row.response_time) : undefined,
       playDuration: row.play_duration ? Number(row.play_duration) : undefined,
       wasSuccessful:
@@ -457,7 +461,7 @@ export async function addDiscoveryEntry(
 export async function getUserDiscoveryHistory(
   agent: AppAgent,
   userId: string,
-  limit: number = 100
+  limit = 100
 ): Promise<DiscoveryHistoryEntry[]> {
   try {
     const result = await agent.sql`
@@ -467,22 +471,28 @@ export async function getUserDiscoveryHistory(
       LIMIT ${limit}
     `;
 
-    return result.map((row: any) => ({
+    return result.map((row: Record<string, unknown>) => ({
       id: String(row.id),
       userId: String(row.user_id),
       timestamp: String(row.timestamp),
-      discoveryType: String(row.discovery_type),
+      discoveryType: String(
+        row.discovery_type
+      ) as DiscoveryHistoryEntry["discoveryType"],
       genreName: row.genre_name ? String(row.genre_name) : undefined,
       artistId: row.artist_id ? String(row.artist_id) : undefined,
       artistName: row.artist_name ? String(row.artist_name) : undefined,
       trackId: row.track_id ? String(row.track_id) : undefined,
       trackName: row.track_name ? String(row.track_name) : undefined,
       featureName: row.feature_name ? String(row.feature_name) : undefined,
-      discoveryMethod: String(row.discovery_method),
+      discoveryMethod: String(
+        row.discovery_method
+      ) as DiscoveryHistoryEntry["discoveryMethod"],
       sourceContext: row.source_context
         ? String(row.source_context)
         : undefined,
-      engagementLevel: String(row.engagement_level),
+      engagementLevel: String(
+        row.engagement_level
+      ) as DiscoveryHistoryEntry["engagementLevel"],
       followUpActions: JSON.parse(String(row.follow_up_actions)),
       createdAt: new Date(String(row.created_at)),
     }));
@@ -502,7 +512,7 @@ export async function getUserDiscoveryHistory(
 export async function getMusicEngagementInsights(
   agent: AppAgent,
   userId: string,
-  days: number = 30
+  days = 30
 ): Promise<{
   totalSessions: number;
   totalPlaytime: number;
@@ -548,7 +558,7 @@ export async function getMusicEngagementInsights(
 export async function getRecommendationEffectiveness(
   agent: AppAgent,
   userId: string,
-  days: number = 30
+  days = 30
 ): Promise<{
   totalRecommendations: number;
   acceptanceRate: number;

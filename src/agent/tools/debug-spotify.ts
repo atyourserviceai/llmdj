@@ -1,5 +1,5 @@
 import { getCurrentAgent } from "agents";
-import { AppAgent } from "../AppAgent";
+import type { AppAgent } from "../AppAgent";
 import { generateObject } from "ai";
 import { z } from "zod";
 

@@ -115,7 +115,8 @@ export function ToolInvocationCard({
         const errorMessage = result.error.message;
         // Extract just the first line of the error message if it contains newlines
         return `Error: ${errorMessage.split("\n")[0]}`;
-      } else if ("message" in result && typeof result.message === "string") {
+      }
+      if ("message" in result && typeof result.message === "string") {
         // Logical failure with message field (our Spotify tools pattern)
         return result.message;
       }

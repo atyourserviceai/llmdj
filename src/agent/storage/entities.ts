@@ -324,6 +324,7 @@ export async function getSpotifyProfile(
 
     if (result.length === 0) return null;
 
+    // biome-ignore lint/suspicious/noExplicitAny: SQLite results are dynamic
     const row = result[0] as any;
     return {
       id: String(row.id),
@@ -378,6 +379,7 @@ export async function getConnectedSpotifyProfile(
       return null;
     }
 
+    // biome-ignore lint/suspicious/noExplicitAny: SQLite results are dynamic
     const row = result[0] as any;
     console.log("[getConnectedSpotifyProfile] Raw row data:", {
       id: row.id,
@@ -527,7 +529,7 @@ export async function addListeningRecord(
 export async function getRecentListeningHistory(
   agent: AppAgent,
   userId: string,
-  limit: number = 50
+  limit = 50
 ): Promise<ListeningHistory[]> {
   try {
     const result = await agent.sql`

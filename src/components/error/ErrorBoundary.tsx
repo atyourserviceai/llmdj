@@ -57,7 +57,9 @@ export class ErrorBoundary extends React.Component<
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
+                  aria-label="Error icon"
                 >
+                  <title>Error icon</title>
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -89,12 +91,14 @@ export class ErrorBoundary extends React.Component<
 
             <div className="flex space-x-3">
               <button
+                type="button"
                 onClick={this.handleReset}
                 className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Try Again
               </button>
               <button
+                type="button"
                 onClick={() => window.location.reload()}
                 className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-400 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
               >

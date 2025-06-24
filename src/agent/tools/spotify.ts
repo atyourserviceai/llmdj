@@ -624,7 +624,7 @@ export const getSpotifyRecommendations = tool({
       }
 
       // Build recommendation parameters
-      const recommendationParams: any = {
+      const recommendationParams: Record<string, unknown> = {
         limit,
         market,
         seed_tracks: seedTracks?.slice(0, 5),
@@ -634,11 +634,11 @@ export const getSpotifyRecommendations = tool({
 
       // Add audio feature targets if provided
       if (audioFeatureTargets) {
-        Object.entries(audioFeatureTargets).forEach(([key, value]) => {
+        for (const [key, value] of Object.entries(audioFeatureTargets)) {
           if (value !== undefined) {
             recommendationParams[`target_${key}`] = value;
           }
-        });
+        }
       }
 
       const recommendations =
@@ -941,7 +941,7 @@ export const controlSpotifyPlayback = tool({
         refresh_token: profile.refreshToken || "",
       });
 
-      let result;
+      let result: unknown;
       switch (action) {
         case "play":
           if (trackUris || contextUri) {
