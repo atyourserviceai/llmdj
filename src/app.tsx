@@ -511,7 +511,7 @@ function Chat() {
         }
 
         // Get Spotify config
-        const configResponse = await fetch("/config");
+        const configResponse = await fetch("/spotify/config");
         if (!configResponse.ok) {
           throw new Error("Failed to load Spotify configuration");
         }
@@ -583,6 +583,19 @@ function Chat() {
       const storeTokens = async () => {
         console.log("[App] Starting token storage process...");
         try {
+          // Get the user's AtYourService.ai OAuth token for authentication
+          const authMethodStr = localStorage.getItem("auth_method");
+          if (!authMethodStr) {
+            throw new Error("No authentication found. Please sign in first.");
+          }
+
+          const authMethod = JSON.parse(authMethodStr);
+          if (!authMethod?.apiKey) {
+            throw new Error(
+              "Invalid authentication data. Please sign in again."
+            );
+          }
+
           const endpoint = `/agents/${finalAgentConfig.agent}/${finalAgentConfig.name}/store-spotify-tokens`;
           console.log("[App] Calling endpoint:", endpoint);
 
@@ -590,6 +603,7 @@ function Chat() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              Authorization: `Bearer ${authMethod.apiKey}`,
             },
             body: JSON.stringify({
               access_token: tokens.access_token,

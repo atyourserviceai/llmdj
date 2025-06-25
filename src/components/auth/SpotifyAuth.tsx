@@ -307,7 +307,7 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
         );
       }
     }
-  }, [config, handleAuthCallback]); // Run when config is loaded
+  }, [config]); // Only depend on config, not handleAuthCallback to avoid infinite loop
 
   const generateRandomString = (length: number): string => {
     const possible =

@@ -938,9 +938,16 @@ export class AppAgent extends AIChatAgent<Env> {
           );
         }
 
-        // Store tokens in the database
-        console.log("[AppAgent] Storing Spotify tokens in database");
+        // Extract user ID from URL path: /agents/app-agent/{userId}/store-spotify-tokens
+        const pathParts = url.pathname.split("/");
+        const userId = pathParts[3]; // Index 3 should be the user ID
+
+        console.log(
+          "[AppAgent] Storing Spotify tokens in database for user:",
+          userId
+        );
         const result = await this.storeSpotifyTokens({
+          user_id: userId,
           access_token,
           refresh_token,
           expires_in,
@@ -1186,6 +1193,7 @@ export class AppAgent extends AIChatAgent<Env> {
    * Store Spotify OAuth tokens in the database
    */
   async storeSpotifyTokens(tokens: {
+    user_id: string; // This is the AtYourService.ai user ID from URL path
     access_token: string;
     refresh_token?: string;
     expires_in?: number;
@@ -1193,27 +1201,81 @@ export class AppAgent extends AIChatAgent<Env> {
     scope?: string;
   }) {
     try {
+      // First, fetch the Spotify user profile to get the Spotify user ID
+      const profileResponse = await fetch("https://api.spotify.com/v1/me", {
+        headers: {
+          Authorization: `Bearer ${tokens.access_token}`,
+        },
+      });
+
+      if (!profileResponse.ok) {
+        throw new Error(
+          `Failed to fetch Spotify profile: ${profileResponse.status}`
+        );
+      }
+
+      const spotifyProfile = (await profileResponse.json()) as {
+        id: string;
+        display_name: string;
+        email?: string;
+        country?: string;
+        product: string;
+        followers?: { total: number };
+      };
+
+      console.log(
+        "[AppAgent] Fetched Spotify profile for user:",
+        spotifyProfile.id
+      );
+
       // Calculate token expiration
       const expiresAt = tokens.expires_in
         ? new Date(Date.now() + tokens.expires_in * 1000)
         : new Date(Date.now() + 3600 * 1000); // Default 1 hour
 
-      // Store tokens in the database
+      // Store tokens in the database using the Spotify user ID
       await this.sql`
         INSERT OR REPLACE INTO spotify_tokens (
           user_id, access_token, refresh_token, expires_at, token_type, scope, created_at
         ) VALUES (
-          'default', ${tokens.access_token}, ${tokens.refresh_token || ""},
+          ${spotifyProfile.id}, ${tokens.access_token}, ${tokens.refresh_token || ""},
           ${expiresAt.toISOString()}, ${tokens.token_type || "Bearer"},
           ${tokens.scope || ""}, ${new Date().toISOString()}
         )
       `;
 
-      console.log("[AppAgent] Spotify tokens stored successfully");
+      console.log(
+        "[AppAgent] Spotify tokens stored successfully for Spotify user:",
+        spotifyProfile.id
+      );
+
+      // Also update the agent state with Spotify profile info
+      const state = this.state as AppAgentState;
+      const updatedState: AppAgentState = {
+        ...state,
+        spotifyAuth: {
+          isConnected: true,
+          profile: {
+            id: spotifyProfile.id,
+            displayName: spotifyProfile.display_name,
+            email: spotifyProfile.email,
+            country: spotifyProfile.country,
+            product: spotifyProfile.product as "premium" | "free",
+            followers: spotifyProfile.followers?.total,
+          },
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          tokenExpiresAt: expiresAt.toISOString(),
+          connectedAt: new Date().toISOString(),
+        },
+      };
+
+      this.setState(updatedState);
 
       return {
         success: true,
         message: "Spotify tokens stored successfully",
+        spotifyUserId: spotifyProfile.id,
       };
     } catch (error) {
       console.error("[AppAgent] Error storing Spotify tokens:", error);

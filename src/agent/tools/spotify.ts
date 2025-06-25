@@ -8,7 +8,7 @@ import { getCurrentAgent } from "agents";
 import { tool } from "ai";
 import { z } from "zod";
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
-import type { AppAgent } from "../AppAgent";
+import type { AppAgent, AppAgentState } from "../AppAgent";
 import {
   storeSpotifyProfile,
   getSpotifyProfile,
@@ -120,14 +120,15 @@ export const connectSpotifyAccount = tool({
       }
 
       console.log(
-        "[connectSpotifyAccount] Agent reference obtained, querying database for tokens..."
+        "[connectSpotifyAccount] Agent reference obtained, checking for Spotify connection..."
       );
 
-      // Get stored tokens from the database
+      // Look for any valid Spotify tokens in the database
+      // Since we store tokens with Spotify user ID, we need to find any valid tokens first
       const tokenResult = await agent.sql`
-        SELECT access_token, refresh_token, expires_at, token_type, scope
+        SELECT user_id, access_token, refresh_token, expires_at, token_type, scope
         FROM spotify_tokens
-        WHERE user_id = 'default'
+        WHERE expires_at > ${new Date().toISOString()}
         ORDER BY created_at DESC
         LIMIT 1
       `;
@@ -147,12 +148,19 @@ export const connectSpotifyAccount = tool({
       }
 
       const tokenData = tokenResult[0] as {
+        user_id: string;
         access_token: string;
         refresh_token: string;
         expires_at: string;
         token_type: string;
         scope: string;
       };
+
+      const spotifyUserId = tokenData.user_id;
+      console.log(
+        "[connectSpotifyAccount] Found valid token for Spotify user:",
+        spotifyUserId
+      );
 
       console.log("[connectSpotifyAccount] Token data retrieved:", {
         hasAccessToken: !!tokenData.access_token,
@@ -255,7 +263,7 @@ export const connectSpotifyAccount = tool({
 
       // Clean up the tokens from the temporary storage table
       console.log("[connectSpotifyAccount] Cleaning up temporary tokens...");
-      await agent.sql`DELETE FROM spotify_tokens WHERE user_id = 'default'`;
+      await agent.sql`DELETE FROM spotify_tokens WHERE user_id = ${spotifyUserId}`;
 
       console.log(
         "[connectSpotifyAccount] Tool execution completed successfully"
