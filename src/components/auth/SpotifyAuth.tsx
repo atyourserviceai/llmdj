@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/button/Button";
 
 interface SpotifyConfig {
@@ -94,154 +94,8 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
     // checkOAuthCallback();
   }, [onAuthError]);
 
-  // Check if we're handling an OAuth callback - but only after config is loaded
-  useEffect(() => {
-    console.log(
-      "[SpotifyAuth] OAuth callback effect running, config loaded:",
-      !!config
-    );
-
-    // Only proceed if config is loaded
-    if (!config) {
-      console.log(
-        "[SpotifyAuth] Config not loaded yet, skipping OAuth callback check"
-      );
-      return;
-    }
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get("code");
-    const error = urlParams.get("error");
-    const state = urlParams.get("state");
-
-    console.log("[SpotifyAuth] URL params check:", {
-      hasCode: !!code,
-      hasError: !!error,
-      hasState: !!state,
-      url: window.location.href,
-    });
-
-    if (error) {
-      console.error("[SpotifyAuth] OAuth error in URL:", error);
-      onAuthError(`Spotify authentication failed: ${error}`);
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      return;
-    }
-
-    if (code && state) {
-      console.log(
-        "[SpotifyAuth] Found OAuth callback parameters, starting token exchange..."
-      );
-      handleAuthCallback(code, state);
-    } else {
-      console.log("[SpotifyAuth] No OAuth callback parameters found");
-    }
-  }, [config, onAuthError]); // Depend on config so this only runs after config is loaded
-
-  const generateRandomString = (length: number): string => {
-    const possible =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let text = "";
-    for (let i = 0; i < length; i++) {
-      text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
-  };
-
-  const generateCodeChallenge = async (
-    codeVerifier: string
-  ): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(codeVerifier);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    return btoa(String.fromCharCode(...new Uint8Array(digest)))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
-  };
-
-  const initiateSpotifyAuth = async () => {
-    console.log(
-      "[SpotifyAuth] initiateSpotifyAuth called, current config:",
-      config
-    );
-    setIsLoading(true);
-
-    try {
-      // Generate PKCE parameters
-      const codeVerifier = generateRandomString(128);
-      const codeChallenge = await generateCodeChallenge(codeVerifier);
-      const state = generateRandomString(16);
-
-      console.log("[SpotifyAuth] Generated PKCE parameters:", {
-        codeVerifierLength: codeVerifier.length,
-        state,
-        codeChallenge: `${codeChallenge.substring(0, 10)}...`,
-      });
-
-      // Store PKCE verifier and state in sessionStorage
-      sessionStorage.setItem("spotify_code_verifier", codeVerifier);
-      sessionStorage.setItem("spotify_state", state);
-      console.log("[SpotifyAuth] Stored PKCE parameters in sessionStorage");
-
-      // Get configuration from server
-      if (!config) {
-        console.error(
-          "[SpotifyAuth] Config is null when trying to initiate auth"
-        );
-        throw new Error("Spotify configuration not loaded");
-      }
-
-      const { SPOTIFY_CLIENT_ID: clientId, SPOTIFY_REDIRECT_URI: redirectUri } =
-        config;
-
-      console.log("[SpotifyAuth] Using config:", { clientId, redirectUri });
-
-      // Spotify OAuth scopes needed for full functionality
-      const scopes = [
-        "user-read-playback-state",
-        "user-modify-playback-state",
-        "user-read-currently-playing",
-        "playlist-read-private",
-        "playlist-modify-public",
-        "playlist-modify-private",
-        "user-top-read",
-        "user-library-read",
-        "user-library-modify",
-        "streaming",
-        "user-read-email",
-        "user-read-private",
-      ].join(" ");
-
-      // Build Spotify authorization URL
-      const params = new URLSearchParams({
-        response_type: "code",
-        client_id: clientId,
-        scope: scopes,
-        redirect_uri: redirectUri,
-        state: state,
-        code_challenge_method: "S256",
-        code_challenge: codeChallenge,
-      });
-
-      const authUrl = `https://accounts.spotify.com/authorize?${params.toString()}`;
-      console.log("[SpotifyAuth] Redirecting to Spotify OAuth URL:", authUrl);
-
-      // Redirect to Spotify for authorization
-      window.location.href = authUrl;
-    } catch (error) {
-      console.error("[SpotifyAuth] Error initiating Spotify auth:", error);
-      onAuthError(
-        error instanceof Error
-          ? error.message
-          : "Failed to initiate Spotify authentication"
-      );
-      setIsLoading(false);
-    }
-  };
-
-  const handleAuthCallback = async (code: string, state: string) => {
+  // Handle OAuth callback - wrapped in useCallback to avoid dependency issues
+  const handleAuthCallback = useCallback(async (code: string, state: string) => {
     console.log("[SpotifyAuth] handleAuthCallback called:", {
       codeLength: code?.length,
       state: `${state?.substring(0, 8)}...`,
@@ -361,7 +215,185 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
     } finally {
       setIsLoading(false);
     }
+  }, [config, onAuthSuccess, onAuthError]);
+
+  // Check if we're handling an OAuth callback - but only after config is loaded
+  useEffect(() => {
+    console.log(
+      "[SpotifyAuth] OAuth callback effect running, config loaded:",
+      !!config
+    );
+
+    // Only proceed if config is loaded
+    if (!config) {
+      console.log(
+        "[SpotifyAuth] Config not loaded yet, skipping OAuth callback check"
+      );
+      return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+    const error = urlParams.get("error");
+    const state = urlParams.get("state");
+
+    console.log("[SpotifyAuth] URL params check:", {
+      hasCode: !!code,
+      hasError: !!error,
+      hasState: !!state,
+      url: window.location.href,
+    });
+
+    if (error) {
+      console.error("[SpotifyAuth] OAuth error in URL:", error);
+      onAuthError(`Spotify authentication failed: ${error}`);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
+    if (code && state) {
+      console.log(
+        "[SpotifyAuth] Found OAuth callback parameters, starting token exchange..."
+      );
+      handleAuthCallback(code, state);
+    } else {
+      console.log("[SpotifyAuth] No OAuth callback parameters found");
+    }
+  }, [config, onAuthError]); // Depend on config so this only runs after config is loaded
+
+  // Check for Spotify auth data in localStorage (from callback page)
+  useEffect(() => {
+    console.log("[SpotifyAuth] Checking localStorage for Spotify auth data...");
+
+    // Only proceed if config is loaded
+    if (!config) {
+      console.log("[SpotifyAuth] Config not loaded yet, skipping localStorage check");
+      return;
+    }
+
+    const spotifyCallbackStr = localStorage.getItem("spotify_callback_data");
+    if (spotifyCallbackStr) {
+      try {
+        const spotifyCallback = JSON.parse(spotifyCallbackStr);
+        if (spotifyCallback.code && spotifyCallback.state) {
+          console.log("[SpotifyAuth] Found Spotify callback data in localStorage, processing...");
+
+          // Process the callback with the stored code and state
+          handleAuthCallback(spotifyCallback.code, spotifyCallback.state);
+
+          // Clear the localStorage item
+          localStorage.removeItem("spotify_callback_data");
+        }
+      } catch (error) {
+        console.error("[SpotifyAuth] Error parsing spotify_callback_data from localStorage:", error);
+      }
+    }
+  }, [config, handleAuthCallback]); // Run when config is loaded
+
+  const generateRandomString = (length: number): string => {
+    const possible =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let text = "";
+    for (let i = 0; i < length; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
   };
+
+  const generateCodeChallenge = async (
+    codeVerifier: string
+  ): Promise<string> => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  };
+
+  const initiateSpotifyAuth = async () => {
+    console.log(
+      "[SpotifyAuth] initiateSpotifyAuth called, current config:",
+      config
+    );
+    setIsLoading(true);
+
+    try {
+      // Generate PKCE parameters
+      const codeVerifier = generateRandomString(128);
+      const codeChallenge = await generateCodeChallenge(codeVerifier);
+      const state = generateRandomString(16);
+
+      console.log("[SpotifyAuth] Generated PKCE parameters:", {
+        codeVerifierLength: codeVerifier.length,
+        state,
+        codeChallenge: `${codeChallenge.substring(0, 10)}...`,
+      });
+
+      // Store PKCE verifier and state in sessionStorage
+      sessionStorage.setItem("spotify_code_verifier", codeVerifier);
+      sessionStorage.setItem("spotify_state", state);
+      console.log("[SpotifyAuth] Stored PKCE parameters in sessionStorage");
+
+      // Get configuration from server
+      if (!config) {
+        console.error(
+          "[SpotifyAuth] Config is null when trying to initiate auth"
+        );
+        throw new Error("Spotify configuration not loaded");
+      }
+
+      const { SPOTIFY_CLIENT_ID: clientId, SPOTIFY_REDIRECT_URI: redirectUri } =
+        config;
+
+      console.log("[SpotifyAuth] Using config:", { clientId, redirectUri });
+
+      // Spotify OAuth scopes needed for full functionality
+      const scopes = [
+        "user-read-playback-state",
+        "user-modify-playback-state",
+        "user-read-currently-playing",
+        "playlist-read-private",
+        "playlist-modify-public",
+        "playlist-modify-private",
+        "user-top-read",
+        "user-library-read",
+        "user-library-modify",
+        "streaming",
+        "user-read-email",
+        "user-read-private",
+      ].join(" ");
+
+      // Build Spotify authorization URL
+      const params = new URLSearchParams({
+        response_type: "code",
+        client_id: clientId,
+        scope: scopes,
+        redirect_uri: redirectUri,
+        state: state,
+        code_challenge_method: "S256",
+        code_challenge: codeChallenge,
+      });
+
+      const authUrl = `https://accounts.spotify.com/authorize?${params.toString()}`;
+      console.log("[SpotifyAuth] Redirecting to Spotify OAuth URL:", authUrl);
+
+      // Redirect to Spotify for authorization
+      window.location.href = authUrl;
+    } catch (error) {
+      console.error("[SpotifyAuth] Error initiating Spotify auth:", error);
+      onAuthError(
+        error instanceof Error
+          ? error.message
+          : "Failed to initiate Spotify authentication"
+      );
+      setIsLoading(false);
+    }
+  };
+
+
 
   if (isConnected) {
     return (

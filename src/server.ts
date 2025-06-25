@@ -71,6 +71,11 @@ export default {
       return handleOAuthCallback(request, env);
     }
 
+    // Handle Spotify OAuth callback
+    if (url.pathname === "/spotify/callback") {
+      return handleSpotifyCallback(request, env);
+    }
+
     // Handle OAuth token exchange
     if (url.pathname === "/api/oauth/token-exchange") {
       return handleTokenExchange(request, env);
@@ -412,6 +417,60 @@ async function handleOAuthCallback(
   }
 }
 
+/**
+ * Handle Spotify OAuth callback
+ */
+async function handleSpotifyCallback(
+  request: Request,
+  env: Env
+): Promise<Response> {
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const error = url.searchParams.get("error");
+
+  if (error) {
+    console.error("Spotify OAuth error:", error);
+    return new Response(
+      getSpotifyCallbackHTML(`Spotify authentication failed: ${error}`, null),
+      {
+        headers: { "Content-Type": "text/html" },
+      }
+    );
+  }
+
+  if (!code || !state) {
+    console.error("Missing Spotify OAuth parameters");
+    return new Response(
+      getSpotifyCallbackHTML("Spotify authentication failed: Missing parameters", null),
+      {
+        headers: { "Content-Type": "text/html" },
+      }
+    );
+  }
+
+  try {
+    console.log("[Spotify Callback] Received authorization code, returning success page");
+
+    // Return a success page that passes the code and state to the frontend
+    // The frontend will handle the actual token exchange with Spotify
+    return new Response(getSpotifyCallbackHTML(null, { code, state }), {
+      headers: { "Content-Type": "text/html" },
+    });
+  } catch (error) {
+    console.error("Spotify callback error:", error);
+    return new Response(
+      getSpotifyCallbackHTML(
+        error instanceof Error ? error.message : "Unknown error occurred",
+        null
+      ),
+      {
+        headers: { "Content-Type": "text/html" },
+      }
+    );
+  }
+}
+
 async function handleTokenExchange(request: Request, env: Env) {
   if (request.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -526,6 +585,68 @@ function getCallbackHTML(
       type: 'atyourservice',
       apiKey: ${JSON.stringify(tokenData?.access_token)},
       userInfo: ${JSON.stringify(tokenData?.user_info)}
+    }));
+
+    // Redirect to main app
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 1500);
+  </script>
+</body>
+</html>`;
+}
+
+function getSpotifyCallbackHTML(
+  error: string | null,
+  tokenData: { code: string; state: string } | null
+): string {
+  if (error) {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Spotify Authentication Failed</title>
+  <style>
+    body { font-family: system-ui; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+    .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+    .error { color: #e53e3e; margin-bottom: 1rem; }
+    button { background: #3182ce; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Spotify Authentication Failed</h2>
+    <p class="error">${error}</p>
+    <button onclick="window.location.href = '/'">Try Again</button>
+  </div>
+</body>
+</html>`;
+  }
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Spotify Authentication Successful</title>
+  <style>
+    body { font-family: system-ui; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
+    .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+    .success { color: #38a169; margin-bottom: 1rem; }
+    .spinner { border: 2px solid #f3f3f3; border-top: 2px solid #3182ce; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h2>Spotify Authentication Successful!</h2>
+    <p class="success">Redirecting to your LLMDJ agent...</p>
+  </div>
+  <script>
+    // Store Spotify auth data in a separate key to avoid overwriting main auth
+    localStorage.setItem('spotify_callback_data', JSON.stringify({
+      code: ${JSON.stringify(tokenData?.code)},
+      state: ${JSON.stringify(tokenData?.state)}
     }));
 
     // Redirect to main app

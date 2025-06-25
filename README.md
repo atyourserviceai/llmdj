@@ -48,10 +48,13 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 
 ### Prerequisites
 
+- **AI@YourService Account** (required for authentication)
 - **Spotify Premium Account** (required for playback control)
 - **Spotify Developer App** (see setup below)
 - **Cloudflare Account**
-- **AtYourService.ai Gateway API Key** (or OpenAI API key)
+- **AI@YourService Gateway API Key** (or OpenAI API key)
+
+> **🔒 Security Note**: This agent requires authentication through [AI@YourService](https://atyourservice.ai). All access is secured and no demo or public modes are available.
 
 ### Spotify Developer Setup
 
@@ -102,7 +105,8 @@ An AI-powered Spotify DJ agent that controls your music through natural language
    ```
 
 4. **Access the app**:
-   - Open [http://localhost:5173](http://localhost:5173)
+   - Open [http://localhost:5173](http://localhost:5173) or [https://llmdj.motin.eu](https://llmdj.motin.eu) (if using tunnel)
+   - Sign in with your AI@YourService account
    - Click "Connect Spotify" to authorize
    - Start chatting with your AI DJ!
 
