@@ -442,7 +442,10 @@ async function handleSpotifyCallback(
   if (!code || !state) {
     console.error("Missing Spotify OAuth parameters");
     return new Response(
-      getSpotifyCallbackHTML("Spotify authentication failed: Missing parameters", null),
+      getSpotifyCallbackHTML(
+        "Spotify authentication failed: Missing parameters",
+        null
+      ),
       {
         headers: { "Content-Type": "text/html" },
       }
@@ -450,7 +453,9 @@ async function handleSpotifyCallback(
   }
 
   try {
-    console.log("[Spotify Callback] Received authorization code, returning success page");
+    console.log(
+      "[Spotify Callback] Received authorization code, returning success page"
+    );
 
     // Return a success page that passes the code and state to the frontend
     // The frontend will handle the actual token exchange with Spotify
