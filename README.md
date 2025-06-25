@@ -197,6 +197,88 @@ The project supports three environments:
 - **Auto-deploy**: On push to `main` branch
 - **Manual deploy**: `pnpm run deploy -- --env production`
 
+## OAuth Integration Architecture
+
+LLMDJ uses a **dual OAuth system** for secure authentication:
+
+### 1. AtYourService.ai OAuth (Primary Authentication)
+
+- **Purpose**: Authenticate users and provide gateway API access
+- **Flow**: User → AtYourService.ai → User gets API key for agent communication
+- **Storage**: API key stored in `localStorage.auth_method`
+- **Usage**: Required for all agent requests and tool execution
+
+### 2. Spotify OAuth (Music Service Integration)
+
+- **Purpose**: Access user's Spotify data and control playback
+- **Flow**: User → Spotify → Agent stores tokens for music operations
+- **Storage**: Tokens stored in agent's SQLite database, keyed by Spotify user ID
+- **Usage**: Music search, playback control, playlist management
+
+### OAuth Flow Sequence
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant LLMDJ
+    participant AtYourService
+    participant Agent
+    participant Spotify
+
+    User->>LLMDJ: Sign In
+    LLMDJ->>AtYourService: OAuth redirect
+    AtYourService->>User: Login prompt
+    User->>AtYourService: Authenticate
+    AtYourService->>LLMDJ: OAuth callback with code
+    LLMDJ->>AtYourService: Exchange code for API key
+    AtYourService->>LLMDJ: Return API key + user info
+    LLMDJ->>Agent: Store user info (with auth)
+    LLMDJ->>User: Show connect Spotify prompt
+
+    User->>LLMDJ: Connect Spotify
+    LLMDJ->>Spotify: OAuth redirect (PKCE)
+    Spotify->>User: Authorize app
+    User->>Spotify: Grant permissions
+    Spotify->>LLMDJ: OAuth callback with code
+    LLMDJ->>Spotify: Exchange code for tokens
+    Spotify->>LLMDJ: Return access/refresh tokens
+    LLMDJ->>Agent: Store Spotify tokens (with auth)
+    Agent->>Spotify: Fetch user profile
+    Spotify->>Agent: Return profile data
+    Agent->>Agent: Store tokens by Spotify user ID
+    LLMDJ->>User: Ready to use!
+```
+
+### Key Implementation Details
+
+**Agent Request Authentication**: All requests to agent endpoints must include the AtYourService.ai API key:
+
+```javascript
+// ✅ Correct - with Authorization header
+const response = await fetch(`/agents/app-agent/${userId}/store-spotify-tokens`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${authMethod.apiKey}`, // AtYourService.ai API key
+  },
+  body: JSON.stringify({ /* Spotify tokens */ })
+});
+
+// ❌ Incorrect - missing auth (returns "Authentication required")
+const response = await fetch(endpoint, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({...})
+});
+```
+
+**Token Storage Architecture**:
+
+- **AtYourService.ai tokens**: Frontend localStorage → Used for agent authentication
+- **Spotify tokens**: Agent SQLite database → Used for music API calls
+- **User association**: AtYourService.ai user ID used for agent room/instance
+- **Music association**: Spotify user ID used for token lookup in database
+
 ## Spotify API Integration
 
 ### Required Permissions
