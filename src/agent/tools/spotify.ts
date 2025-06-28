@@ -1446,20 +1446,25 @@ export const getUserTopArtists = tool({
 export const getUserPlaylists = tool({
   name: "getUserPlaylists",
   description:
-    "Get user's Spotify playlists to analyze their music organization and preferences",
+    "Get user's Spotify playlists to analyze their music organization and preferences. Note: Spotify API limits to 50 playlists per request - if user has more, use multiple calls with offset.",
   parameters: z.object({
     limit: z
       .number()
       .min(1)
       .max(50)
-      .default(20)
-      .describe("Number of playlists to retrieve (1-50)"),
+      .default(50)
+      .describe("Number of playlists to retrieve (1-50, defaults to 50 for comprehensive results)"),
+    offset: z
+      .number()
+      .min(0)
+      .default(0)
+      .describe("Number of playlists to skip (for pagination when user has more than 50 playlists)"),
     includeTrackCounts: z
       .boolean()
       .default(true)
       .describe("Whether to include track counts for each playlist"),
   }),
-  execute: async ({ limit = 20, includeTrackCounts = true }) => {
+  execute: async ({ limit = 50, offset = 0, includeTrackCounts = true }) => {
     try {
       const { agent } = getCurrentAgent<AppAgent>();
 
@@ -1499,9 +1504,9 @@ export const getUserPlaylists = tool({
         refresh_token: profile.refreshToken || "",
       });
 
-      // Get user's playlists
+      // Get user's playlists with offset for pagination
       const userPlaylists =
-        await spotify.currentUser.playlists.playlists(limit);
+        await spotify.currentUser.playlists.playlists(limit, offset);
 
       // Format playlist data
       const playlists = userPlaylists.items.map((playlist) => ({
@@ -1545,11 +1550,23 @@ export const getUserPlaylists = tool({
         publicPlaylists: playlists.filter((p) => p.isPublic).length,
       };
 
+      // Pagination information
+      const totalAvailable = userPlaylists.total;
+      const hasMore = offset + limit < totalAvailable;
+      const nextOffset = hasMore ? offset + limit : null;
+
       return {
         success: true,
         totalPlaylists: playlists.length,
+        totalAvailable: totalAvailable,
+        offset: offset,
+        hasMore: hasMore,
+        nextOffset: nextOffset,
         playlists,
         analysis,
+        pagination_info: hasMore
+          ? `This shows ${playlists.length} playlists (${offset + 1}-${offset + playlists.length} of ${totalAvailable} total). To see more, call this tool again with offset: ${nextOffset}`
+          : `This shows all ${totalAvailable} available playlists.`,
       };
     } catch (error) {
       console.error("[getUserPlaylists] Error:", error);
@@ -1646,7 +1663,7 @@ export const analyzeMusicTaste = tool({
         spotify.currentUser.topItems("tracks", timeRange, 20),
         spotify.currentUser.topItems("artists", timeRange, 20),
         includePlaylistAnalysis
-          ? spotify.currentUser.playlists.playlists(20)
+          ? spotify.currentUser.playlists.playlists(50)  // Fetch more playlists for comprehensive analysis
           : Promise.resolve({ items: [] }),
       ]);
 

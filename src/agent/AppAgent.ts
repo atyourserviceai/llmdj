@@ -383,6 +383,11 @@ export class AppAgent extends AIChatAgent<Env> {
           getSpotifyDevices: tools.getSpotifyDevices,
           getCurrentPlayback: tools.getCurrentPlayback,
           controlSpotifyPlayback: tools.controlSpotifyPlayback,
+          // Add missing user data tools for comprehensive testing
+          getUserTopTracks: tools.getUserTopTracks,
+          getUserTopArtists: tools.getUserTopArtists,
+          getUserPlaylists: tools.getUserPlaylists,
+          analyzeMusicTaste: tools.analyzeMusicTaste,
         } as ToolSet;
 
       case "act":
@@ -398,6 +403,11 @@ export class AppAgent extends AIChatAgent<Env> {
           getSpotifyDevices: tools.getSpotifyDevices,
           getCurrentPlayback: tools.getCurrentPlayback,
           controlSpotifyPlayback: tools.controlSpotifyPlayback,
+          // Add user data tools for full music control capabilities
+          getUserTopTracks: tools.getUserTopTracks,
+          getUserTopArtists: tools.getUserTopArtists,
+          getUserPlaylists: tools.getUserPlaylists,
+          analyzeMusicTaste: tools.analyzeMusicTaste,
         } as ToolSet;
 
       default:
