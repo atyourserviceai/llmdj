@@ -232,9 +232,11 @@ export default {
             }
           }
 
-                    // Store the current token in a way the agent can access it during onConnect
+          // Store the current token in a way the agent can access it during onConnect
           // We'll use the connection context to pass the fresh token to the agent
-          console.log(`[Auth] Current token will be passed to agent during connection for user: ${userInfo.id}`);
+          console.log(
+            `[Auth] Current token will be passed to agent during connection for user: ${userInfo.id}`
+          );
 
           return undefined; // Continue to agent
         },

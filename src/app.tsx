@@ -1083,7 +1083,7 @@ function Chat() {
     }
   };
 
-    // Wrapper for reload with token expiration check
+  // Wrapper for reload with token expiration check
   const reloadWithTokenCheck = () => {
     // Check for token expiration before reloading (with safety check)
     if (auth && auth.checkTokenExpiration()) {

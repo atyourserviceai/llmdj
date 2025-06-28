@@ -107,7 +107,7 @@ async function refreshSpotifyTokens(
       return null;
     }
 
-    const tokenData = await response.json() as {
+    const tokenData = (await response.json()) as {
       access_token: string;
       expires_in: number;
     };
@@ -878,19 +878,25 @@ export const getCurrentPlayback = tool({
       let currentExpiresAt = tokenExpiresAt;
 
       if (tokenExpiresAt <= now) {
-        console.log("[getCurrentPlayback] Tokens expired, attempting refresh...");
+        console.log(
+          "[getCurrentPlayback] Tokens expired, attempting refresh..."
+        );
 
         if (!spotifyAuth.refreshToken) {
           // Show auth UI if no refresh token available
           return {
             success: false,
-            message: "Spotify connection has expired and no refresh token available",
+            message:
+              "Spotify connection has expired and no refresh token available",
             action_required: "spotify_auth_ui",
             type: "spotify_auth_ui",
           };
         }
 
-        const refreshResult = await refreshSpotifyTokens(agent, spotifyAuth.refreshToken);
+        const refreshResult = await refreshSpotifyTokens(
+          agent,
+          spotifyAuth.refreshToken
+        );
 
         if (!refreshResult) {
           // Show auth UI if refresh failed

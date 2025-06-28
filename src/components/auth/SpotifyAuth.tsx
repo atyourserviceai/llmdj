@@ -214,7 +214,9 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
     }
 
     if (code && state) {
-      console.log("[SpotifyAuth] Found OAuth callback parameters, starting token exchange...");
+      console.log(
+        "[SpotifyAuth] Found OAuth callback parameters, starting token exchange..."
+      );
       handleAuthCallback(code, state);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -232,7 +234,9 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
       try {
         const spotifyCallback = JSON.parse(spotifyCallbackStr);
         if (spotifyCallback.code && spotifyCallback.state) {
-          console.log("[SpotifyAuth] Found Spotify callback data in localStorage, processing...");
+          console.log(
+            "[SpotifyAuth] Found Spotify callback data in localStorage, processing..."
+          );
 
           // Process the callback with the stored code and state
           handleAuthCallback(spotifyCallback.code, spotifyCallback.state);
@@ -241,7 +245,10 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
           localStorage.removeItem("spotify_callback_data");
         }
       } catch (error) {
-        console.error("[SpotifyAuth] Error parsing spotify_callback_data from localStorage:", error);
+        console.error(
+          "[SpotifyAuth] Error parsing spotify_callback_data from localStorage:",
+          error
+        );
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

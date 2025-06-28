@@ -1257,7 +1257,7 @@ export class AppAgent extends AIChatAgent<Env> {
       timestamp: new Date().toISOString(),
     });
 
-            // Load user info from database (frontend will have already synced latest token)
+    // Load user info from database (frontend will have already synced latest token)
     try {
       console.log(`[AppAgent] Loading user info from database...`);
       await this.loadUserInfo();

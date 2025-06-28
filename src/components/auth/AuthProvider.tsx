@@ -119,11 +119,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 await syncTokenWithAgent(parsedAuth);
               } else {
                 // Token is invalid, clear it and show sign-in with message
-                console.log("Stored token is invalid (API responded with error), clearing auth");
+                console.log(
+                  "Stored token is invalid (API responded with error), clearing auth"
+                );
                 localStorage.removeItem("auth_method");
 
                 // Check if this was specifically due to token expiration
-                if (isJWTToken(parsedAuth.apiKey) && isJWTTokenExpired(parsedAuth.apiKey)) {
+                if (
+                  isJWTToken(parsedAuth.apiKey) &&
+                  isJWTTokenExpired(parsedAuth.apiKey)
+                ) {
                   localStorage.setItem("auth_expired_token", "true");
                 } else {
                   localStorage.setItem("auth_invalid_token", "true");
@@ -131,8 +136,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
               }
             } catch (error) {
               // Network error - only clear token if we can definitively say it's expired
-              if (isJWTToken(parsedAuth.apiKey) && isJWTTokenExpired(parsedAuth.apiKey)) {
-                console.log("Token is expired, clearing auth despite network error");
+              if (
+                isJWTToken(parsedAuth.apiKey) &&
+                isJWTTokenExpired(parsedAuth.apiKey)
+              ) {
+                console.log(
+                  "Token is expired, clearing auth despite network error"
+                );
                 localStorage.removeItem("auth_method");
                 localStorage.setItem("auth_expired_token", "true");
               } else {
@@ -184,7 +194,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Helper function to sync token with agent after authentication
   const syncTokenWithAgent = async (authData: AuthMethod) => {
-    if (authData.type === "atyourservice" && authData.userInfo && authData.apiKey) {
+    if (
+      authData.type === "atyourservice" &&
+      authData.userInfo &&
+      authData.apiKey
+    ) {
       try {
         console.log("[Auth] Syncing new token with agent...");
 
@@ -209,7 +223,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (response.ok) {
           console.log("[Auth] ✅ Successfully synced token with agent");
         } else {
-          console.warn("[Auth] ⚠️ Failed to sync token with agent:", response.status);
+          console.warn(
+            "[Auth] ⚠️ Failed to sync token with agent:",
+            response.status
+          );
         }
       } catch (error) {
         console.error("[Auth] Error syncing token with agent:", error);
