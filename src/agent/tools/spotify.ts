@@ -70,6 +70,60 @@ async function getSpotifySDK(
 }
 
 // =====================================
+// Token Refresh Helper
+// =====================================
+
+/**
+ * Refresh Spotify access token using refresh token
+ */
+async function refreshSpotifyTokens(
+  agent: AppAgent,
+  refreshToken: string
+): Promise<{ accessToken: string; expiresAt: Date } | null> {
+  try {
+    const clientId = (agent as any).env.SPOTIFY_CLIENT_ID;
+    const clientSecret = (agent as any).env.SPOTIFY_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      console.error("Spotify client credentials not configured");
+      return null;
+    }
+
+    // Make token refresh request to Spotify
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Failed to refresh Spotify token:", response.status);
+      return null;
+    }
+
+    const tokenData = await response.json() as {
+      access_token: string;
+      expires_in: number;
+    };
+    const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000);
+
+    return {
+      accessToken: tokenData.access_token,
+      expiresAt,
+    };
+  } catch (error) {
+    console.error("Error refreshing Spotify token:", error);
+    return null;
+  }
+}
+
+// =====================================
 // Authentication & Profile Tools
 // =====================================
 
@@ -817,23 +871,59 @@ export const getCurrentPlayback = tool({
         };
       }
 
-      // Check if token is still valid
+      // Check if token is still valid, refresh if expired
       const tokenExpiresAt = new Date(spotifyAuth.tokenExpiresAt);
       const now = new Date();
+      let currentAccessToken = spotifyAuth.accessToken;
+      let currentExpiresAt = tokenExpiresAt;
+
       if (tokenExpiresAt <= now) {
-        return {
-          success: false,
-          message:
-            "Spotify tokens have expired. Please reconnect your account.",
+        console.log("[getCurrentPlayback] Tokens expired, attempting refresh...");
+
+        if (!spotifyAuth.refreshToken) {
+          // Show auth UI if no refresh token available
+          return {
+            success: false,
+            message: "Spotify connection has expired and no refresh token available",
+            action_required: "spotify_auth_ui",
+            type: "spotify_auth_ui",
+          };
+        }
+
+        const refreshResult = await refreshSpotifyTokens(agent, spotifyAuth.refreshToken);
+
+        if (!refreshResult) {
+          // Show auth UI if refresh failed
+          return {
+            success: false,
+            message: "Failed to refresh Spotify tokens",
+            action_required: "spotify_auth_ui",
+            type: "spotify_auth_ui",
+          };
+        }
+
+        // Update agent state with new tokens
+        const updatedState = {
+          ...(agent.state as any),
+          spotifyAuth: {
+            ...spotifyAuth,
+            accessToken: refreshResult.accessToken,
+            tokenExpiresAt: refreshResult.expiresAt.toISOString(),
+          },
         };
+        await agent.setState(updatedState);
+
+        currentAccessToken = refreshResult.accessToken;
+        currentExpiresAt = refreshResult.expiresAt;
+        console.log("[getCurrentPlayback] Tokens refreshed successfully");
       }
 
       // Initialize Spotify SDK
       const spotifySDK = SpotifyApi.withAccessToken(clientId, {
-        access_token: spotifyAuth.accessToken,
+        access_token: currentAccessToken,
         token_type: "Bearer",
         expires_in: Math.floor(
-          (tokenExpiresAt.getTime() - now.getTime()) / 1000
+          (currentExpiresAt.getTime() - now.getTime()) / 1000
         ),
         refresh_token: spotifyAuth.refreshToken || "",
       });
