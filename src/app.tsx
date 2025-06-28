@@ -243,12 +243,7 @@ function Chat() {
   const { isErrorMessage, parseErrorData, formatErrorForMessage } =
     useErrorHandling();
 
-  // Debug effect to log dropdown values on every render
-  useEffect(() => {
-    console.log(
-      `[UI Debug] Dropdown values - agentMode: ${agentMode}, agentState?.mode: ${agentState?.mode || "none"}`
-    );
-  }, [agentMode, agentState]);
+  // Removed excessive debug logging that was cluttering console on every render
 
   const {
     messages: agentMessagesRaw,
@@ -691,24 +686,33 @@ function Chat() {
       storeTokens();
     }
 
-    // Check for OAuth callback parameters on app load
-    const checkOAuthCallback = () => {
-      console.log("Checking for OAuth callback parameters...");
-      console.log("Current URL:", window.location.href);
-      console.log("Search params:", window.location.search);
+    window.addEventListener(
+      "spotify-auth-success",
+      handleSpotifyAuthSuccess as EventListener
+    );
 
+    return () => {
+      window.removeEventListener(
+        "spotify-auth-success",
+        handleSpotifyAuthSuccess as EventListener
+      );
+    };
+  }, [
+    setMessages,
+    agentMessages,
+    reload,
+    finalAgentConfig,
+    handleOAuthTokenExchange,
+  ]);
+
+  // Separate effect for OAuth callback check - only run once on mount
+  useEffect(() => {
+    const checkOAuthCallback = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get("code");
       const state = urlParams.get("state");
       const error = urlParams.get("error");
       const errorDescription = urlParams.get("error_description");
-
-      console.log("OAuth params:", {
-        code: `${code?.substring(0, 20)}...`,
-        state,
-        error,
-        errorDescription,
-      });
 
       if (error) {
         console.error("Spotify OAuth error:", error, errorDescription);
@@ -732,32 +736,12 @@ function Chat() {
 
         // Trigger the token exchange
         handleOAuthTokenExchange(code, state);
-      } else {
-        console.log("No OAuth callback parameters found");
       }
     };
 
-    window.addEventListener(
-      "spotify-auth-success",
-      handleSpotifyAuthSuccess as EventListener
-    );
-
-    // Check for OAuth callback on initial load
+    // Check for OAuth callback on initial load only
     checkOAuthCallback();
-
-    return () => {
-      window.removeEventListener(
-        "spotify-auth-success",
-        handleSpotifyAuthSuccess as EventListener
-      );
-    };
-  }, [
-    setMessages,
-    agentMessages,
-    reload,
-    finalAgentConfig,
-    handleOAuthTokenExchange,
-  ]);
+  }, []); // Empty dependency array - only run once on mount
 
   // Handle action button clicks from the suggestActions tool
   useEffect(() => {

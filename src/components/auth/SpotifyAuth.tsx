@@ -20,13 +20,9 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [config, setConfig] = useState<SpotifyConfig | null>(null);
 
-  console.log("[SpotifyAuth] Component rendered, state:", {
-    isLoading,
-    isConnected,
-    config: !!config,
-  });
+  // Removed excessive logging that was cluttering console on every render
 
-  // Fetch Spotify configuration from server
+  // Fetch Spotify configuration from server - only once on mount
   useEffect(() => {
     const fetchConfig = async () => {
       console.log("[SpotifyAuth] Starting config fetch...");
@@ -55,44 +51,13 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
       }
     };
 
-    // Check if we're returning from OAuth callback
-    const checkOAuthCallback = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get("code");
-      const state = urlParams.get("state");
-      const error = urlParams.get("error");
-      const errorDescription = urlParams.get("error_description");
-
-      if (error) {
-        onAuthError(
-          `Spotify authentication failed: ${errorDescription || error}`
-        );
-        // Clean up URL
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-        return;
-      }
-
-      if (code && state) {
-        // We have authorization code, proceed with token exchange
-        handleAuthCallback(code, state);
-        // Clean up URL
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-        return;
-      }
-    };
-
-    fetchConfig();
+    // Only fetch config if we don't have it yet
+    if (!config) {
+      fetchConfig();
+    }
     // Note: OAuth callback handling is now done at the app level in app.tsx
-    // checkOAuthCallback();
-  }, [onAuthError]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array - only run once on mount
 
   // Handle OAuth callback - wrapped in useCallback to avoid dependency issues
   const handleAuthCallback = useCallback(
@@ -228,18 +193,10 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
     [config, onAuthSuccess, onAuthError]
   );
 
-  // Check if we're handling an OAuth callback - but only after config is loaded
+  // Check if we're handling an OAuth callback - run once when config loads
   useEffect(() => {
-    console.log(
-      "[SpotifyAuth] OAuth callback effect running, config loaded:",
-      !!config
-    );
-
     // Only proceed if config is loaded
     if (!config) {
-      console.log(
-        "[SpotifyAuth] Config not loaded yet, skipping OAuth callback check"
-      );
       return;
     }
 
@@ -247,13 +204,6 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
     const code = urlParams.get("code");
     const error = urlParams.get("error");
     const state = urlParams.get("state");
-
-    console.log("[SpotifyAuth] URL params check:", {
-      hasCode: !!code,
-      hasError: !!error,
-      hasState: !!state,
-      url: window.location.href,
-    });
 
     if (error) {
       console.error("[SpotifyAuth] OAuth error in URL:", error);
@@ -264,24 +214,16 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
     }
 
     if (code && state) {
-      console.log(
-        "[SpotifyAuth] Found OAuth callback parameters, starting token exchange..."
-      );
+      console.log("[SpotifyAuth] Found OAuth callback parameters, starting token exchange...");
       handleAuthCallback(code, state);
-    } else {
-      console.log("[SpotifyAuth] No OAuth callback parameters found");
     }
-  }, [config, onAuthError]); // Depend on config so this only runs after config is loaded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config]); // Only run when config loads, ignore onAuthError to prevent re-runs
 
-  // Check for Spotify auth data in localStorage (from callback page)
+  // Check for Spotify auth data in localStorage (from callback page) - run once when config loads
   useEffect(() => {
-    console.log("[SpotifyAuth] Checking localStorage for Spotify auth data...");
-
     // Only proceed if config is loaded
     if (!config) {
-      console.log(
-        "[SpotifyAuth] Config not loaded yet, skipping localStorage check"
-      );
       return;
     }
 
@@ -290,9 +232,7 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
       try {
         const spotifyCallback = JSON.parse(spotifyCallbackStr);
         if (spotifyCallback.code && spotifyCallback.state) {
-          console.log(
-            "[SpotifyAuth] Found Spotify callback data in localStorage, processing..."
-          );
+          console.log("[SpotifyAuth] Found Spotify callback data in localStorage, processing...");
 
           // Process the callback with the stored code and state
           handleAuthCallback(spotifyCallback.code, spotifyCallback.state);
@@ -301,13 +241,11 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
           localStorage.removeItem("spotify_callback_data");
         }
       } catch (error) {
-        console.error(
-          "[SpotifyAuth] Error parsing spotify_callback_data from localStorage:",
-          error
-        );
+        console.error("[SpotifyAuth] Error parsing spotify_callback_data from localStorage:", error);
       }
     }
-  }, [config]); // Only depend on config, not handleAuthCallback to avoid infinite loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config]); // Only run when config loads
 
   const generateRandomString = (length: number): string => {
     const possible =
