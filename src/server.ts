@@ -192,6 +192,9 @@ export default {
             );
           }
 
+          const redactedToken = `${token.substring(0, 20)}...${token.substring(-8)}`;
+          console.log(`[Auth] Current token: ${redactedToken}`);
+
           // If token provided, verify it
           const userInfo = await verifyOAuthToken(token, env);
           if (!userInfo) {
@@ -206,6 +209,8 @@ export default {
               }
             );
           }
+
+          console.log(`[Auth] ✅ Token validated for user: ${userInfo.id}`);
 
           // Ensure user can only access their own agent instance
           const pathMatch = url.pathname.match(
@@ -227,8 +232,9 @@ export default {
             }
           }
 
-          // Don't try to store user info here - let the agent fetch it when needed
-          // This avoids timing issues with agent initialization
+                    // Store the current token in a way the agent can access it during onConnect
+          // We'll use the connection context to pass the fresh token to the agent
+          console.log(`[Auth] Current token will be passed to agent during connection for user: ${userInfo.id}`);
 
           return undefined; // Continue to agent
         },

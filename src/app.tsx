@@ -7,7 +7,7 @@ import { useErrorHandling } from "./hooks/useErrorHandling";
 import { useMessageEditing } from "./hooks/useMessageEditing";
 
 // OAuth imports
-import { AuthProvider } from "./components/auth/AuthProvider";
+import { AuthProvider, useAuth } from "./components/auth/AuthProvider";
 import { AuthGuard } from "./components/auth/AuthGuard";
 import { useAgentAuth } from "./hooks/useAgentAuth";
 import { ErrorBoundary } from "./components/error/ErrorBoundary";
@@ -208,6 +208,8 @@ function Chat() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Add temporary loading state for smoother mode transitions
   const [temporaryLoading, setTemporaryLoading] = useState(false);
+  // Get auth context for token expiration checks (must be at top level due to Rules of Hooks)
+  const auth = useAuth();
 
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
@@ -681,7 +683,7 @@ function Chat() {
 
           setMessages([...agentMessages, newMessage]);
           setTimeout(() => {
-            reload();
+            reloadWithTokenCheck();
           }, 100);
         }
       };
@@ -811,7 +813,7 @@ function Chat() {
 
             // Trigger the agent to respond
             setTimeout(() => {
-              reload();
+              reloadWithTokenCheck();
             }, 50);
           }, 10);
         }
@@ -878,7 +880,7 @@ function Chat() {
           <div key={message.id}>
             <ErrorMessage
               errorData={errorData}
-              onRetry={() => handleRetry(index)}
+              onRetry={() => handleRetryWithTokenCheck(index)}
               isLoading={isLoading}
               formatTime={formatTime}
               createdAt={message.createdAt}
@@ -988,7 +990,7 @@ function Chat() {
         messageElements.push(
           <div key="missing-response">
             <MissingResponseIndicator
-              onTryAgain={handleRetryLastUserMessage}
+              onTryAgain={handleRetryLastUserMessageWithTokenCheck}
               isLoading={isLoading}
               formatTime={formatTime}
             />
@@ -1062,7 +1064,7 @@ function Chat() {
         key="suggested-actions"
         messages={agentMessages}
         addToolResult={addToolResult}
-        reload={reload}
+        reload={reloadWithTokenCheck}
       />
     );
 
@@ -1097,8 +1099,39 @@ function Chat() {
     }
   };
 
+    // Wrapper for reload with token expiration check
+  const reloadWithTokenCheck = () => {
+    // Check for token expiration before reloading (with safety check)
+    if (auth && auth.checkTokenExpiration()) {
+      return; // Token expired, user will be prompted to re-authenticate
+    }
+    reload();
+  };
+
+  // Update retry handlers to check token expiration
+  const handleRetryWithTokenCheck = (index: number) => {
+    // Check for token expiration before retrying (with safety check)
+    if (auth && auth.checkTokenExpiration()) {
+      return; // Token expired, user will be prompted to re-authentication
+    }
+    handleRetry(index);
+  };
+
+  const handleRetryLastUserMessageWithTokenCheck = () => {
+    // Check for token expiration before retrying (with safety check)
+    if (auth && auth.checkTokenExpiration()) {
+      return; // Token expired, user will be prompted to re-authentication
+    }
+    handleRetryLastUserMessage();
+  };
+
   // Update handleSubmitWithRetry to properly handle options
   const handleSubmitWithRetry = (e: React.FormEvent) => {
+    // Check for token expiration before submitting (with safety check)
+    if (auth && auth.checkTokenExpiration()) {
+      return; // Token expired, user will be prompted to re-authenticate
+    }
+
     setIsRetrying(false); // Clear retrying state when sending a new message
     handleAgentSubmit(e);
   };
@@ -1147,7 +1180,7 @@ function Chat() {
             `[UI] Auto-triggering AI response for ${messageData.modeType} message`
           );
           // Trigger AI response just like a user sent a message
-          reload();
+          reloadWithTokenCheck();
         }
       }
     }

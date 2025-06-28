@@ -2,6 +2,42 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { getOAuthConfig, type OAuthConfig } from "../../config/oauth";
 
+// JWT token utilities (client-side versions)
+function isJWTToken(token: string): boolean {
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+
+  try {
+    const headerJson = atob(parts[0]);
+    const header = JSON.parse(headerJson);
+    return header.alg && header.typ === "JWT";
+  } catch {
+    return false;
+  }
+}
+
+function isJWTTokenExpired(token: string): boolean {
+  if (!isJWTToken(token)) {
+    return false; // Not a JWT token, can't check expiration
+  }
+
+  try {
+    const parts = token.split(".");
+    const payloadJson = atob(parts[1]);
+    const payload = JSON.parse(payloadJson);
+
+    if (!payload.exp) {
+      return false; // No expiration claim
+    }
+
+    // JWT expiration is in seconds, Date.now() is in milliseconds
+    const currentTime = Math.floor(Date.now() / 1000);
+    return payload.exp <= currentTime;
+  } catch {
+    return true; // If we can't parse it, consider it expired
+  }
+}
+
 export interface UserInfo {
   id: string;
   email: string;
@@ -28,6 +64,7 @@ export interface AuthContextType {
   switchToBYOK: (keys: { openai?: string; anthropic?: string }) => void;
   switchToCredits: () => void;
   refreshUserInfo: () => Promise<void>;
+  checkTokenExpiration: () => boolean; // Returns true if token is expired
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -77,18 +114,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
               if (response.ok) {
                 // Token is valid, use the stored auth
                 setAuthMethod(parsedAuth);
+
+                // Sync token with agent to ensure it has the latest token
+                await syncTokenWithAgent(parsedAuth);
               } else {
                 // Token is invalid, clear it and show sign-in with message
-                console.log("Stored token is invalid, clearing auth");
+                console.log("Stored token is invalid (API responded with error), clearing auth");
                 localStorage.removeItem("auth_method");
-                localStorage.setItem("auth_invalid_token", "true");
+
+                // Check if this was specifically due to token expiration
+                if (isJWTToken(parsedAuth.apiKey) && isJWTTokenExpired(parsedAuth.apiKey)) {
+                  localStorage.setItem("auth_expired_token", "true");
+                } else {
+                  localStorage.setItem("auth_invalid_token", "true");
+                }
               }
             } catch (error) {
-              // Network error, assume stored auth is potentially valid
-              console.log(
-                "Could not validate token due to network error, keeping stored auth"
-              );
-              setAuthMethod(parsedAuth);
+              // Network error - only clear token if we can definitively say it's expired
+              if (isJWTToken(parsedAuth.apiKey) && isJWTTokenExpired(parsedAuth.apiKey)) {
+                console.log("Token is expired, clearing auth despite network error");
+                localStorage.removeItem("auth_method");
+                localStorage.setItem("auth_expired_token", "true");
+              } else {
+                console.log(
+                  "Could not validate token due to network error, keeping stored auth"
+                );
+                setAuthMethod(parsedAuth);
+
+                // Even with network error, try to sync with agent
+                await syncTokenWithAgent(parsedAuth);
+              }
             }
           } else {
             // No API key, invalid auth
@@ -124,6 +179,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error("[Auth] Failed to start OAuth flow:", error);
       // Could show error message to user here
+    }
+  };
+
+  // Helper function to sync token with agent after authentication
+  const syncTokenWithAgent = async (authData: AuthMethod) => {
+    if (authData.type === "atyourservice" && authData.userInfo && authData.apiKey) {
+      try {
+        console.log("[Auth] Syncing new token with agent...");
+
+        const response = await fetch(
+          `/agents/app-agent/${authData.userInfo.id}/store-user-info`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authData.apiKey}`,
+            },
+            body: JSON.stringify({
+              user_id: authData.userInfo.id,
+              api_key: authData.apiKey,
+              email: authData.userInfo.email,
+              credits: authData.userInfo.credits,
+              payment_method: "credits", // Default value
+            }),
+          }
+        );
+
+        if (response.ok) {
+          console.log("[Auth] ✅ Successfully synced token with agent");
+        } else {
+          console.warn("[Auth] ⚠️ Failed to sync token with agent:", response.status);
+        }
+      } catch (error) {
+        console.error("[Auth] Error syncing token with agent:", error);
+      }
     }
   };
 
@@ -235,6 +325,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const checkTokenExpiration = () => {
+    if (!authMethod?.apiKey) return false;
+
+    // Check if it's a JWT token and if it's expired
+    if (isJWTToken(authMethod.apiKey) && isJWTTokenExpired(authMethod.apiKey)) {
+      console.log("Token has expired, clearing auth");
+      setAuthMethod(null);
+      localStorage.removeItem("auth_method");
+      localStorage.setItem("auth_expired_token", "true");
+      return true;
+    }
+
+    return false;
+  };
+
   const value: AuthContextType = {
     authMethod,
     isAuthenticated: !!authMethod,
@@ -245,6 +350,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     switchToBYOK,
     switchToCredits,
     refreshUserInfo,
+    checkTokenExpiration,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

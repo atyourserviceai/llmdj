@@ -50,14 +50,17 @@ async function getSpotifySDK(
     }
 
     // Initialize Spotify SDK with stored access token
-    const spotifySDK = SpotifyApi.withAccessToken(agent.env.SPOTIFY_CLIENT_ID, {
-      access_token: profile.accessToken,
-      token_type: "Bearer",
-      expires_in: profile.tokenExpiresAt
-        ? Math.floor((profile.tokenExpiresAt.getTime() - Date.now()) / 1000)
-        : 3600,
-      refresh_token: profile.refreshToken || "",
-    });
+    const spotifySDK = SpotifyApi.withAccessToken(
+      (agent as any).env.SPOTIFY_CLIENT_ID,
+      {
+        access_token: profile.accessToken,
+        token_type: "Bearer",
+        expires_in: profile.tokenExpiresAt
+          ? Math.floor((profile.tokenExpiresAt.getTime() - Date.now()) / 1000)
+          : 3600,
+        refresh_token: profile.refreshToken || "",
+      }
+    );
 
     return spotifySDK;
   } catch (error) {
@@ -783,13 +786,57 @@ export const getCurrentPlayback = tool({
   }),
   execute: async ({ userId, market }) => {
     try {
-      const spotifySDK = await getSpotifySDK(
-        this as unknown as AppAgent,
-        userId
-      );
-      if (!spotifySDK) {
-        return { success: false, message: "Spotify not connected" };
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error("[getCurrentPlayback] Could not get agent reference");
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
       }
+
+      // Get Spotify auth from agent state
+      const spotifyAuth = (agent.state as any).spotifyAuth;
+      if (
+        !spotifyAuth ||
+        !spotifyAuth.isConnected ||
+        !spotifyAuth.accessToken
+      ) {
+        return {
+          success: false,
+          message: "Spotify not connected",
+        };
+      }
+
+      const clientId = (agent as any).env.SPOTIFY_CLIENT_ID;
+      if (!clientId) {
+        return {
+          success: false,
+          message: "Spotify client ID not configured",
+        };
+      }
+
+      // Check if token is still valid
+      const tokenExpiresAt = new Date(spotifyAuth.tokenExpiresAt);
+      const now = new Date();
+      if (tokenExpiresAt <= now) {
+        return {
+          success: false,
+          message:
+            "Spotify tokens have expired. Please reconnect your account.",
+        };
+      }
+
+      // Initialize Spotify SDK
+      const spotifySDK = SpotifyApi.withAccessToken(clientId, {
+        access_token: spotifyAuth.accessToken,
+        token_type: "Bearer",
+        expires_in: Math.floor(
+          (tokenExpiresAt.getTime() - now.getTime()) / 1000
+        ),
+        refresh_token: spotifyAuth.refreshToken || "",
+      });
 
       const playbackState =
         await spotifySDK.player.getCurrentlyPlayingTrack(market);
