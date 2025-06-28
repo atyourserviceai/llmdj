@@ -133,7 +133,8 @@ export interface AppAgentState {
   isIntegrationComplete?: boolean;
   transitionRecommendation?: TransitionRecommendation;
 
-  // Spotify authentication state
+  // Spotify authentication state - NON-SENSITIVE DATA ONLY
+  // Sensitive tokens are stored securely in database, not in agent state
   spotifyAuth?: {
     isConnected: boolean;
     profile: {
@@ -144,10 +145,9 @@ export interface AppAgentState {
       product: "premium" | "free";
       followers?: number;
     };
-    accessToken: string;
-    refreshToken?: string;
-    tokenExpiresAt: string; // ISO string
     connectedAt: string; // ISO string
+    // NOTE: accessToken and refreshToken are NOT stored in state for security
+    // They are retrieved from the secure database when needed
   };
 
   // Optional metadata
@@ -1378,7 +1378,8 @@ export class AppAgent extends AIChatAgent<Env> {
         spotifyProfile.id
       );
 
-      // Also update the agent state with Spotify profile info
+      // Update agent state with NON-SENSITIVE connection status only
+      // Sensitive tokens are stored securely in database above
       const state = this.state as AppAgentState;
       const updatedState: AppAgentState = {
         ...state,
@@ -1392,10 +1393,9 @@ export class AppAgent extends AIChatAgent<Env> {
             product: spotifyProfile.product as "premium" | "free",
             followers: spotifyProfile.followers?.total,
           },
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
-          tokenExpiresAt: expiresAt.toISOString(),
           connectedAt: new Date().toISOString(),
+          // NOTE: accessToken and refreshToken are NOT stored in state for security
+          // They are stored in the database and retrieved when needed
         },
       };
 

@@ -69,6 +69,129 @@ async function getSpotifySDK(
   }
 }
 
+/**
+ * Unified Spotify authentication and SDK initialization - SECURE VERSION
+ * Retrieves tokens from database only, never stores sensitive data in agent state
+ */
+async function getSpotifySDKFromAgent(agent: AppAgent): Promise<{
+  spotify: SpotifyApi;
+  success: true;
+} | {
+  success: false;
+  message: string;
+}> {
+  try {
+    // Check if Spotify is connected (non-sensitive status check)
+    const spotifyAuth = (agent.state as any).spotifyAuth;
+    if (!spotifyAuth || !spotifyAuth.isConnected) {
+      return {
+        success: false,
+        message: "Spotify account not connected. Please connect your Spotify account first.",
+      };
+    }
+
+    const clientId = (agent as any).env.SPOTIFY_CLIENT_ID;
+    if (!clientId) {
+      return {
+        success: false,
+        message: "Spotify client ID not configured",
+      };
+    }
+
+    // Retrieve tokens securely from database (not from agent state)
+    const tokenResult = await agent.sql`
+      SELECT user_id, access_token, refresh_token, expires_at, token_type, scope
+      FROM spotify_tokens
+      WHERE expires_at > ${new Date().toISOString()}
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+
+    if (!tokenResult || tokenResult.length === 0) {
+      // Update agent state to reflect disconnected status
+      const currentState = agent.state as any;
+      await agent.setState({
+        ...currentState,
+        spotifyAuth: {
+          ...currentState.spotifyAuth,
+          isConnected: false,
+        },
+      });
+
+      return {
+        success: false,
+        message: "No valid Spotify tokens found. Please reconnect your Spotify account.",
+      };
+    }
+
+    const tokenData = tokenResult[0] as {
+      user_id: string;
+      access_token: string;
+      refresh_token: string;
+      expires_at: string;
+      token_type: string;
+      scope: string;
+    };
+
+    // Check if token needs refresh
+    const tokenExpiresAt = new Date(tokenData.expires_at);
+    const now = new Date();
+    let currentAccessToken = tokenData.access_token;
+    let currentExpiresAt = tokenExpiresAt;
+
+    if (tokenExpiresAt <= now) {
+      console.log("[getSpotifySDKFromAgent] Token expired, attempting refresh");
+      if (!tokenData.refresh_token) {
+        return {
+          success: false,
+          message: "Spotify tokens have expired and no refresh token available",
+        };
+      }
+
+      const refreshResult = await refreshSpotifyTokens(
+        agent,
+        tokenData.refresh_token
+      );
+      if (!refreshResult) {
+        return {
+          success: false,
+          message: "Failed to refresh Spotify tokens",
+        };
+      }
+
+      // Update database with new tokens (NOT agent state)
+      await agent.sql`
+        UPDATE spotify_tokens
+        SET access_token = ${refreshResult.accessToken},
+            expires_at = ${refreshResult.expiresAt.toISOString()}
+        WHERE user_id = ${tokenData.user_id}
+      `;
+
+      currentAccessToken = refreshResult.accessToken;
+      currentExpiresAt = refreshResult.expiresAt;
+      console.log("[getSpotifySDKFromAgent] Tokens refreshed and stored securely in database");
+    }
+
+    // Initialize Spotify SDK
+    const spotify = SpotifyApi.withAccessToken(clientId, {
+      access_token: currentAccessToken,
+      token_type: "Bearer",
+      expires_in: Math.floor(
+        (currentExpiresAt.getTime() - now.getTime()) / 1000
+      ),
+      refresh_token: tokenData.refresh_token || "",
+    });
+
+    return { spotify, success: true };
+  } catch (error) {
+    console.error("Failed to initialize Spotify SDK:", error);
+    return {
+      success: false,
+      message: `Failed to initialize Spotify: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
 // =====================================
 // Token Refresh Helper
 // =====================================
@@ -418,7 +541,6 @@ export const searchSpotifyContent = tool({
   description:
     "Search Spotify catalog for music content including tracks, artists, albums, and playlists",
   parameters: z.object({
-    userId: z.string().describe("User ID for Spotify access"),
     query: z
       .string()
       .describe(
@@ -439,26 +561,29 @@ export const searchSpotifyContent = tool({
       .optional()
       .describe("Market/country code for regional availability"),
   }),
-  execute: async ({ userId, query, types, limit, market }) => {
+  execute: async ({ query, types, limit, market }) => {
     try {
-      const spotifySDK = await getSpotifySDK(
-        this as unknown as AppAgent,
-        userId
-      );
-      if (!spotifySDK) {
-        return { success: false, message: "Spotify not connected" };
+      const { agent } = getCurrentAgent<AppAgent>();
+      if (!agent) {
+        return { success: false, message: "Could not get agent reference" };
       }
 
-      const searchResults = await spotifySDK.search(
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
+        return { success: false, message: authResult.message };
+      }
+      const { spotify } = authResult;
+
+      const searchResults = await spotify.search(
         query,
         types,
         market,
         limit
       );
 
-      // Track discovery event
-      await addDiscoveryEntry(this as unknown as AppAgent, {
-        userId,
+      // Track discovery event - simplified since we don't need userId with agent state
+      await addDiscoveryEntry(agent, {
+        userId: "agent-user", // Use a default since we have agent state
         timestamp: new Date().toISOString(),
         discoveryType: "new_track", // This could be more specific based on results
         discoveryMethod: "search",
@@ -540,30 +665,32 @@ export const getTrackDetails = tool({
   description:
     "Get comprehensive information about a specific Spotify track including audio features, which is useful for understanding the song's characteristics",
   parameters: z.object({
-    userId: z.string().describe("User ID for Spotify access"),
     trackId: z.string().describe("Spotify track ID"),
     includeAudioFeatures: z
       .boolean()
       .default(true)
       .describe("Whether to include audio features analysis"),
   }),
-  execute: async ({ userId, trackId, includeAudioFeatures }) => {
+  execute: async ({ trackId, includeAudioFeatures }) => {
     try {
-      const spotifySDK = await getSpotifySDK(
-        this as unknown as AppAgent,
-        userId
-      );
-      if (!spotifySDK) {
-        return { success: false, message: "Spotify not connected" };
+      const { agent } = getCurrentAgent<AppAgent>();
+      if (!agent) {
+        return { success: false, message: "Could not get agent reference" };
       }
 
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
+        return { success: false, message: authResult.message };
+      }
+      const { spotify } = authResult;
+
       // Get track details
-      const track = await spotifySDK.tracks.get(trackId);
+      const track = await spotify.tracks.get(trackId);
 
       // Get audio features if requested
       let audioFeatures = null;
       if (includeAudioFeatures) {
-        audioFeatures = await spotifySDK.tracks.audioFeatures(trackId);
+        audioFeatures = await spotify.tracks.audioFeatures(trackId);
       }
 
       const trackDetails = {
@@ -1476,33 +1603,12 @@ export const getUserPlaylists = tool({
         };
       }
 
-      // Get Spotify profile to access tokens
-      const profile = await getConnectedSpotifyProfile(agent);
-      if (!profile || !profile.isConnected || !profile.accessToken) {
-        return {
-          success: false,
-          message:
-            "Spotify account not connected. Please connect your Spotify account first.",
-        };
+      // Use secure database-based authentication (same as other tools)
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
+        return { success: false, message: authResult.message };
       }
-
-      const clientId = agent.env.SPOTIFY_CLIENT_ID;
-      if (!clientId) {
-        return {
-          success: false,
-          message: "Spotify client ID not configured",
-        };
-      }
-
-      // Initialize Spotify SDK
-      const spotify = SpotifyApi.withAccessToken(clientId, {
-        access_token: profile.accessToken,
-        token_type: "Bearer",
-        expires_in: Math.floor(
-          (profile.tokenExpiresAt!.getTime() - Date.now()) / 1000
-        ),
-        refresh_token: profile.refreshToken || "",
-      });
+      const { spotify } = authResult;
 
       // Get user's playlists with offset for pagination
       const userPlaylists =
@@ -1523,7 +1629,7 @@ export const getUserPlaylists = tool({
         images: playlist.images,
         uri: playlist.uri,
         createdBy:
-          playlist.owner.id === profile.spotifyUserId ? "user" : "other",
+          playlist.owner.id === agent.userId ? "user" : "other", // Use agent.userId as proxy for Spotify user
       }));
 
       // Analyze playlist patterns
