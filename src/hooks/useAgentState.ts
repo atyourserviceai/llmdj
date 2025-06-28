@@ -110,8 +110,19 @@ export function useAgentState(
       // Instead of directly updating state, call the agent's setMode method
       // which will properly inject transition messages
       if (agent) {
-        // Log the endpoint URL we're actually using
-        const setModeUrl = `/agents/${agentConfig.agent}/${agentConfig.name}/set-mode`;
+        // Build the endpoint URL with authentication token
+        const baseUrl = `/agents/${agentConfig.agent}/${agentConfig.name}/set-mode`;
+        const urlParams = new URLSearchParams();
+
+        // Include authentication token from agent config
+        if (agentConfig.query?.token) {
+          urlParams.append("token", agentConfig.query.token);
+        }
+
+        const setModeUrl = urlParams.toString()
+          ? `${baseUrl}?${urlParams.toString()}`
+          : baseUrl;
+
         console.log(
           `[UI] Calling agent's setMode method to ${actionDescription.toLowerCase()} ${agentMode} to ${newMode}`
         );
