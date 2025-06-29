@@ -73,20 +73,24 @@ async function getSpotifySDK(
  * Unified Spotify authentication and SDK initialization - SECURE VERSION
  * Retrieves tokens from database only, never stores sensitive data in agent state
  */
-async function getSpotifySDKFromAgent(agent: AppAgent): Promise<{
-  spotify: SpotifyApi;
-  success: true;
-} | {
-  success: false;
-  message: string;
-}> {
+async function getSpotifySDKFromAgent(agent: AppAgent): Promise<
+  | {
+      spotify: SpotifyApi;
+      success: true;
+    }
+  | {
+      success: false;
+      message: string;
+    }
+> {
   try {
     // Check if Spotify is connected (non-sensitive status check)
     const spotifyAuth = (agent.state as any).spotifyAuth;
     if (!spotifyAuth || !spotifyAuth.isConnected) {
       return {
         success: false,
-        message: "Spotify account not connected. Please connect your Spotify account first.",
+        message:
+          "Spotify account not connected. Please connect your Spotify account first.",
       };
     }
 
@@ -120,7 +124,8 @@ async function getSpotifySDKFromAgent(agent: AppAgent): Promise<{
 
       return {
         success: false,
-        message: "No valid Spotify tokens found. Please reconnect your Spotify account.",
+        message:
+          "No valid Spotify tokens found. Please reconnect your Spotify account.",
       };
     }
 
@@ -169,7 +174,9 @@ async function getSpotifySDKFromAgent(agent: AppAgent): Promise<{
 
       currentAccessToken = refreshResult.accessToken;
       currentExpiresAt = refreshResult.expiresAt;
-      console.log("[getSpotifySDKFromAgent] Tokens refreshed and stored securely in database");
+      console.log(
+        "[getSpotifySDKFromAgent] Tokens refreshed and stored securely in database"
+      );
     }
 
     // Initialize Spotify SDK
@@ -574,12 +581,7 @@ export const searchSpotifyContent = tool({
       }
       const { spotify } = authResult;
 
-      const searchResults = await spotify.search(
-        query,
-        types,
-        market,
-        limit
-      );
+      const searchResults = await spotify.search(query, types, market, limit);
 
       // Track discovery event - simplified since we don't need userId with agent state
       await addDiscoveryEntry(agent, {
@@ -1580,12 +1582,16 @@ export const getUserPlaylists = tool({
       .min(1)
       .max(50)
       .default(50)
-      .describe("Number of playlists to retrieve (1-50, defaults to 50 for comprehensive results)"),
+      .describe(
+        "Number of playlists to retrieve (1-50, defaults to 50 for comprehensive results)"
+      ),
     offset: z
       .number()
       .min(0)
       .default(0)
-      .describe("Number of playlists to skip (for pagination when user has more than 50 playlists)"),
+      .describe(
+        "Number of playlists to skip (for pagination when user has more than 50 playlists)"
+      ),
     includeTrackCounts: z
       .boolean()
       .default(true)
@@ -1611,8 +1617,10 @@ export const getUserPlaylists = tool({
       const { spotify } = authResult;
 
       // Get user's playlists with offset for pagination
-      const userPlaylists =
-        await spotify.currentUser.playlists.playlists(limit, offset);
+      const userPlaylists = await spotify.currentUser.playlists.playlists(
+        limit,
+        offset
+      );
 
       // Format playlist data
       const playlists = userPlaylists.items.map((playlist) => ({
@@ -1628,8 +1636,7 @@ export const getUserPlaylists = tool({
         trackCount: includeTrackCounts ? playlist.tracks.total : undefined,
         images: playlist.images,
         uri: playlist.uri,
-        createdBy:
-          playlist.owner.id === agent.userId ? "user" : "other", // Use agent.userId as proxy for Spotify user
+        createdBy: playlist.owner.id === agent.userId ? "user" : "other", // Use agent.userId as proxy for Spotify user
       }));
 
       // Analyze playlist patterns
@@ -1769,7 +1776,7 @@ export const analyzeMusicTaste = tool({
         spotify.currentUser.topItems("tracks", timeRange, 20),
         spotify.currentUser.topItems("artists", timeRange, 20),
         includePlaylistAnalysis
-          ? spotify.currentUser.playlists.playlists(50)  // Fetch more playlists for comprehensive analysis
+          ? spotify.currentUser.playlists.playlists(50) // Fetch more playlists for comprehensive analysis
           : Promise.resolve({ items: [] }),
       ]);
 
