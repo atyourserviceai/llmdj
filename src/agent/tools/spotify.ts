@@ -11,8 +11,6 @@ import { SpotifyApi } from "@spotify/web-api-ts-sdk";
 import type { AppAgent, AppAgentState } from "../AppAgent";
 import {
   storeSpotifyProfile,
-  getSpotifyProfile,
-  getConnectedSpotifyProfile,
   storeMusicPreferences,
   getMusicPreferences,
   addListeningRecord,
@@ -28,46 +26,6 @@ import {
 // =====================================
 // Spotify API Initialization
 // =====================================
-
-/**
- * Initialize Spotify SDK with user credentials
- */
-async function getSpotifySDK(
-  agent: AppAgent,
-  userId?: string
-): Promise<SpotifyApi | null> {
-  try {
-    // Get user's Spotify profile from storage
-    if (!userId) {
-      console.error("User ID required for Spotify API access");
-      return null;
-    }
-
-    const profile = await getSpotifyProfile(agent, userId);
-    if (!profile || !profile.isConnected || !profile.accessToken) {
-      console.error("User not connected to Spotify or missing access token");
-      return null;
-    }
-
-    // Initialize Spotify SDK with stored access token
-    const spotifySDK = SpotifyApi.withAccessToken(
-      (agent as any).env.SPOTIFY_CLIENT_ID,
-      {
-        access_token: profile.accessToken,
-        token_type: "Bearer",
-        expires_in: profile.tokenExpiresAt
-          ? Math.floor((profile.tokenExpiresAt.getTime() - Date.now()) / 1000)
-          : 3600,
-        refresh_token: profile.refreshToken || "",
-      }
-    );
-
-    return spotifySDK;
-  } catch (error) {
-    console.error("Error initializing Spotify SDK:", error);
-    return null;
-  }
-}
 
 /**
  * Unified Spotify authentication and SDK initialization - SECURE VERSION
@@ -1263,33 +1221,12 @@ export const controlSpotifyPlayback = tool({
         };
       }
 
-      // Get Spotify profile to access tokens
-      const profile = await getConnectedSpotifyProfile(agent);
-      if (!profile || !profile.isConnected || !profile.accessToken) {
-        return {
-          success: false,
-          message:
-            "Spotify account not connected. Please connect your Spotify account first.",
-        };
+      // Get Spotify SDK with proper authentication
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
+        return { success: false, message: authResult.message };
       }
-
-      const clientId = agent.env.SPOTIFY_CLIENT_ID;
-      if (!clientId) {
-        return {
-          success: false,
-          message: "Spotify client ID not configured",
-        };
-      }
-
-      // Initialize Spotify SDK
-      const spotify = SpotifyApi.withAccessToken(clientId, {
-        access_token: profile.accessToken,
-        token_type: "Bearer",
-        expires_in: Math.floor(
-          (profile.tokenExpiresAt!.getTime() - Date.now()) / 1000
-        ),
-        refresh_token: profile.refreshToken || "",
-      });
+      const { spotify, spotifyUserId } = authResult;
 
       let result: unknown;
       switch (action) {
@@ -1353,7 +1290,7 @@ export const controlSpotifyPlayback = tool({
 
       // Track the action in music session history
       await addMusicSessionEntry(this as unknown as AppAgent, {
-        userId: profile.spotifyUserId,
+        userId: spotifyUserId,
         sessionId: crypto.randomUUID(), // TODO: Use actual session tracking
         timestamp: new Date().toISOString(),
         activityType:
@@ -1411,33 +1348,12 @@ export const getUserTopTracks = tool({
         };
       }
 
-      // Get Spotify profile to access tokens
-      const profile = await getConnectedSpotifyProfile(agent);
-      if (!profile || !profile.isConnected || !profile.accessToken) {
-        return {
-          success: false,
-          message:
-            "Spotify account not connected. Please connect your Spotify account first.",
-        };
+      // Get Spotify SDK with proper authentication
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
+        return { success: false, message: authResult.message };
       }
-
-      const clientId = agent.env.SPOTIFY_CLIENT_ID;
-      if (!clientId) {
-        return {
-          success: false,
-          message: "Spotify client ID not configured",
-        };
-      }
-
-      // Initialize Spotify SDK
-      const spotify = SpotifyApi.withAccessToken(clientId, {
-        access_token: profile.accessToken,
-        token_type: "Bearer",
-        expires_in: Math.floor(
-          (profile.tokenExpiresAt!.getTime() - Date.now()) / 1000
-        ),
-        refresh_token: profile.refreshToken || "",
-      });
+      const { spotify } = authResult;
 
       // Get user's top tracks
       const topTracks = await spotify.currentUser.topItems(
@@ -1544,33 +1460,12 @@ export const getUserTopArtists = tool({
         };
       }
 
-      // Get Spotify profile to access tokens
-      const profile = await getConnectedSpotifyProfile(agent);
-      if (!profile || !profile.isConnected || !profile.accessToken) {
-        return {
-          success: false,
-          message:
-            "Spotify account not connected. Please connect your Spotify account first.",
-        };
+      // Get Spotify SDK with proper authentication
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
+        return { success: false, message: authResult.message };
       }
-
-      const clientId = agent.env.SPOTIFY_CLIENT_ID;
-      if (!clientId) {
-        return {
-          success: false,
-          message: "Spotify client ID not configured",
-        };
-      }
-
-      // Initialize Spotify SDK
-      const spotify = SpotifyApi.withAccessToken(clientId, {
-        access_token: profile.accessToken,
-        token_type: "Bearer",
-        expires_in: Math.floor(
-          (profile.tokenExpiresAt!.getTime() - Date.now()) / 1000
-        ),
-        refresh_token: profile.refreshToken || "",
-      });
+      const { spotify } = authResult;
 
       // Get user's top artists
       const topArtists = await spotify.currentUser.topItems(
@@ -1979,6 +1874,267 @@ export const analyzeMusicTaste = tool({
   },
 });
 
+// =====================================
+// Playlist Management Tools
+// =====================================
+
+/**
+ * Create a new Spotify playlist
+ */
+export const createSpotifyPlaylist = tool({
+  name: "createSpotifyPlaylist",
+  description:
+    "Create a new Spotify playlist with the specified name and description",
+  parameters: z.object({
+    name: z.string().describe("Name of the playlist"),
+    description: z.string().optional().describe("Description of the playlist"),
+    isPublic: z
+      .boolean()
+      .default(true)
+      .describe("Whether the playlist should be public"),
+    collaborative: z
+      .boolean()
+      .default(false)
+      .describe("Whether the playlist should be collaborative"),
+  }),
+  execute: async ({ name, description, isPublic, collaborative }) => {
+    try {
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error("[createSpotifyPlaylist] Could not get agent reference");
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
+      }
+
+      // Get Spotify SDK with proper authentication
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
+        return { success: false, message: authResult.message };
+      }
+      const { spotify, spotifyUserId } = authResult;
+
+      // Create the playlist
+      const playlist = await spotify.playlists.createPlaylist(spotifyUserId, {
+        name,
+        description,
+        public: isPublic,
+        collaborative,
+      });
+
+      return {
+        success: true,
+        playlist: {
+          id: playlist.id,
+          name: playlist.name,
+          description: playlist.description,
+          isPublic: playlist.public,
+          collaborative: playlist.collaborative,
+          trackCount: playlist.tracks.total,
+          uri: playlist.uri,
+          externalUrl: playlist.external_urls.spotify,
+        },
+        message: `Successfully created playlist "${name}"`,
+      };
+    } catch (error) {
+      console.error("[createSpotifyPlaylist] Error:", error);
+      return {
+        success: false,
+        message: `Failed to create playlist: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  },
+});
+
+/**
+ * Add tracks to a Spotify playlist
+ */
+export const addTracksToPlaylist = tool({
+  name: "addTracksToPlaylist",
+  description: "Add tracks to an existing Spotify playlist",
+  parameters: z.object({
+    playlistId: z.string().describe("Spotify playlist ID"),
+    trackUris: z
+      .array(z.string())
+      .describe("Array of Spotify track URIs to add"),
+    position: z
+      .number()
+      .optional()
+      .describe("Position to insert tracks (0-based index)"),
+  }),
+  execute: async ({ playlistId, trackUris, position }) => {
+    try {
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error("[addTracksToPlaylist] Could not get agent reference");
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
+      }
+
+      // Get Spotify SDK with proper authentication
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
+        return { success: false, message: authResult.message };
+      }
+      const { spotify } = authResult;
+
+      // Add tracks to playlist
+      const result = await spotify.playlists.addItemsToPlaylist(
+        playlistId,
+        trackUris,
+        position
+      );
+
+      return {
+        success: true,
+        snapshotId: result.snapshot_id,
+        tracksAdded: trackUris.length,
+        message: `Successfully added ${trackUris.length} tracks to playlist`,
+      };
+    } catch (error) {
+      console.error("[addTracksToPlaylist] Error:", error);
+      return {
+        success: false,
+        message: `Failed to add tracks to playlist: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  },
+});
+
+/**
+ * Remove tracks from a Spotify playlist
+ */
+export const removeTracksFromPlaylist = tool({
+  name: "removeTracksFromPlaylist",
+  description: "Remove specific tracks from a Spotify playlist",
+  parameters: z.object({
+    playlistId: z.string().describe("Spotify playlist ID"),
+    trackUris: z
+      .array(z.string())
+      .describe("Array of Spotify track URIs to remove"),
+    snapshotId: z
+      .string()
+      .optional()
+      .describe("Snapshot ID for version control"),
+  }),
+  execute: async ({ playlistId, trackUris, snapshotId }) => {
+    try {
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error(
+          "[removeTracksFromPlaylist] Could not get agent reference"
+        );
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
+      }
+
+      // Get Spotify SDK with proper authentication
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
+        return { success: false, message: authResult.message };
+      }
+      const { spotify } = authResult;
+
+      // Remove tracks from playlist
+      const result = await spotify.playlists.removeItemsFromPlaylist(
+        playlistId,
+        { tracks: trackUris.map((uri) => ({ uri })) },
+        snapshotId
+      );
+
+      return {
+        success: true,
+        snapshotId: result.snapshot_id,
+        tracksRemoved: trackUris.length,
+        message: `Successfully removed ${trackUris.length} tracks from playlist`,
+      };
+    } catch (error) {
+      console.error("[removeTracksFromPlaylist] Error:", error);
+      return {
+        success: false,
+        message: `Failed to remove tracks from playlist: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  },
+});
+
+/**
+ * Update playlist details (name, description, etc.)
+ */
+export const updatePlaylistDetails = tool({
+  name: "updatePlaylistDetails",
+  description: "Update the details of an existing Spotify playlist",
+  parameters: z.object({
+    playlistId: z.string().describe("Spotify playlist ID"),
+    name: z.string().optional().describe("New name for the playlist"),
+    description: z
+      .string()
+      .optional()
+      .describe("New description for the playlist"),
+    isPublic: z
+      .boolean()
+      .optional()
+      .describe("Whether the playlist should be public"),
+    collaborative: z
+      .boolean()
+      .optional()
+      .describe("Whether the playlist should be collaborative"),
+  }),
+  execute: async ({
+    playlistId,
+    name,
+    description,
+    isPublic,
+    collaborative,
+  }) => {
+    try {
+      const { agent } = getCurrentAgent<AppAgent>();
+
+      if (!agent) {
+        console.error("[updatePlaylistDetails] Could not get agent reference");
+        return {
+          success: false,
+          message: "Error: Could not get agent reference",
+        };
+      }
+
+      // Get Spotify SDK with proper authentication
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
+        return { success: false, message: authResult.message };
+      }
+      const { spotify } = authResult;
+
+      // Update playlist details
+      await spotify.playlists.changePlaylistDetails(playlistId, {
+        name,
+        description,
+        public: isPublic,
+        collaborative,
+      });
+
+      return {
+        success: true,
+        message: "Successfully updated playlist details",
+      };
+    } catch (error) {
+      console.error("[updatePlaylistDetails] Error:", error);
+      return {
+        success: false,
+        message: `Failed to update playlist details: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  },
+});
+
 // Export all tools for registry
 export const spotifyTools = {
   showSpotifyAuth,
@@ -1994,4 +2150,8 @@ export const spotifyTools = {
   getUserTopArtists,
   getUserPlaylists,
   analyzeMusicTaste,
+  createSpotifyPlaylist,
+  addTracksToPlaylist,
+  removeTracksFromPlaylist,
+  updatePlaylistDetails,
 };

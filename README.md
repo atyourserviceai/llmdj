@@ -381,6 +381,31 @@ src/
 - Proper logging with tool context: `console.log("[toolName] ...")`
 - Handle Spotify API rate limits with retry logic
 
+#### 🔐 **Spotify Authentication Patterns**
+
+**IMPORTANT**: Always use the modern authentication pattern for all Spotify tools:
+
+```typescript
+// ✅ CORRECT - Modern secure pattern (used by all current tools)
+const { agent } = getCurrentAgent<AppAgent>();
+const authResult = await getSpotifySDKFromAgent(agent);
+if (!authResult.success) {
+  return { success: false, message: authResult.message };
+}
+const { spotify, spotifyUserId } = authResult;
+```
+
+**Why this pattern?**
+
+- `getSpotifySDKFromAgent()`: Retrieves tokens from database, handles automatic token refresh, includes comprehensive error handling, and provides a ready-to-use Spotify SDK instance
+
+**For all Spotify tools**:
+
+1. Use `getSpotifySDKFromAgent(agent)` for authentication
+2. Check `authResult.success` before proceeding
+3. Extract `spotify` and `spotifyUserId` from the result
+4. The function handles token refresh, validation, and error messaging automatically
+
 #### 📊 **Performance Notes**
 
 - Agent state preferred over DB queries for frequent access

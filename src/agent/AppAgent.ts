@@ -388,6 +388,11 @@ export class AppAgent extends AIChatAgent<Env> {
           getUserTopArtists: tools.getUserTopArtists,
           getUserPlaylists: tools.getUserPlaylists,
           analyzeMusicTaste: tools.analyzeMusicTaste,
+          // Add playlist management tools for testing
+          createSpotifyPlaylist: tools.createSpotifyPlaylist,
+          addTracksToPlaylist: tools.addTracksToPlaylist,
+          removeTracksFromPlaylist: tools.removeTracksFromPlaylist,
+          updatePlaylistDetails: tools.updatePlaylistDetails,
         } as ToolSet;
 
       case "act":
@@ -408,6 +413,11 @@ export class AppAgent extends AIChatAgent<Env> {
           getUserTopArtists: tools.getUserTopArtists,
           getUserPlaylists: tools.getUserPlaylists,
           analyzeMusicTaste: tools.analyzeMusicTaste,
+          // Add playlist management tools for complete music management
+          createSpotifyPlaylist: tools.createSpotifyPlaylist,
+          addTracksToPlaylist: tools.addTracksToPlaylist,
+          removeTracksFromPlaylist: tools.removeTracksFromPlaylist,
+          updatePlaylistDetails: tools.updatePlaylistDetails,
         } as ToolSet;
 
       default:

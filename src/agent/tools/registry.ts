@@ -189,6 +189,10 @@ export const tools = {
   getUserTopArtists: spotifyTools.getUserTopArtists,
   getUserPlaylists: spotifyTools.getUserPlaylists,
   analyzeMusicTaste: spotifyTools.analyzeMusicTaste,
+  createSpotifyPlaylist: spotifyTools.createSpotifyPlaylist,
+  addTracksToPlaylist: spotifyTools.addTracksToPlaylist,
+  removeTracksFromPlaylist: spotifyTools.removeTracksFromPlaylist,
+  updatePlaylistDetails: spotifyTools.updatePlaylistDetails,
 
   // Test error tool
   testErrorTool,
