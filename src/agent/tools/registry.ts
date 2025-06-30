@@ -156,6 +156,7 @@ export const tools = {
   completeOnboarding: onboardingTools.completeOnboarding,
   checkExistingConfig: onboardingTools.checkExistingConfig,
   getOnboardingStatus: onboardingTools.getOnboardingStatus,
+  getMusicPreferences: onboardingTools.getMusicPreferences,
 
   // Integration tools
   recordTestResult: integrationTools.recordTestResult,

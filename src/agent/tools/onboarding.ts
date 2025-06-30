@@ -11,7 +11,8 @@ import type { AppAgent, AppAgentState } from "../AppAgent";
  * Tool for saving basic agent settings during onboarding
  */
 export const saveSettings = tool({
-  description: "Save basic agent settings during the onboarding process",
+  description:
+    "Save basic agent settings and music preferences during the onboarding process",
   parameters: z.object({
     language: z.string().optional().describe("Agent language preference"),
     operatorName: z
@@ -30,6 +31,41 @@ export const saveSettings = tool({
       .string()
       .optional()
       .describe("Email of the admin contact"),
+    // Music preferences and goals
+    musicGoals: z
+      .array(z.string())
+      .optional()
+      .describe(
+        "What the user wants to accomplish with music (e.g., 'create family playlists', 'discover new genres')"
+      ),
+    playlistTypes: z
+      .array(z.string())
+      .optional()
+      .describe(
+        "Types of playlists they want (e.g., 'workout', 'study', 'multilingual kids music')"
+      ),
+    musicUsage: z
+      .array(z.string())
+      .optional()
+      .describe(
+        "How they use music (e.g., 'parties', 'relaxation', 'commuting')"
+      ),
+    preferredGenres: z
+      .array(z.string())
+      .optional()
+      .describe("Genres they're interested in"),
+    preferredLanguages: z
+      .array(z.string())
+      .optional()
+      .describe("Languages for music content"),
+    specificInterests: z
+      .array(z.string())
+      .optional()
+      .describe("Specific artists, eras, or themes"),
+    discoveryGoals: z
+      .array(z.string())
+      .optional()
+      .describe("What they want to discover or explore musically"),
   }),
   execute: async ({
     language,
@@ -37,6 +73,13 @@ export const saveSettings = tool({
     operatorEmail,
     adminContactName,
     adminContactEmail,
+    musicGoals,
+    playlistTypes,
+    musicUsage,
+    preferredGenres,
+    preferredLanguages,
+    specificInterests,
+    discoveryGoals,
   }) => {
     const { agent } = getCurrentAgent<AppAgent>();
 
@@ -74,12 +117,38 @@ export const saveSettings = tool({
           : currentSettings.operators,
       };
 
+      // Update music preferences if provided
+      const currentMusicPreferences = currentState.musicPreferences || {
+        goals: [],
+        playlistTypes: [],
+        musicUsage: [],
+        preferredGenres: [],
+        preferredLanguages: [],
+        specificInterests: [],
+        discoveryGoals: [],
+      };
+
+      const updatedMusicPreferences = {
+        goals: musicGoals || currentMusicPreferences.goals,
+        playlistTypes: playlistTypes || currentMusicPreferences.playlistTypes,
+        musicUsage: musicUsage || currentMusicPreferences.musicUsage,
+        preferredGenres:
+          preferredGenres || currentMusicPreferences.preferredGenres,
+        preferredLanguages:
+          preferredLanguages || currentMusicPreferences.preferredLanguages,
+        specificInterests:
+          specificInterests || currentMusicPreferences.specificInterests,
+        discoveryGoals:
+          discoveryGoals || currentMusicPreferences.discoveryGoals,
+      };
+
       await agent.setState({
         ...currentState,
         settings: updatedSettings,
+        musicPreferences: updatedMusicPreferences,
       });
 
-      return "Settings saved successfully.";
+      return "Settings and music preferences saved successfully.";
     } catch (error) {
       console.error("Error saving settings:", error);
       return `Error saving settings: ${error}`;
@@ -179,6 +248,46 @@ export const checkExistingConfig = tool({
     } catch (error) {
       console.error("Error checking existing config:", error);
       return `Error checking existing config: ${error}`;
+    }
+  },
+});
+
+/**
+ * Tool for getting current music preferences during onboarding
+ */
+export const getMusicPreferences = tool({
+  description:
+    "Get the current music preferences and goals that have been gathered during onboarding",
+  parameters: z.object({}),
+  execute: async () => {
+    const { agent } = getCurrentAgent<AppAgent>();
+
+    if (!agent) {
+      return "Error: Could not get agent reference";
+    }
+
+    try {
+      const currentState = agent.state as AppAgentState;
+      const musicPreferences = currentState.musicPreferences;
+
+      return {
+        hasPreferences: !!musicPreferences,
+        preferences: musicPreferences || {
+          goals: [],
+          playlistTypes: [],
+          musicUsage: [],
+          preferredGenres: [],
+          preferredLanguages: [],
+          specificInterests: [],
+          discoveryGoals: [],
+        },
+        message: musicPreferences
+          ? "Music preferences have been gathered"
+          : "No music preferences set yet",
+      };
+    } catch (error) {
+      console.error("Error getting music preferences:", error);
+      return `Error getting music preferences: ${error}`;
     }
   },
 });

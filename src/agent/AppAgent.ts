@@ -122,6 +122,17 @@ export interface AppAgentState {
     api_key?: string; // User's AtYourService.ai API key
   };
 
+  // Music preferences and goals gathered during onboarding
+  musicPreferences?: {
+    goals: string[]; // What the user wants to accomplish (e.g., "create family playlists", "discover new genres")
+    playlistTypes: string[]; // Types of playlists they want (e.g., "workout", "study", "multilingual kids music")
+    musicUsage: string[]; // How they use music (e.g., "parties", "relaxation", "commuting")
+    preferredGenres: string[]; // Genres they're interested in
+    preferredLanguages: string[]; // Languages for music content
+    specificInterests: string[]; // Specific artists, eras, or themes
+    discoveryGoals: string[]; // What they want to discover or explore
+  };
+
   // Onboarding mode state
   onboardingStep?: string;
   isOnboardingComplete: boolean;
@@ -354,6 +365,7 @@ export class AppAgent extends AIChatAgent<Env> {
           completeOnboarding: tools.completeOnboarding,
           checkExistingConfig: tools.checkExistingConfig,
           getOnboardingStatus: tools.getOnboardingStatus,
+          getMusicPreferences: tools.getMusicPreferences,
           // Spotify connection tools for setup
           showSpotifyAuth: tools.showSpotifyAuth,
           connectSpotifyAccount: tools.connectSpotifyAccount,
