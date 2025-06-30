@@ -650,17 +650,100 @@ export class AppAgent extends AIChatAgent<Env> {
         )
       `;
 
-      await this.sql`
-        CREATE TABLE IF NOT EXISTS spotify_tokens (
-          user_id TEXT PRIMARY KEY,
-          access_token TEXT NOT NULL,
-          refresh_token TEXT,
-          expires_at TEXT NOT NULL,
-          token_type TEXT DEFAULT 'Bearer',
-          scope TEXT,
-          created_at TEXT NOT NULL
-        )
-      `;
+      // Handle spotify_tokens table creation and migration
+      try {
+        // First, check if the table exists and what its schema is
+        const tableInfo = await this.sql`PRAGMA table_info(spotify_tokens)`;
+
+        if (tableInfo.length === 0) {
+          // Table doesn't exist, create with new schema
+          console.log(
+            "[AppAgent] Creating new spotify_tokens table with proper schema"
+          );
+          await this.sql`
+            CREATE TABLE spotify_tokens (
+              id TEXT PRIMARY KEY,
+              atyourservice_user_id TEXT NOT NULL,
+              spotify_user_id TEXT NOT NULL,
+              access_token TEXT NOT NULL,
+              refresh_token TEXT,
+              expires_at TEXT NOT NULL,
+              token_type TEXT DEFAULT 'Bearer',
+              scope TEXT,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              UNIQUE(atyourservice_user_id, spotify_user_id)
+            )
+          `;
+        } else {
+          // Table exists, check if it has the new schema
+          const hasIdColumn = tableInfo.some((col: any) => col.name === "id");
+          const hasAtyourserviceColumn = tableInfo.some(
+            (col: any) => col.name === "atyourservice_user_id"
+          );
+
+          if (!hasIdColumn || !hasAtyourserviceColumn) {
+            console.log(
+              "[AppAgent] Migrating spotify_tokens table to new schema"
+            );
+
+            // Get existing data
+            const existingData = await this.sql`SELECT * FROM spotify_tokens`;
+
+            // Drop old table
+            await this.sql`DROP TABLE spotify_tokens`;
+
+            // Create new table
+            await this.sql`
+              CREATE TABLE spotify_tokens (
+                id TEXT PRIMARY KEY,
+                atyourservice_user_id TEXT NOT NULL,
+                spotify_user_id TEXT NOT NULL,
+                access_token TEXT NOT NULL,
+                refresh_token TEXT,
+                expires_at TEXT NOT NULL,
+                token_type TEXT DEFAULT 'Bearer',
+                scope TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(atyourservice_user_id, spotify_user_id)
+              )
+            `;
+
+            // Migrate existing data (old schema had user_id as primary key)
+            for (const row of existingData) {
+              const oldData = row as any;
+              const recordId = crypto.randomUUID();
+              const now = new Date().toISOString();
+
+              // In old schema, user_id was sometimes Spotify user ID, sometimes AtYourService user ID
+              // We'll assume it's the AtYourService user ID and use it as spotify_user_id for now
+              // This might need manual cleanup, but it's better than losing data
+              await this.sql`
+                INSERT INTO spotify_tokens (
+                  id, atyourservice_user_id, spotify_user_id, access_token, refresh_token,
+                  expires_at, token_type, scope, created_at, updated_at
+                ) VALUES (
+                  ${recordId}, ${oldData.user_id}, ${oldData.user_id}, ${oldData.access_token},
+                  ${oldData.refresh_token || ""}, ${oldData.expires_at},
+                  ${oldData.token_type || "Bearer"}, ${oldData.scope || ""},
+                  ${oldData.created_at || now}, ${now}
+                )
+              `;
+            }
+
+            console.log(
+              `[AppAgent] Migrated ${existingData.length} spotify_tokens records to new schema`
+            );
+          }
+        }
+      } catch (migrationError) {
+        console.error(
+          "[AppAgent] Error during spotify_tokens migration:",
+          migrationError
+        );
+        // Continue with app initialization even if migration fails
+      }
 
       // Spotify user profiles and connection data
       await this.sql`
@@ -1092,7 +1175,12 @@ export class AppAgent extends AIChatAgent<Env> {
           scope,
         });
 
-        return Response.json(result);
+        // Return appropriate HTTP status based on result
+        if (result.success) {
+          return Response.json(result);
+        } else {
+          return Response.json(result, { status: 400 });
+        }
       } catch (error) {
         console.error("[AppAgent] Error storing Spotify tokens:", error);
         return Response.json(
@@ -1352,6 +1440,8 @@ export class AppAgent extends AIChatAgent<Env> {
     scope?: string;
   }) {
     try {
+      const atyourserviceUserId = tokens.user_id;
+
       // First, fetch the Spotify user profile to get the Spotify user ID
       const profileResponse = await fetch("https://api.spotify.com/v1/me", {
         headers: {
@@ -1374,9 +1464,12 @@ export class AppAgent extends AIChatAgent<Env> {
         followers?: { total: number };
       };
 
+      const spotifyUserId = spotifyProfile.id;
       console.log(
         "[AppAgent] Fetched Spotify profile for user:",
-        spotifyProfile.id
+        spotifyUserId,
+        "connecting to AtYourService user:",
+        atyourserviceUserId
       );
 
       // Calculate token expiration
@@ -1384,21 +1477,58 @@ export class AppAgent extends AIChatAgent<Env> {
         ? new Date(Date.now() + tokens.expires_in * 1000)
         : new Date(Date.now() + 3600 * 1000); // Default 1 hour
 
-      // Store tokens in the database using the Spotify user ID
-      await this.sql`
-        INSERT OR REPLACE INTO spotify_tokens (
-          user_id, access_token, refresh_token, expires_at, token_type, scope, created_at
-        ) VALUES (
-          ${spotifyProfile.id}, ${tokens.access_token}, ${tokens.refresh_token || ""},
-          ${expiresAt.toISOString()}, ${tokens.token_type || "Bearer"},
-          ${tokens.scope || ""}, ${new Date().toISOString()}
-        )
+      // Use proper upsert logic with the new schema
+      // Check if this specific AtYourService user + Spotify user combination exists
+      const existingTokens = await this.sql`
+        SELECT id FROM spotify_tokens
+        WHERE atyourservice_user_id = ${atyourserviceUserId}
+        AND spotify_user_id = ${spotifyUserId}
       `;
 
-      console.log(
-        "[AppAgent] Spotify tokens stored successfully for Spotify user:",
-        spotifyProfile.id
-      );
+      const now = new Date().toISOString();
+
+      if (existingTokens.length > 0) {
+        // Update existing tokens for this specific combination
+        await this.sql`
+          UPDATE spotify_tokens
+          SET
+            access_token = ${tokens.access_token},
+            refresh_token = ${tokens.refresh_token || ""},
+            expires_at = ${expiresAt.toISOString()},
+            token_type = ${tokens.token_type || "Bearer"},
+            scope = ${tokens.scope || ""},
+            updated_at = ${now}
+          WHERE atyourservice_user_id = ${atyourserviceUserId}
+          AND spotify_user_id = ${spotifyUserId}
+        `;
+        console.log(
+          "[AppAgent] Updated existing Spotify tokens for AtYourService user:",
+          atyourserviceUserId,
+          "Spotify user:",
+          spotifyUserId
+        );
+      } else {
+        // Insert new tokens for this AtYourService user + Spotify user combination
+        const recordId = crypto.randomUUID();
+        await this.sql`
+          INSERT INTO spotify_tokens (
+            id, atyourservice_user_id, spotify_user_id, access_token, refresh_token,
+            expires_at, token_type, scope, created_at, updated_at
+          ) VALUES (
+            ${recordId}, ${atyourserviceUserId}, ${spotifyUserId}, ${tokens.access_token},
+            ${tokens.refresh_token || ""}, ${expiresAt.toISOString()},
+            ${tokens.token_type || "Bearer"}, ${tokens.scope || ""}, ${now}, ${now}
+          )
+        `;
+        console.log(
+          "[AppAgent] Inserted new Spotify tokens for AtYourService user:",
+          atyourserviceUserId,
+          "Spotify user:",
+          spotifyUserId,
+          "Record ID:",
+          recordId
+        );
+      }
 
       // Update agent state with NON-SENSITIVE connection status only
       // Sensitive tokens are stored securely in database above
@@ -1430,9 +1560,26 @@ export class AppAgent extends AIChatAgent<Env> {
       };
     } catch (error) {
       console.error("[AppAgent] Error storing Spotify tokens:", error);
+
+      // Provide more specific error messages for common issues
+      let errorMessage = error instanceof Error ? error.message : String(error);
+
+      if (errorMessage.includes("UNIQUE constraint failed")) {
+        errorMessage =
+          "Failed to store Spotify tokens due to database constraint. This may indicate a reconnection issue. Please try disconnecting and reconnecting your Spotify account.";
+      } else if (errorMessage.includes("Failed to fetch Spotify profile")) {
+        errorMessage =
+          "Failed to connect to Spotify. Please ensure your authorization was successful and try again.";
+      } else if (errorMessage.includes("no such column")) {
+        errorMessage =
+          "Database schema mismatch detected. The application needs to restart to apply database updates. Please refresh the page and try again.";
+      } else if (errorMessage.includes("SQLITE_ERROR")) {
+        errorMessage = `Database error occurred: ${errorMessage}. Please refresh the page and try again. If the issue persists, contact support.`;
+      }
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
       };
     }
   }

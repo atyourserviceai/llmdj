@@ -73,13 +73,13 @@ async function getSpotifySDKFromAgent(agent: AppAgent): Promise<
       };
     }
 
-    // Retrieve tokens securely from database (filtering by current user)
+    // Retrieve tokens securely from database (filtering by AtYourService user)
     const tokenResult = await agent.sql`
-      SELECT user_id, access_token, refresh_token, expires_at, token_type, scope
+      SELECT id, atyourservice_user_id, spotify_user_id, access_token, refresh_token, expires_at, token_type, scope
       FROM spotify_tokens
-      WHERE user_id = ${currentUserId}
+      WHERE atyourservice_user_id = ${currentUserId}
         AND expires_at > ${new Date().toISOString()}
-      ORDER BY created_at DESC
+      ORDER BY updated_at DESC
       LIMIT 1
     `;
 
@@ -102,7 +102,9 @@ async function getSpotifySDKFromAgent(agent: AppAgent): Promise<
     }
 
     const tokenData = tokenResult[0] as {
-      user_id: string;
+      id: string;
+      atyourservice_user_id: string;
+      spotify_user_id: string;
       access_token: string;
       refresh_token: string;
       expires_at: string;
@@ -140,8 +142,9 @@ async function getSpotifySDKFromAgent(agent: AppAgent): Promise<
       await agent.sql`
         UPDATE spotify_tokens
         SET access_token = ${refreshResult.accessToken},
-            expires_at = ${refreshResult.expiresAt.toISOString()}
-        WHERE user_id = ${tokenData.user_id}
+            expires_at = ${refreshResult.expiresAt.toISOString()},
+            updated_at = ${new Date().toISOString()}
+        WHERE id = ${tokenData.id}
       `;
 
       currentAccessToken = refreshResult.accessToken;
@@ -164,7 +167,7 @@ async function getSpotifySDKFromAgent(agent: AppAgent): Promise<
     return {
       spotify,
       success: true,
-      spotifyUserId: tokenData.user_id, // Include Spotify user ID for playlist ownership detection
+      spotifyUserId: tokenData.spotify_user_id, // Include Spotify user ID for playlist ownership detection
     };
   } catch (error) {
     console.error("Failed to initialize Spotify SDK:", error);
@@ -282,107 +285,20 @@ export const connectSpotifyAccount = tool({
         };
       }
 
-      console.log(
-        "[connectSpotifyAccount] Agent reference obtained, checking for Spotify connection..."
-      );
-
-      // Look for any valid Spotify tokens in the database
-      // Since we store tokens with Spotify user ID, we need to find any valid tokens first
-      const tokenResult = await agent.sql`
-        SELECT user_id, access_token, refresh_token, expires_at, token_type, scope
-        FROM spotify_tokens
-        WHERE expires_at > ${new Date().toISOString()}
-        ORDER BY created_at DESC
-        LIMIT 1
-      `;
-
-      console.log("[connectSpotifyAccount] Database query result:", {
-        hasResults: !!tokenResult,
-        resultCount: tokenResult?.length || 0,
-      });
-
-      if (!tokenResult || tokenResult.length === 0) {
-        console.log("[connectSpotifyAccount] No tokens found in database");
+      // Simply try to initialize Spotify SDK - if it works, we're connected
+      const authResult = await getSpotifySDKFromAgent(agent);
+      if (!authResult.success) {
         return {
           success: false,
           message:
-            "No Spotify authentication tokens found. Please use the 'Connect to Spotify' button in the authentication interface to complete OAuth authentication first. Simply saying you've authenticated doesn't actually authenticate - you need to click the button and go through Spotify's OAuth flow.",
+            "No Spotify authentication found. Please use the 'Connect to Spotify' button to complete OAuth authentication first.",
         };
       }
 
-      const tokenData = tokenResult[0] as {
-        user_id: string;
-        access_token: string;
-        refresh_token: string;
-        expires_at: string;
-        token_type: string;
-        scope: string;
-      };
+      const { spotify, spotifyUserId } = authResult;
 
-      const spotifyUserId = tokenData.user_id;
-      console.log(
-        "[connectSpotifyAccount] Found valid token for Spotify user:",
-        spotifyUserId
-      );
-
-      console.log("[connectSpotifyAccount] Token data retrieved:", {
-        hasAccessToken: !!tokenData.access_token,
-        hasRefreshToken: !!tokenData.refresh_token,
-        expiresAt: tokenData.expires_at,
-        tokenType: tokenData.token_type,
-        scope: tokenData.scope,
-      });
-
-      // Check if tokens are still valid (not expired)
-      const expiresAt = new Date(tokenData.expires_at);
-      const now = new Date();
-      console.log("[connectSpotifyAccount] Token expiration check:", {
-        expiresAt: expiresAt.toISOString(),
-        now: now.toISOString(),
-        isExpired: expiresAt <= now,
-      });
-
-      if (expiresAt <= new Date()) {
-        console.log("[connectSpotifyAccount] Tokens have expired");
-        return {
-          success: false,
-          message:
-            "Authentication tokens have expired. Please use the 'Connect to Spotify' button to re-authenticate with Spotify OAuth.",
-        };
-      }
-
-      // Get Spotify client ID from environment
-      const clientId = agent.env.SPOTIFY_CLIENT_ID;
-      console.log("[connectSpotifyAccount] Spotify client ID check:", {
-        hasClientId: !!clientId,
-      });
-
-      if (!clientId) {
-        console.error(
-          "[connectSpotifyAccount] Spotify client ID not configured"
-        );
-        return {
-          success: false,
-          message: "Spotify client ID not configured",
-        };
-      }
-
-      console.log("[connectSpotifyAccount] Initializing Spotify SDK...");
-
-      // Initialize Spotify SDK to get user profile
-      const tempSDK = SpotifyApi.withAccessToken(clientId, {
-        access_token: tokenData.access_token,
-        token_type: tokenData.token_type || "Bearer",
-        expires_in: Math.floor((expiresAt.getTime() - Date.now()) / 1000),
-        refresh_token: tokenData.refresh_token || "",
-      });
-
-      console.log(
-        "[connectSpotifyAccount] Fetching user profile from Spotify API..."
-      );
-
-      // Fetch user profile from Spotify
-      const userProfile = await tempSDK.currentUser.profile();
+      // Get user profile from Spotify to update agent state
+      const userProfile = await spotify.currentUser.profile();
 
       console.log(
         "[connectSpotifyAccount] User profile fetched successfully:",
@@ -395,10 +311,7 @@ export const connectSpotifyAccount = tool({
         }
       );
 
-      // Store NON-SENSITIVE connection status in agent state, keep tokens in database
-      console.log(
-        "[connectSpotifyAccount] Storing connection status in agent state (NO sensitive tokens)..."
-      );
+      // Update agent state with NON-SENSITIVE connection status
       const currentState = agent.state as any;
       const newState = {
         ...currentState,
@@ -420,32 +333,7 @@ export const connectSpotifyAccount = tool({
         },
       };
 
-      // Update agent state with non-sensitive data only
       await agent.setState(newState);
-
-      // Get current user ID from agent state for permanent storage
-      const currentUserId = (agent.state as any).userInfo?.id;
-      if (!currentUserId) {
-        return {
-          success: false,
-          message: "User not authenticated. Cannot store Spotify tokens.",
-        };
-      }
-
-      // Update the database tokens with the correct AtYourService user ID for permanent storage
-      console.log(
-        "[connectSpotifyAccount] Storing tokens permanently in database..."
-      );
-      await agent.sql`
-        UPDATE spotify_tokens
-        SET user_id = ${currentUserId}
-        WHERE user_id = ${spotifyUserId}
-      `;
-
-      console.log(
-        "[connectSpotifyAccount] Tokens stored permanently with user ID:",
-        currentUserId
-      );
 
       console.log(
         "[connectSpotifyAccount] Tool execution completed successfully"
@@ -562,18 +450,18 @@ export const debugSpotifyTokens = tool({
 
       // Check all tokens in database
       const allTokens = await agent.sql`
-        SELECT user_id, expires_at, token_type, scope, created_at, updated_at
+        SELECT id, atyourservice_user_id, spotify_user_id, expires_at, token_type, scope, created_at, updated_at
         FROM spotify_tokens
-        ORDER BY created_at DESC
+        ORDER BY updated_at DESC
       `;
 
       // Check tokens for current user specifically
       const userTokens = currentUserId
         ? await agent.sql`
-        SELECT user_id, expires_at, token_type, scope, created_at, updated_at
+        SELECT id, atyourservice_user_id, spotify_user_id, expires_at, token_type, scope, created_at, updated_at
         FROM spotify_tokens
-        WHERE user_id = ${currentUserId}
-        ORDER BY created_at DESC
+        WHERE atyourservice_user_id = ${currentUserId}
+        ORDER BY updated_at DESC
       `
         : [];
 
@@ -583,7 +471,9 @@ export const debugSpotifyTokens = tool({
         totalTokensInDatabase: allTokens.length,
         userSpecificTokens: userTokens.length,
         allTokens: allTokens.map((token: any) => ({
-          user_id: token.user_id,
+          id: token.id,
+          atyourservice_user_id: token.atyourservice_user_id,
+          spotify_user_id: token.spotify_user_id,
           expires_at: token.expires_at,
           is_expired: new Date(token.expires_at) <= now,
           token_type: token.token_type,
@@ -592,7 +482,9 @@ export const debugSpotifyTokens = tool({
           updated_at: token.updated_at,
         })),
         userTokens: userTokens.map((token: any) => ({
-          user_id: token.user_id,
+          id: token.id,
+          atyourservice_user_id: token.atyourservice_user_id,
+          spotify_user_id: token.spotify_user_id,
           expires_at: token.expires_at,
           is_expired: new Date(token.expires_at) <= now,
           token_type: token.token_type,
