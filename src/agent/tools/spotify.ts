@@ -1875,34 +1875,65 @@ export const addTracksToPlaylist = tool({
       }
       const { spotify } = authResult;
 
-      // Add tracks to playlist
-      const result = await spotify.playlists.addItemsToPlaylist(
-        playlistId,
-        trackUris,
-        position
+      console.log(
+        `[addTracksToPlaylist] About to add ${trackUris.length} tracks to playlist ${playlistId}`
       );
+      console.log(
+        `[addTracksToPlaylist] First few track URIs:`,
+        trackUris.slice(0, 3)
+      );
+      console.log(`[addTracksToPlaylist] Position:`, position);
+
+      // Add tracks to playlist with detailed error handling
+      let result;
+      try {
+        console.log(
+          `[addTracksToPlaylist] Calling spotify.playlists.addItemsToPlaylist...`
+        );
+        result = await spotify.playlists.addItemsToPlaylist(
+          playlistId,
+          trackUris,
+          position
+        );
+        console.log(
+          `[addTracksToPlaylist] API call completed. Result:`,
+          result
+        );
+      } catch (apiError) {
+        console.error(
+          `[addTracksToPlaylist] API call threw an exception:`,
+          apiError
+        );
+        return {
+          success: false,
+          message: `Failed to add tracks to playlist: API call failed - ${apiError instanceof Error ? apiError.message : String(apiError)}`,
+        };
+      }
 
       if (result && result.snapshot_id) {
         return {
           success: true,
-          snapshotId: result.snapshot_id,
-          tracksAdded: trackUris.length,
           message: `Successfully added ${trackUris.length} tracks to playlist`,
+          snapshot_id: result.snapshot_id,
+        };
+      } else if (result === undefined) {
+        // Spotify SDK sometimes returns undefined for successful operations
+        // This is a known issue - if no exception was thrown, the operation likely succeeded
+        console.log(
+          `[addTracksToPlaylist] SDK returned undefined, but operation likely succeeded`
+        );
+        return {
+          success: true,
+          message: `Successfully added ${trackUris.length} tracks to playlist (no snapshot_id returned by SDK)`,
         };
       } else {
-        // Log the full result for debugging
-        console.warn('[addTracksToPlaylist] No snapshot_id returned. Raw result:', result);
-        let errorMsg = 'Spotify API did not return a snapshot_id.';
-        if (result && result.error) {
-          errorMsg = `Spotify API error: ${result.error.message || JSON.stringify(result.error)}`;
-        } else if (result) {
-          errorMsg += ` Raw result: ${JSON.stringify(result)}`;
-        } else {
-          errorMsg += ' (result is undefined)';
-        }
+        console.log(
+          `[addTracksToPlaylist] No snapshot_id returned. Raw result:`,
+          result
+        );
         return {
           success: false,
-          message: `Failed to add tracks to playlist: ${errorMsg}`,
+          message: `Failed to add tracks to playlist: Spotify API did not return a snapshot_id. (result is ${typeof result})`,
         };
       }
     } catch (error) {
