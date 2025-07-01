@@ -1,6 +1,6 @@
 import type { Message } from "@ai-sdk/react";
 import { useAgentChat } from "agents/ai-react";
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import React, { use, useCallback, useEffect, useRef, useState } from "react";
 import type { ToolTypes } from "./agent/tools/types";
 import { useAgentState } from "./hooks/useAgentState";
 import { useErrorHandling } from "./hooks/useErrorHandling";
@@ -245,6 +245,8 @@ function Chat() {
 
   // Removed excessive debug logging that was cluttering console on every render
 
+  // IMPORTANT: Check for auth errors BEFORE calling useAgentChat
+  // This prevents the hook from trying to process error objects
   const {
     messages: agentMessagesRaw,
     input: agentInput,
@@ -435,6 +437,22 @@ function Chat() {
   });
 
   // SAFETY: Ensure agentMessages is always an array to prevent "messages.map is not a function" errors
+  // Also detect API errors and throw proper auth errors for the Error Boundary to catch
+  const hasApiError =
+    agentMessagesRaw &&
+    typeof agentMessagesRaw === "object" &&
+    !Array.isArray(agentMessagesRaw) &&
+    "error" in agentMessagesRaw;
+
+  if (hasApiError) {
+    const errorMessage =
+      (agentMessagesRaw as any)?.error || "Unknown API error";
+    const authError = new Error(`Authentication failed: ${errorMessage}`);
+    (authError as any).isAuthError = true; // Mark as auth error
+    throw authError; // Throw immediately - prevents .map() from being called
+  }
+
+  // The backend now guarantees arrays, but this is a safety measure
   const agentMessages = Array.isArray(agentMessagesRaw) ? agentMessagesRaw : [];
 
   // Use the message editing hook to manage message editing and retry logic

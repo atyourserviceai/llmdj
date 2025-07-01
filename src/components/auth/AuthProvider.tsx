@@ -96,14 +96,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.error("Failed to load OAuth config:", error);
       }
 
+      // Check for forced reauth flag
+      const forceReauth = localStorage.getItem("force_reauth");
+      if (forceReauth) {
+        console.log(
+          "[Auth] Force re-authentication requested, clearing all auth data"
+        );
+        localStorage.removeItem("auth_method");
+        localStorage.removeItem("oauth_state");
+        localStorage.removeItem("force_reauth");
+        setIsLoading(false);
+        return;
+      }
+
       const stored = localStorage.getItem("auth_method");
       if (stored) {
         try {
           const parsedAuth = JSON.parse(stored);
+          console.log("[Auth] Found stored auth, validating...", {
+            hasApiKey: !!parsedAuth?.apiKey,
+            userInfo: parsedAuth?.userInfo ? "present" : "missing",
+            type: parsedAuth?.type,
+          });
 
           // Validate the token if it exists
           if (parsedAuth?.apiKey) {
             try {
+              console.log("[Auth] Validating token with /api/user/info...");
               const response = await fetch("/api/user/info", {
                 method: "GET",
                 headers: {
@@ -112,6 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               });
 
               if (response.ok) {
+                console.log("[Auth] ✅ Token validation successful");
                 // Token is valid, use the stored auth
                 setAuthMethod(parsedAuth);
 
@@ -120,7 +140,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
               } else {
                 // Token is invalid, clear it and show sign-in with message
                 console.log(
-                  "Stored token is invalid (API responded with error), clearing auth"
+                  "[Auth] ❌ Stored token is invalid (API responded with error), clearing auth",
+                  { status: response.status, statusText: response.statusText }
                 );
                 localStorage.removeItem("auth_method");
 
@@ -135,19 +156,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 }
               }
             } catch (error) {
+              console.log(
+                "[Auth] ⚠️ Network error during token validation:",
+                error
+              );
               // Network error - only clear token if we can definitively say it's expired
               if (
                 isJWTToken(parsedAuth.apiKey) &&
                 isJWTTokenExpired(parsedAuth.apiKey)
               ) {
                 console.log(
-                  "Token is expired, clearing auth despite network error"
+                  "[Auth] Token is expired, clearing auth despite network error"
                 );
                 localStorage.removeItem("auth_method");
                 localStorage.setItem("auth_expired_token", "true");
               } else {
                 console.log(
-                  "Could not validate token due to network error, keeping stored auth"
+                  "[Auth] Could not validate token due to network error, keeping stored auth"
                 );
                 setAuthMethod(parsedAuth);
 
@@ -157,12 +182,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
           } else {
             // No API key, invalid auth
+            console.log("[Auth] No API key in stored auth, clearing");
             localStorage.removeItem("auth_method");
           }
         } catch (e) {
-          console.error("Invalid stored auth:", e);
+          console.error("[Auth] Invalid stored auth:", e);
           localStorage.removeItem("auth_method");
         }
+      } else {
+        console.log("[Auth] No stored auth found");
       }
       setIsLoading(false);
     };
