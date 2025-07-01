@@ -631,7 +631,7 @@ function Chat() {
 
           // Create a user message indicating authentication completed
           const authMessage =
-            "I've successfully completed Spotify authentication. Please connect my account and analyze my music preferences.";
+            "I've successfully completed Spotify authentication.";
 
           console.log("[App] Creating user message:", authMessage);
 

@@ -412,6 +412,9 @@ export class AppAgent extends AIChatAgent<Env> {
         return {
           ...baseTools,
           testErrorTool: tools.testErrorTool,
+          // Spotify connection tools for seamless reconnection
+          showSpotifyAuth: tools.showSpotifyAuth,
+          connectSpotifyAccount: tools.connectSpotifyAccount,
           // Full Spotify control for live music operations
           getSpotifyConnectionStatus: tools.getSpotifyConnectionStatus,
           searchSpotifyContent: tools.searchSpotifyContent,
