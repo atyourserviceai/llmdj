@@ -1,5 +1,6 @@
 import { Agent, routeAgentRequest } from "agents";
 import { AppAgent } from "./agent";
+import { getServerOAuthConfig } from "./config/oauth";
 
 export { AppAgent };
 
@@ -78,16 +79,21 @@ export default {
 
     // Handle OAuth token exchange
     if (url.pathname === "/api/oauth/token-exchange") {
+      console.log(
+        "[DEBUG] Token exchange endpoint hit, method:",
+        request.method
+      );
       return handleTokenExchange(request, env);
     }
 
     // OAuth configuration endpoint
     if (url.pathname === "/api/oauth/config") {
+      const oauthConfig = getServerOAuthConfig(env);
       return new Response(
         JSON.stringify({
-          client_id: "llmdj",
-          auth_url: `${env.OAUTH_PROVIDER_BASE_URL}/oauth/authorize`,
-          token_url: `${env.OAUTH_PROVIDER_BASE_URL}/oauth/token`,
+          client_id: oauthConfig.client_id,
+          auth_url: oauthConfig.auth_url,
+          token_url: oauthConfig.token_url,
         }),
         {
           headers: { "Content-Type": "application/json" },
@@ -360,6 +366,13 @@ async function handleOAuthCallback(
   const state = url.searchParams.get("state");
   const error = url.searchParams.get("error");
 
+  console.log("[OAuth Callback] Called with:", {
+    code_preview: code ? code.substring(0, 20) + "..." : null,
+    state,
+    error,
+    url: url.toString(),
+  });
+
   if (error) {
     console.error("OAuth error:", error);
     return new Response(
@@ -383,24 +396,12 @@ async function handleOAuthCallback(
   try {
     console.log("[OAuth Callback] Exchanging authorization code for token...");
 
-    // Exchange code for token using our API endpoint
-    const tokenResponse = await fetch(
-      `${url.origin}/api/oauth/token-exchange`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code,
-          grant_type: "authorization_code",
-        }),
-      }
-    );
+    // Exchange code for token directly
+    const tokenData = await exchangeCodeForToken(code, env);
 
-    if (!tokenResponse.ok) {
-      throw new Error(`Token exchange failed: ${tokenResponse.status}`);
+    if (!tokenData) {
+      throw new Error("Token exchange failed: No token data returned");
     }
-
-    const tokenData = (await tokenResponse.json()) as TokenData;
 
     console.log(
       `[OAuth Callback] Token exchange successful for user: ${tokenData.user_info.id}`
@@ -484,7 +485,58 @@ async function handleSpotifyCallback(
   }
 }
 
+async function exchangeCodeForToken(
+  code: string,
+  env: Env
+): Promise<TokenData | null> {
+  try {
+    console.log(
+      "[DEBUG] exchangeCodeForToken called with code:",
+      code.substring(0, 20) + "..."
+    );
+
+    // Exchange code for token with the OAuth provider
+    const oauthConfig = getServerOAuthConfig(env);
+
+    const requestBody = {
+      code,
+      client_id: oauthConfig.client_id,
+      client_secret: oauthConfig.client_secret,
+      redirect_uri: env.ATYOURSERVICE_OAUTH_REDIRECT_URI,
+      grant_type: "authorization_code",
+    };
+
+    console.log("[DEBUG] Token exchange request:", {
+      url: oauthConfig.token_url,
+      client_id: requestBody.client_id,
+      code_preview: code.substring(0, 20) + "...",
+      redirect_uri: requestBody.redirect_uri,
+      grant_type: requestBody.grant_type,
+      has_client_secret: !!requestBody.client_secret,
+    });
+
+    const tokenResponse = await fetch(oauthConfig.token_url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error(`OAuth token exchange failed: ${errorText}`);
+      return null;
+    }
+
+    const tokenData = await tokenResponse.json();
+    return tokenData as TokenData;
+  } catch (error) {
+    console.error("Token exchange error:", error);
+    return null;
+  }
+}
+
 async function handleTokenExchange(request: Request, env: Env) {
+  console.log("[DEBUG] handleTokenExchange called, method:", request.method);
   if (request.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
@@ -506,31 +558,15 @@ async function handleTokenExchange(request: Request, env: Env) {
       });
     }
 
-    // Exchange code for token with the OAuth provider
-    const tokenResponse = await fetch(
-      `${env.OAUTH_PROVIDER_BASE_URL}/oauth/token`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code,
-          client_id: "llmdj",
-          client_secret: env.ATYOURSERVICE_OAUTH_CLIENT_SECRET,
-          grant_type: "authorization_code",
-        }),
-      }
-    );
+    const tokenData = await exchangeCodeForToken(code, env);
 
-    if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error(`OAuth token exchange failed: ${errorText}`);
+    if (!tokenData) {
       return new Response(JSON.stringify({ error: "token_exchange_failed" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    const tokenData = await tokenResponse.json();
     return new Response(JSON.stringify(tokenData), {
       headers: { "Content-Type": "application/json" },
     });

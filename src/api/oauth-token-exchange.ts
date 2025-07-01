@@ -1,3 +1,5 @@
+import { getServerOAuthConfig } from "../config/oauth";
+
 interface TokenExchangeRequest {
   code: string;
   grant_type: string;
@@ -12,14 +14,6 @@ interface TokenResponse {
     credits: number;
     granted_promo?: number;
     payment_method: string;
-  };
-}
-
-function getServerOAuthConfig(env: Env) {
-  return {
-    client_id: "llmdj",
-    token_url: `${env.OAUTH_PROVIDER_BASE_URL}/oauth/token`,
-    client_secret: env.ATYOURSERVICE_OAUTH_CLIENT_SECRET, // OAuth client secret from environment
   };
 }
 

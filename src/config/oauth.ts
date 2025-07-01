@@ -4,6 +4,11 @@ export interface OAuthConfig {
   token_url: string;
 }
 
+export interface ServerOAuthConfig extends OAuthConfig {
+  client_secret: string;
+}
+
+// Client-side config (fetches from server endpoint)
 let cachedConfig: OAuthConfig | null = null;
 
 export async function getOAuthConfig(): Promise<OAuthConfig> {
@@ -26,4 +31,14 @@ export async function getOAuthConfig(): Promise<OAuthConfig> {
     console.error("[OAuth Config] Failed to fetch from server:", error);
     throw new Error("Failed to load OAuth configuration");
   }
+}
+
+// Server-side config (reads from environment variables)
+export function getServerOAuthConfig(env: any): ServerOAuthConfig {
+  return {
+    client_id: env.ATYOURSERVICE_OAUTH_CLIENT_ID,
+    auth_url: `${env.OAUTH_PROVIDER_BASE_URL}/oauth/authorize`,
+    token_url: `${env.OAUTH_PROVIDER_BASE_URL}/oauth/token`,
+    client_secret: env.ATYOURSERVICE_OAUTH_CLIENT_SECRET,
+  };
 }

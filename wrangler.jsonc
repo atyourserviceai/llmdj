@@ -32,7 +32,8 @@
     "SPOTIFY_CLIENT_SECRET": "",
     "SPOTIFY_REDIRECT_URI": "https://llmdj.motin.eu/spotify/callback",
     "OAUTH_PROVIDER_BASE_URL": "http://127.0.0.1:45173",
-    "ATYOURSERVICE_OAUTH_CLIENT_SECRET": "",
+    "ATYOURSERVICE_OAUTH_CLIENT_ID": "llmdj",
+    "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj.motin.eu/auth/callback",
   },
   "env": {
     "staging": {
@@ -57,11 +58,11 @@
         "BROWSERBASE_API_KEY": "",
         "SPOTIFY_CLIENT_ID": "",
         "SPOTIFY_CLIENT_SECRET": "",
-        "SPOTIFY_REDIRECT_URI": "https://llmdj-staging.atyourservice.ai/spotify/callback",
+        "SPOTIFY_REDIRECT_URI": "https://llmdj-staging.augmentedmind.workers.dev/spotify/callback",
         "OAUTH_PROVIDER_BASE_URL": "https://dev.atyourserviceai.pages.dev",
-        "ATYOURSERVICE_OAUTH_CLIENT_SECRET": "",
+        "ATYOURSERVICE_OAUTH_CLIENT_ID": "llmdj--staging--vyywjh",
+        "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj-staging.augmentedmind.workers.dev/auth/callback",
       },
-
     },
     "production": {
       "durable_objects": {
@@ -87,7 +88,8 @@
         "SPOTIFY_CLIENT_SECRET": "",
         "SPOTIFY_REDIRECT_URI": "https://llmdj.atyourservice.ai/spotify/callback",
         "OAUTH_PROVIDER_BASE_URL": "https://atyourservice.ai",
-        "ATYOURSERVICE_OAUTH_CLIENT_SECRET": "",
+        "ATYOURSERVICE_OAUTH_CLIENT_ID": "llmdj",
+        "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj.atyourservice.ai/auth/callback",
       },
       "routes": [
         {

@@ -7,6 +7,8 @@
   "scripts": {
     "dev": "script -q /dev/null vite dev 2>&1 | tee dev.log",
     "deploy": "vite build && wrangler deploy",
+    "logs:staging": "wrangler tail --env staging",
+    "logs:production": "wrangler tail --env production",
     "test": "vitest",
     "types": "wrangler types",
     "format": "prettier --write .",
