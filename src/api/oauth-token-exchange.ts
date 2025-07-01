@@ -34,9 +34,11 @@ export async function handleTokenExchange(
 
     const config = getServerOAuthConfig(env);
 
-    console.log(
-      "[OAuth Token Exchange] Exchanging authorization code for token..."
-    );
+    if (env.SETTINGS_ENVIRONMENT === "dev") {
+      console.log(
+        "[OAuth Token Exchange] Exchanging authorization code for token..."
+      );
+    }
 
     // Make the secure token exchange with the client secret
     const response = await fetch(config.token_url, {
@@ -60,10 +62,12 @@ export async function handleTokenExchange(
 
     const tokenData = (await response.json()) as TokenResponse;
 
-    console.log(
-      "[OAuth Token Exchange] Token exchange successful for user:",
-      tokenData.user_info?.id
-    );
+    if (env.SETTINGS_ENVIRONMENT === "dev") {
+      console.log(
+        "[OAuth Token Exchange] Token exchange successful for user:",
+        tokenData.user_info?.id
+      );
+    }
 
     // Return the token data to the client (without exposing the client secret)
     return new Response(JSON.stringify(tokenData), {

@@ -198,8 +198,11 @@ export default {
             );
           }
 
-          const redactedToken = `${token.substring(0, 20)}...${token.substring(-8)}`;
-          console.log(`[Auth] Current token: ${redactedToken}`);
+          // Only log token info in development
+          if (env.SETTINGS_ENVIRONMENT === "dev") {
+            const redactedToken = `${token.substring(0, 8)}...***`;
+            console.log(`[Auth] Current token: ${redactedToken}`);
+          }
 
           // If token provided, verify it
           const userInfo = await verifyOAuthToken(token, env);
@@ -509,28 +512,33 @@ async function exchangeCodeForToken(
       grant_type: "authorization_code",
     };
 
-    console.log("[DEBUG] Token exchange request:", {
-      url: oauthConfig.token_url,
-      client_id: requestBody.client_id,
-      code_preview: code.substring(0, 20) + "...",
-      redirect_uri: requestBody.redirect_uri,
-      grant_type: requestBody.grant_type,
-      has_client_secret: !!requestBody.client_secret,
-    });
+    // Only log debug info in development
+    if (env.SETTINGS_ENVIRONMENT === "dev") {
+      console.log("[DEBUG] Token exchange request:", {
+        url: oauthConfig.token_url,
+        client_id: requestBody.client_id,
+        code_preview: code.substring(0, 20) + "...",
+        redirect_uri: requestBody.redirect_uri,
+        grant_type: requestBody.grant_type,
+        has_client_secret: !!requestBody.client_secret,
+      });
 
-    console.log("[DEBUG] Sending token exchange request...");
+      console.log("[DEBUG] Sending token exchange request...");
+    }
     const tokenResponse = await fetch(oauthConfig.token_url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
     });
 
-    console.log("[DEBUG] Token exchange response:", {
-      status: tokenResponse.status,
-      statusText: tokenResponse.statusText,
-      headers: Object.fromEntries(tokenResponse.headers.entries()),
-      ok: tokenResponse.ok,
-    });
+    if (env.SETTINGS_ENVIRONMENT === "dev") {
+      console.log("[DEBUG] Token exchange response:", {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        headers: Object.fromEntries(tokenResponse.headers.entries()),
+        ok: tokenResponse.ok,
+      });
+    }
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
@@ -552,12 +560,14 @@ async function exchangeCodeForToken(
 
     const tokenData = (await tokenResponse.json()) as TokenData;
     const elapsedTime = Date.now() - startTime;
-    console.log("[DEBUG] Successfully received token data:", {
-      has_access_token: !!tokenData.access_token,
-      has_user_info: !!tokenData.user_info,
-      user_id: tokenData.user_info?.id || "unknown",
-      elapsed_ms: elapsedTime,
-    });
+    if (env.SETTINGS_ENVIRONMENT === "dev") {
+      console.log("[DEBUG] Successfully received token data:", {
+        has_access_token: !!tokenData.access_token,
+        has_user_info: !!tokenData.user_info,
+        user_id: tokenData.user_info?.id || "unknown",
+        elapsed_ms: elapsedTime,
+      });
+    }
     return tokenData;
   } catch (error) {
     console.error("Token exchange error:", error);
@@ -566,7 +576,9 @@ async function exchangeCodeForToken(
 }
 
 async function handleTokenExchange(request: Request, env: Env) {
-  console.log("[DEBUG] handleTokenExchange called, method:", request.method);
+  if (env.SETTINGS_ENVIRONMENT === "dev") {
+    console.log("[DEBUG] handleTokenExchange called, method:", request.method);
+  }
   if (request.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
