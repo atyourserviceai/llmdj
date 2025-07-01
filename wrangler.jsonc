@@ -24,16 +24,17 @@
     },
   ],
   "vars": {
-    "GATEWAY_BASE_URL": "https://api.atyourservice.ai",
+    "GATEWAY_BASE_URL": "https://atyourserviceai-gateway.motin.eu",
     "SETTINGS_ENVIRONMENT": "dev",
     "COMPOSIO_API_KEY": "",
     "BROWSERBASE_API_KEY": "",
     "SPOTIFY_CLIENT_ID": "",
     "SPOTIFY_CLIENT_SECRET": "",
-    "SPOTIFY_REDIRECT_URI": "https://llmdj.motin.eu/spotify/callback",
-    "OAUTH_PROVIDER_BASE_URL": "http://127.0.0.1:45173",
+    "SPOTIFY_REDIRECT_URI": "https://llmdj.augmentedmind.workers.dev/spotify/callback",
+    "OAUTH_PROVIDER_BASE_URL": "https://atyourserviceai-website.motin.eu",
     "ATYOURSERVICE_OAUTH_CLIENT_ID": "llmdj",
-    "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj.motin.eu/auth/callback",
+    "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj.augmentedmind.workers.dev/auth/callback",
+    "ATYOURSERVICE_OAUTH_CLIENT_SECRET": "",
   },
   "env": {
     "staging": {
@@ -52,7 +53,7 @@
         },
       ],
       "vars": {
-        "GATEWAY_BASE_URL": "https://api.atyourservice.ai",
+        "GATEWAY_BASE_URL": "https://atyourserviceai-gateway.motin.eu",
         "SETTINGS_ENVIRONMENT": "staging",
         "COMPOSIO_API_KEY": "",
         "BROWSERBASE_API_KEY": "",
@@ -80,16 +81,16 @@
         },
       ],
       "vars": {
-        "GATEWAY_BASE_URL": "https://api.atyourservice.ai",
+        "GATEWAY_BASE_URL": "https://atyourserviceai-gateway.motin.eu",
         "SETTINGS_ENVIRONMENT": "production",
         "COMPOSIO_API_KEY": "",
         "BROWSERBASE_API_KEY": "",
         "SPOTIFY_CLIENT_ID": "",
         "SPOTIFY_CLIENT_SECRET": "",
-        "SPOTIFY_REDIRECT_URI": "https://llmdj.atyourservice.ai/spotify/callback",
+        "SPOTIFY_REDIRECT_URI": "https://llmdj-production.atyourservice.ai/spotify/callback",
         "OAUTH_PROVIDER_BASE_URL": "https://atyourservice.ai",
         "ATYOURSERVICE_OAUTH_CLIENT_ID": "llmdj",
-        "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj.atyourservice.ai/auth/callback",
+        "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj-production.atyourservice.ai/auth/callback",
       },
       "routes": [
         {

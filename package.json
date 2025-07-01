@@ -7,6 +7,9 @@
   "scripts": {
     "dev": "script -q /dev/null vite dev 2>&1 | tee dev.log",
     "deploy": "vite build && wrangler deploy",
+    "deploy:staging": "CLOUDFLARE_ENV=staging pnpm run deploy",
+    "deploy:production": "CLOUDFLARE_ENV=production pnpm run deploy",
+    "logs:deployed": "wrangler tail",
     "logs:staging": "wrangler tail --env staging",
     "logs:production": "wrangler tail --env production",
     "test": "vitest",

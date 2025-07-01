@@ -489,10 +489,13 @@ async function exchangeCodeForToken(
   code: string,
   env: Env
 ): Promise<TokenData | null> {
+  const startTime = Date.now();
   try {
     console.log(
       "[DEBUG] exchangeCodeForToken called with code:",
-      code.substring(0, 20) + "..."
+      code.substring(0, 20) + "...",
+      "at",
+      new Date().toISOString()
     );
 
     // Exchange code for token with the OAuth provider
@@ -515,20 +518,47 @@ async function exchangeCodeForToken(
       has_client_secret: !!requestBody.client_secret,
     });
 
+    console.log("[DEBUG] Sending token exchange request...");
     const tokenResponse = await fetch(oauthConfig.token_url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(requestBody),
     });
 
+    console.log("[DEBUG] Token exchange response:", {
+      status: tokenResponse.status,
+      statusText: tokenResponse.statusText,
+      headers: Object.fromEntries(tokenResponse.headers.entries()),
+      ok: tokenResponse.ok,
+    });
+
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error(`OAuth token exchange failed: ${errorText}`);
+      const elapsedTime = Date.now() - startTime;
+      console.error(
+        `[DEBUG] OAuth token exchange failed - Status: ${tokenResponse.status}, Response: ${errorText}, Elapsed: ${elapsedTime}ms`
+      );
+
+      // Try to parse the error response for more details
+      try {
+        const errorObj = JSON.parse(errorText);
+        console.error("[DEBUG] Parsed error object:", errorObj);
+      } catch (e) {
+        console.error("[DEBUG] Error response is not valid JSON");
+      }
+
       return null;
     }
 
-    const tokenData = await tokenResponse.json();
-    return tokenData as TokenData;
+    const tokenData = (await tokenResponse.json()) as TokenData;
+    const elapsedTime = Date.now() - startTime;
+    console.log("[DEBUG] Successfully received token data:", {
+      has_access_token: !!tokenData.access_token,
+      has_user_info: !!tokenData.user_info,
+      user_id: tokenData.user_info?.id || "unknown",
+      elapsed_ms: elapsedTime,
+    });
+    return tokenData;
   } catch (error) {
     console.error("Token exchange error:", error);
     return null;
