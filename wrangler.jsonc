@@ -53,7 +53,7 @@
         },
       ],
       "vars": {
-        "GATEWAY_BASE_URL": "https://atyourserviceai-gateway.motin.eu",
+        "GATEWAY_BASE_URL": "https://staging.gateway.atyourservice.ai",
         "SETTINGS_ENVIRONMENT": "staging",
         "COMPOSIO_API_KEY": "",
         "BROWSERBASE_API_KEY": "",
