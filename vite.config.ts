@@ -17,6 +17,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    sourcemap: true, // Enable source maps for better error debugging
+  },
   server: {
     port: 5473,
     host: "127.0.0.1", // Bind to 127.0.0.1 so Cloudflare tunnel can connect
