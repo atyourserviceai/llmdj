@@ -1882,12 +1882,29 @@ export const addTracksToPlaylist = tool({
         position
       );
 
-      return {
-        success: true,
-        snapshotId: result.snapshot_id,
-        tracksAdded: trackUris.length,
-        message: `Successfully added ${trackUris.length} tracks to playlist`,
-      };
+      if (result && result.snapshot_id) {
+        return {
+          success: true,
+          snapshotId: result.snapshot_id,
+          tracksAdded: trackUris.length,
+          message: `Successfully added ${trackUris.length} tracks to playlist`,
+        };
+      } else {
+        // Log the full result for debugging
+        console.warn('[addTracksToPlaylist] No snapshot_id returned. Raw result:', result);
+        let errorMsg = 'Spotify API did not return a snapshot_id.';
+        if (result && result.error) {
+          errorMsg = `Spotify API error: ${result.error.message || JSON.stringify(result.error)}`;
+        } else if (result) {
+          errorMsg += ` Raw result: ${JSON.stringify(result)}`;
+        } else {
+          errorMsg += ' (result is undefined)';
+        }
+        return {
+          success: false,
+          message: `Failed to add tracks to playlist: ${errorMsg}`,
+        };
+      }
     } catch (error) {
       console.error("[addTracksToPlaylist] Error:", error);
       return {
