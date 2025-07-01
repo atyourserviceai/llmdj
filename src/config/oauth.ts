@@ -34,7 +34,7 @@ export async function getOAuthConfig(): Promise<OAuthConfig> {
 }
 
 // Server-side config (reads from environment variables)
-export function getServerOAuthConfig(env: any): ServerOAuthConfig {
+export function getServerOAuthConfig(env: Env): ServerOAuthConfig {
   return {
     client_id: env.ATYOURSERVICE_OAUTH_CLIENT_ID,
     auth_url: `${env.OAUTH_PROVIDER_BASE_URL}/oauth/authorize`,

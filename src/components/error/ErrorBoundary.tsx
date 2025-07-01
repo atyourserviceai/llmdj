@@ -1,5 +1,9 @@
 import React from "react";
 
+interface AuthenticationError extends Error {
+  isAuthError?: boolean;
+}
+
 interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
@@ -47,7 +51,8 @@ export class ErrorBoundary extends React.Component<
       }
 
       // Check if this is an authentication error
-      const isAuthError = (this.state.error as any)?.isAuthError === true;
+      const isAuthError =
+        (this.state.error as AuthenticationError)?.isAuthError === true;
 
       // Default fallback UI
       return (

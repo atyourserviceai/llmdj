@@ -56,8 +56,7 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
       fetchConfig();
     }
     // Note: OAuth callback handling is now done at the app level in app.tsx
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array - only run once on mount
+  }, [config, onAuthError]); // Added missing dependencies
 
   // Handle OAuth callback - wrapped in useCallback to avoid dependency issues
   const handleAuthCallback = useCallback(
@@ -219,8 +218,7 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
       );
       handleAuthCallback(code, state);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config]); // Only run when config loads, ignore onAuthError to prevent re-runs
+  }, [config, handleAuthCallback, onAuthError]); // Added missing dependencies
 
   // Check for Spotify auth data in localStorage (from callback page) - run once when config loads
   useEffect(() => {
@@ -251,8 +249,7 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
         );
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config]); // Only run when config loads
+  }, [config, handleAuthCallback]); // Added missing dependencies
 
   const generateRandomString = (length: number): string => {
     const possible =

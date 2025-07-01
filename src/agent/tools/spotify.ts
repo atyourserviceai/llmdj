@@ -9,6 +9,20 @@ import { tool } from "ai";
 import { z } from "zod";
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
 import type { AppAgent, AppAgentState } from "../AppAgent";
+
+// Database row type for spotify_tokens table
+interface SpotifyTokenRow {
+  id: string;
+  atyourservice_user_id: string;
+  spotify_user_id: string;
+  access_token: string;
+  refresh_token: string;
+  expires_at: string;
+  token_type: string;
+  scope: string;
+  created_at: string;
+  updated_at: string;
+}
 import {
   storeSpotifyProfile,
   storeMusicPreferences,
@@ -44,7 +58,7 @@ async function getSpotifySDKFromAgent(agent: AppAgent): Promise<
 > {
   try {
     // Check if Spotify is connected (non-sensitive status check)
-    const spotifyAuth = (agent.state as any).spotifyAuth;
+    const spotifyAuth = (agent.state as AppAgentState).spotifyAuth;
     if (!spotifyAuth || !spotifyAuth.isConnected) {
       return {
         success: false,
@@ -53,7 +67,7 @@ async function getSpotifySDKFromAgent(agent: AppAgent): Promise<
       };
     }
 
-    const clientId = (agent as any).env.SPOTIFY_CLIENT_ID;
+    const clientId = (agent as AppAgent & { env: Env }).env.SPOTIFY_CLIENT_ID;
     if (!clientId) {
       return {
         success: false,
@@ -62,7 +76,7 @@ async function getSpotifySDKFromAgent(agent: AppAgent): Promise<
     }
 
     // Get current user ID from agent state
-    const state = agent.state as any;
+    const state = agent.state as AppAgentState;
     const currentUserId = state.userInfo?.id;
 
     if (!currentUserId) {
@@ -85,7 +99,7 @@ async function getSpotifySDKFromAgent(agent: AppAgent): Promise<
 
     if (!tokenResult || tokenResult.length === 0) {
       // Update agent state to reflect disconnected status
-      const currentState = agent.state as any;
+      const currentState = agent.state as AppAgentState;
       await agent.setState({
         ...currentState,
         spotifyAuth: {
@@ -190,8 +204,9 @@ async function refreshSpotifyTokens(
   refreshToken: string
 ): Promise<{ accessToken: string; expiresAt: Date } | null> {
   try {
-    const clientId = (agent as any).env.SPOTIFY_CLIENT_ID;
-    const clientSecret = (agent as any).env.SPOTIFY_CLIENT_SECRET;
+    const clientId = (agent as AppAgent & { env: Env }).env.SPOTIFY_CLIENT_ID;
+    const clientSecret = (agent as AppAgent & { env: Env }).env
+      .SPOTIFY_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       console.error("Spotify client credentials not configured");
@@ -312,7 +327,7 @@ export const connectSpotifyAccount = tool({
       );
 
       // Update agent state with NON-SENSITIVE connection status
-      const currentState = agent.state as any;
+      const currentState = agent.state as AppAgentState;
       const newState = {
         ...currentState,
         spotifyAuth: {
@@ -397,7 +412,7 @@ export const getSpotifyConnectionStatus = tool({
       }
 
       // Also check agent state for profile info (non-sensitive data)
-      const spotifyAuth = (agent.state as any).spotifyAuth;
+      const spotifyAuth = (agent.state as AppAgentState).spotifyAuth;
 
       return {
         connected: true,
@@ -446,7 +461,7 @@ export const debugSpotifyTokens = tool({
       }
 
       // Get current user ID
-      const currentUserId = (agent.state as any).userInfo?.id;
+      const currentUserId = (agent.state as AppAgentState).userInfo?.id;
 
       // Check all tokens in database
       const allTokens = await agent.sql`
@@ -470,33 +485,38 @@ export const debugSpotifyTokens = tool({
         currentUserId: currentUserId || "NOT_AUTHENTICATED",
         totalTokensInDatabase: allTokens.length,
         userSpecificTokens: userTokens.length,
-        allTokens: allTokens.map((token: any) => ({
-          id: token.id,
-          atyourservice_user_id: token.atyourservice_user_id,
-          spotify_user_id: token.spotify_user_id,
-          expires_at: token.expires_at,
-          is_expired: new Date(token.expires_at) <= now,
-          token_type: token.token_type,
-          scope: token.scope,
-          created_at: token.created_at,
-          updated_at: token.updated_at,
-        })),
-        userTokens: userTokens.map((token: any) => ({
-          id: token.id,
-          atyourservice_user_id: token.atyourservice_user_id,
-          spotify_user_id: token.spotify_user_id,
-          expires_at: token.expires_at,
-          is_expired: new Date(token.expires_at) <= now,
-          token_type: token.token_type,
-          scope: token.scope,
-          created_at: token.created_at,
-          updated_at: token.updated_at,
-        })),
+        allTokens: allTokens.map(
+          (token: Record<string, string | number | boolean | null>) => ({
+            id: token.id as string,
+            atyourservice_user_id: token.atyourservice_user_id as string,
+            spotify_user_id: token.spotify_user_id as string,
+            expires_at: token.expires_at as string,
+            is_expired: new Date(token.expires_at as string) <= now,
+            token_type: token.token_type as string,
+            scope: token.scope as string,
+            created_at: token.created_at as string,
+            updated_at: token.updated_at as string,
+          })
+        ),
+        userTokens: userTokens.map(
+          (token: Record<string, string | number | boolean | null>) => ({
+            id: token.id as string,
+            atyourservice_user_id: token.atyourservice_user_id as string,
+            spotify_user_id: token.spotify_user_id as string,
+            expires_at: token.expires_at as string,
+            is_expired: new Date(token.expires_at as string) <= now,
+            token_type: token.token_type as string,
+            scope: token.scope as string,
+            created_at: token.created_at as string,
+            updated_at: token.updated_at as string,
+          })
+        ),
         agentStateInfo: {
-          hasSpotifyAuth: !!(agent.state as any).spotifyAuth,
-          isConnected: !!(agent.state as any).spotifyAuth?.isConnected,
-          profileId: (agent.state as any).spotifyAuth?.profile?.id,
-          connectedAt: (agent.state as any).spotifyAuth?.connectedAt,
+          hasSpotifyAuth: !!(agent.state as AppAgentState).spotifyAuth,
+          isConnected: !!(agent.state as AppAgentState).spotifyAuth
+            ?.isConnected,
+          profileId: (agent.state as AppAgentState).spotifyAuth?.profile?.id,
+          connectedAt: (agent.state as AppAgentState).spotifyAuth?.connectedAt,
         },
       };
 
@@ -1733,7 +1753,7 @@ export const analyzeMusicTaste = tool({
       };
 
       // Get profile info from agent state (non-sensitive data)
-      const spotifyAuth = (agent.state as any).spotifyAuth;
+      const spotifyAuth = (agent.state as AppAgentState).spotifyAuth;
 
       return {
         success: true,
