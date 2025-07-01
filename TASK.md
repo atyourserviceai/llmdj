@@ -50,7 +50,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 1.1 Update Project Metadata ✅ **COMPLETE**
 
 - [x] **Update `package.json`** ✅
-
   - [x] Change name to `"llmdj"`
   - [x] Update description to "AI-powered Spotify DJ agent"
   - [x] Add Spotify-specific dependencies:
@@ -59,7 +58,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [x] Update repository URL to LLMDJ repo
 
 - [x] **Update `wrangler.jsonc`** ✅
-
   - [x] Change name to `"llmdj"`
   - [x] Update environment names (llmdj-dev, llmdj-staging, llmdj)
   - [x] Add Spotify-specific environment variables:
@@ -74,7 +72,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 1.2 Update Documentation ✅ **COMPLETE**
 
 - [x] **Update `README.md`** ✅
-
   - [x] Change title to "🎵 LLMDJ - AI Spotify DJ Agent"
   - [x] Add Spotify-specific setup instructions
   - [x] Document Spotify API setup process
@@ -118,7 +115,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 - **Playbook Enhancement**: Capture music-specific workflows and preferences during onboarding
 
 - [x] **Update `src/agent/storage/entities.ts`** ✅
-
   - [x] Add Spotify-specific data structures:
     - [x] `SpotifyProfile` (user profile data and connection status)
     - [x] `PlaylistData` (custom playlists created through the agent)
@@ -157,7 +153,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 3.3 Tool Registration ✅ **COMPLETE**
 
 - [x] **Update `src/utils/tool-registry.ts`** ✅
-
   - [x] Import and register all Spotify tools with error handling
   - [x] Configure tool availability by mode (onboarding/integration/plan/act)
   - [x] Set up proper tool descriptions and parameters
@@ -171,13 +166,11 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 **🔥 MOST CRITICAL SECURITY ISSUE - NO USER ISOLATION:**
 
 - [ ] **🔥 CRITICAL: Implement user authentication before agent access**
-
   - [ ] **Problem**: Currently ALL users share the same agent state (`"default-room"`)
   - [ ] **Risk**: Spotify tokens, music preferences, and personal data shared between all users
   - [ ] **Impact**: Complete privacy breach - users see each other's music, playlists, recommendations
 
   **Required Implementation:**
-
   - [ ] **User authentication gate** - No agent access without login
   - [ ] **Spotify OAuth as primary auth** - Use Spotify as the identity provider
   - [ ] **Per-user agent rooms** - Agent name/room derived from authenticated user ID
@@ -196,7 +189,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   ```
 
 - [ ] **Multi-account support within session**
-
   - [ ] Keep current Spotify OAuth tools for connecting additional accounts
   - [ ] Allow household members to connect their Spotify accounts to shared session
   - [ ] Implement account switching within authenticated session
@@ -213,21 +205,18 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 **HIGH PRIORITY SECURITY TASKS (after user isolation):**
 
 - [ ] **Audit token exposure in LLM requests**
-
   - [ ] Review all tools that access `agent.state.spotifyAuth`
   - [ ] Ensure sensitive tokens are never passed to LLM context
   - [ ] Implement token masking/redaction in logs and tool results
   - [ ] Add security middleware to filter sensitive data from tool outputs
 
 - [ ] **Implement secure token storage**
-
   - [ ] Encrypt tokens before storing in agent state
   - [ ] Implement secure token retrieval/decryption
   - [ ] Add token rotation and cleanup mechanisms
   - [ ] Consider moving tokens to separate encrypted storage
 
 - [ ] **Review tool result sanitization**
-
   - [ ] Audit all Spotify tool return values for sensitive data
   - [ ] Implement data sanitization layer
   - [ ] Remove or mask user IDs, emails, and other PII
@@ -252,7 +241,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 4.2 Spotify Player Components
 
 - [ ] **Create `src/components/spotify-player/`**
-
   - [ ] **`SpotifyPlayer.tsx`** - Main player container
   - [ ] **`PlaybackControls.tsx`** - Play/pause/skip buttons
   - [ ] **`TrackDisplay.tsx`** - Current track info display
@@ -261,7 +249,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
   - [ ] **`DeviceSelector.tsx`** - Choose playback device
 
 - [ ] **Create `src/components/playlist-display/`**
-
   - [ ] **`PlaylistGrid.tsx`** - Display user's playlists
   - [ ] **`PlaylistCard.tsx`** - Individual playlist component
   - [ ] **`TrackList.tsx`** - Display tracks in a playlist
@@ -276,7 +263,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 4.3 Chat Integration
 
 - [ ] **Update `src/components/chat/ChatContainer.tsx`**
-
   - [ ] Add music context to chat interface
   - [ ] Show currently playing track in chat header
   - [ ] Add quick action buttons for common music commands
@@ -300,7 +286,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 5.1 Web Playback SDK Integration
 
 - [ ] **Create `src/lib/spotify-player.ts`**
-
   - [ ] Initialize Spotify Web Playback SDK
   - [ ] Handle player ready/not ready events
   - [ ] Manage player state changes
@@ -314,14 +299,12 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 5.2 Real-time State Management
 
 - [ ] **Create `src/hooks/useSpotifyPlayer.ts`**
-
   - [ ] Manage player state in React
   - [ ] Handle real-time playback updates
   - [ ] Provide player control functions
   - [ ] Handle connection status
 
 - [ ] **Create `src/hooks/useSpotifyAuth.ts`**
-
   - [ ] Manage authentication state
   - [ ] Handle token refresh
   - [ ] Provide auth status and functions
@@ -361,7 +344,6 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 6.3 Performance Optimization
 
 - [ ] **Optimize API calls**
-
   - [ ] Implement request caching
   - [ ] Batch API requests where possible
   - [ ] Implement pagination for large results
@@ -382,14 +364,12 @@ Transform the current app-agent-template foundation into a fully-functional Spot
 #### 7.2 Final Documentation
 
 - [ ] **Update README.md with complete setup guide**
-
   - [ ] Spotify Developer App setup
   - [ ] API key configuration
   - [ ] Local development setup
   - [ ] Deployment instructions
 
 - [ ] **Create user guide**
-
   - [ ] How to connect Spotify account
   - [ ] Available voice commands
   - [ ] Playlist management features

@@ -59,7 +59,6 @@ An AI-powered Spotify DJ agent that controls your music through natural language
 ### Spotify Developer Setup
 
 1. **Create Spotify App**:
-
    - Visit [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
    - Click "Create app"
    - Fill in app details (name: "LLMDJ", description: "AI DJ Agent")
@@ -87,7 +86,6 @@ An AI-powered Spotify DJ agent that controls your music through natural language
    ```
 
 2. **Configure environment**:
-
    - Copy `.dev.vars.example` to `.dev.vars`
    - Add your Spotify credentials:
 

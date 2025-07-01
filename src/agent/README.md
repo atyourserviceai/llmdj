@@ -73,13 +73,11 @@ Tools are implemented in the `/tools` directory and organized by category. Each 
 To extend the AppAgent with new capabilities:
 
 1. **Add New Tools**:
-
    - Create tool implementations in the `/tools` directory
    - Update the appropriate tool collections in `tools/index.ts`
    - Add validation rules in `validateToolAccessForMode` function
 
 2. **Add New Modes** (if needed):
-
    - Update the `AgentMode` type in `AppAgent.ts`
    - Add a new section in the unified system prompt
    - Create a transition message template for the new mode
