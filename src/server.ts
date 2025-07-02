@@ -1,4 +1,4 @@
-import { Agent, routeAgentRequest } from "agents";
+import { routeAgentRequest } from "agents";
 import { AppAgent } from "./agent";
 import { getServerOAuthConfig } from "./config/oauth";
 
@@ -370,7 +370,7 @@ async function handleOAuthCallback(
   const error = url.searchParams.get("error");
 
   console.log("[OAuth Callback] Called with:", {
-    code_preview: code ? code.substring(0, 20) + "..." : null,
+    code_preview: code ? `${code.substring(0, 20)}...` : null,
     state,
     error,
     url: url.toString(),
@@ -496,7 +496,7 @@ async function exchangeCodeForToken(
   try {
     console.log(
       "[DEBUG] exchangeCodeForToken called with code:",
-      code.substring(0, 20) + "...",
+      `${code.substring(0, 20)}...`,
       "at",
       new Date().toISOString()
     );
@@ -517,7 +517,7 @@ async function exchangeCodeForToken(
       console.log("[DEBUG] Token exchange request:", {
         url: oauthConfig.token_url,
         client_id: requestBody.client_id,
-        code_preview: code.substring(0, 20) + "...",
+        code_preview: `${code.substring(0, 20)}...`,
         redirect_uri: requestBody.redirect_uri,
         grant_type: requestBody.grant_type,
         has_client_secret: !!requestBody.client_secret,

@@ -1,6 +1,7 @@
 import type { Message } from "@ai-sdk/react";
 import { useAgentChat } from "agents/ai-react";
-import React, { use, useCallback, useEffect, useRef, useState } from "react";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ToolTypes } from "./agent/tools/types";
 import { useAgentState } from "./hooks/useAgentState";
 import { useErrorHandling } from "./hooks/useErrorHandling";
@@ -446,9 +447,11 @@ function Chat() {
 
   if (hasApiError) {
     const errorMessage =
-      (agentMessagesRaw as any)?.error || "Unknown API error";
-    const authError = new Error(`Authentication failed: ${errorMessage}`);
-    (authError as any).isAuthError = true; // Mark as auth error
+      (agentMessagesRaw as { error?: string })?.error || "Unknown API error";
+    const authError = new Error(
+      `Authentication failed: ${errorMessage}`
+    ) as Error & { isAuthError?: boolean };
+    authError.isAuthError = true; // Mark as auth error
     throw authError; // Throw immediately - prevents .map() from being called
   }
 
@@ -715,13 +718,7 @@ function Chat() {
         handleSpotifyAuthSuccess as EventListener
       );
     };
-  }, [
-    setMessages,
-    agentMessages,
-    reload,
-    finalAgentConfig,
-    handleOAuthTokenExchange,
-  ]);
+  }, [setMessages, agentMessages, reload, finalAgentConfig]);
 
   // Separate effect for OAuth callback check - only run once on mount
   useEffect(() => {
@@ -759,7 +756,7 @@ function Chat() {
 
     // Check for OAuth callback on initial load only
     checkOAuthCallback();
-  }, []); // Empty dependency array - only run once on mount
+  }, [handleOAuthTokenExchange]); // Include handleOAuthTokenExchange dependency
 
   // Handle action button clicks from the suggestActions tool
   useEffect(() => {
@@ -835,7 +832,7 @@ function Chat() {
         handleActionButtonClick as EventListener
       );
     };
-  }, [setMessages, agentMessages, setInput, reload]);
+  }, [setMessages, agentMessages, setInput]);
 
   // Reset textarea height when input is empty
   useEffect(() => {
@@ -1102,18 +1099,18 @@ function Chat() {
   };
 
   // Wrapper for reload with token expiration check
-  const reloadWithTokenCheck = () => {
+  const reloadWithTokenCheck = useCallback(() => {
     // Check for token expiration before reloading (with safety check)
-    if (auth && auth.checkTokenExpiration()) {
+    if (auth?.checkTokenExpiration()) {
       return; // Token expired, user will be prompted to re-authenticate
     }
     reload();
-  };
+  }, [auth, reload]);
 
   // Update retry handlers to check token expiration
   const handleRetryWithTokenCheck = (index: number) => {
     // Check for token expiration before retrying (with safety check)
-    if (auth && auth.checkTokenExpiration()) {
+    if (auth?.checkTokenExpiration()) {
       return; // Token expired, user will be prompted to re-authentication
     }
     handleRetry(index);
@@ -1121,7 +1118,7 @@ function Chat() {
 
   const handleRetryLastUserMessageWithTokenCheck = () => {
     // Check for token expiration before retrying (with safety check)
-    if (auth && auth.checkTokenExpiration()) {
+    if (auth?.checkTokenExpiration()) {
       return; // Token expired, user will be prompted to re-authentication
     }
     handleRetryLastUserMessage();
@@ -1130,7 +1127,7 @@ function Chat() {
   // Update handleSubmitWithRetry to properly handle options
   const handleSubmitWithRetry = (e: React.FormEvent) => {
     // Check for token expiration before submitting (with safety check)
-    if (auth && auth.checkTokenExpiration()) {
+    if (auth?.checkTokenExpiration()) {
       return; // Token expired, user will be prompted to re-authenticate
     }
 
@@ -1186,7 +1183,7 @@ function Chat() {
         }
       }
     }
-  }, [agentMessages, isLoading, temporaryLoading, reload]);
+  }, [agentMessages, isLoading, temporaryLoading, reloadWithTokenCheck]);
 
   return (
     <div className="h-[100vh] w-full p-4 flex justify-center items-center bg-fixed overflow-hidden">

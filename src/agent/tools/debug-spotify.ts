@@ -1,6 +1,5 @@
 import { getCurrentAgent } from "agents";
 import type { AppAgent } from "../AppAgent";
-import { generateObject } from "ai";
 import { z } from "zod";
 
 export const debugSpotifyState = {

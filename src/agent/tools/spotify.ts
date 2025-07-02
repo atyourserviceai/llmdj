@@ -10,27 +10,6 @@ import { z } from "zod";
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
 import type { AppAgent, AppAgentState } from "../AppAgent";
 
-// Database row type for spotify_tokens table
-interface SpotifyTokenRow {
-  id: string;
-  atyourservice_user_id: string;
-  spotify_user_id: string;
-  access_token: string;
-  refresh_token: string;
-  expires_at: string;
-  token_type: string;
-  scope: string;
-  created_at: string;
-  updated_at: string;
-}
-import {
-  storeSpotifyProfile,
-  storeMusicPreferences,
-  getMusicPreferences,
-  addListeningRecord,
-  storeCurrentSession,
-  getCurrentSession,
-} from "../storage/entities";
 import {
   addMusicSessionEntry,
   addRecommendationEntry,
@@ -310,7 +289,7 @@ export const connectSpotifyAccount = tool({
         };
       }
 
-      const { spotify, spotifyUserId } = authResult;
+      const { spotify } = authResult;
 
       // Get user profile from Spotify to update agent state
       const userProfile = await spotify.currentUser.profile();
@@ -578,7 +557,12 @@ export const searchSpotifyContent = tool({
       }
       const { spotify } = authResult;
 
-      const searchResults = await spotify.search(query, types, market, limit);
+      const searchResults = await spotify.search(
+        query,
+        types,
+        market as any,
+        limit as any
+      );
 
       // Track discovery event - simplified since we don't need userId with agent state
       await addDiscoveryEntry(agent, {
@@ -631,7 +615,7 @@ export const searchSpotifyContent = tool({
             name: playlist.name,
             description: playlist.description,
             owner: playlist.owner.display_name,
-            tracks_total: playlist.tracks.total,
+            tracks_total: (playlist as any).tracks?.total || 0,
             external_urls: playlist.external_urls,
           })) || [],
       };
@@ -651,7 +635,7 @@ export const searchSpotifyContent = tool({
       console.error("Error searching Spotify:", error);
       return {
         success: false,
-        message: `Search failed: ${error.message}`,
+        message: `Search failed: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   },
@@ -738,7 +722,7 @@ export const getTrackDetails = tool({
       console.error("Error getting track details:", error);
       return {
         success: false,
-        message: `Failed to get track details: ${error.message}`,
+        message: `Failed to get track details: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   },
@@ -908,7 +892,7 @@ export const getSpotifyRecommendations = tool({
       console.error("Error getting Spotify recommendations:", error);
       return {
         success: false,
-        message: `Failed to get recommendations: ${error.message}`,
+        message: `Failed to get recommendations: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   },
@@ -955,7 +939,7 @@ export const getSpotifyDevices = tool({
         is_private_session: device.is_private_session,
         is_restricted: device.is_restricted,
         volume_percent: device.volume_percent,
-        supports_volume: device.supports_volume,
+        supports_volume: (device as any).supports_volume || false,
       }));
 
       return {
@@ -968,7 +952,7 @@ export const getSpotifyDevices = tool({
       console.error("Error getting Spotify devices:", error);
       return {
         success: false,
-        message: `Failed to get devices: ${error.message}`,
+        message: `Failed to get devices: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   },
@@ -1004,7 +988,7 @@ export const getCurrentPlayback = tool({
       const { spotify: spotifySDK } = authResult;
 
       const playbackState =
-        await spotifySDK.player.getCurrentlyPlayingTrack(market);
+        await spotifySDK.player.getCurrentlyPlayingTrack(market as any);
 
       if (!playbackState || !playbackState.item) {
         return {
@@ -1026,10 +1010,10 @@ export const getCurrentPlayback = tool({
         track: {
           id: currentTrack.id,
           name: currentTrack.name,
-          artists: currentTrack.artists.map((artist) => artist.name).join(", "),
-          album: currentTrack.album.name,
+          artists: (currentTrack as any).artists?.map((artist: any) => artist.name).join(", ") || "Unknown",
+          album: (currentTrack as any).album?.name || "Unknown",
           duration_ms: currentTrack.duration_ms,
-          popularity: currentTrack.popularity,
+          popularity: (currentTrack as any).popularity || 0,
           external_urls: currentTrack.external_urls,
         },
 
@@ -1059,8 +1043,8 @@ export const getCurrentPlayback = tool({
           activityType: "track_play",
           trackId: currentTrack.id,
           trackName: currentTrack.name,
-          artistName: currentTrack.artists.map((a) => a.name).join(", "),
-          deviceId: device?.id,
+          artistName: (currentTrack as any).artists?.map((a: any) => a.name).join(", ") || "Unknown",
+          deviceId: device?.id || undefined,
           deviceName: device?.name,
           duration: Math.floor((playbackState.progress_ms || 0) / 1000),
         });
@@ -1074,7 +1058,7 @@ export const getCurrentPlayback = tool({
       console.error("Error getting current playback:", error);
       return {
         success: false,
-        message: `Failed to get playback state: ${error.message}`,
+        message: `Failed to get playback state: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   },
@@ -1510,7 +1494,7 @@ export const getUserPlaylists = tool({
           id: playlist.owner.id,
           name: playlist.owner.display_name,
         },
-        trackCount: includeTrackCounts ? playlist.tracks.total : undefined,
+        trackCount: includeTrackCounts ? playlist.tracks?.total || 0 : undefined,
         images: playlist.images,
         uri: playlist.uri,
         createdBy: playlist.owner.id === spotifyUserId ? "user" : "other", // Use Spotify user ID from database
@@ -1675,7 +1659,7 @@ export const analyzeMusicTaste = tool({
           followedPlaylists:
             playlists.items.length - userCreatedPlaylists.length,
           averageTracksPerPlaylist: Math.round(
-            playlists.items.reduce((sum, p) => sum + p.tracks.total, 0) /
+            playlists.items.reduce((sum, p) => sum + (p.tracks?.total || 0), 0) /
               playlists.items.length
           ),
           playlistNames: userCreatedPlaylists.slice(0, 10).map((p) => p.name),
@@ -1896,19 +1880,17 @@ export const addTracksToPlaylist = tool({
       const { spotify } = authResult;
 
       console.log(
-        `[addTracksToPlaylist] About to add ${trackUris.length} tracks to playlist ${playlistId}`
-      );
-      console.log(
-        `[addTracksToPlaylist] First few track URIs:`,
+        "[addTracksToPlaylist] First few track URIs:",
         trackUris.slice(0, 3)
       );
-      console.log(`[addTracksToPlaylist] Position:`, position);
+      console.log("[addTracksToPlaylist] Position:", position);
 
       // Add tracks to playlist with detailed error handling
-      let result;
+      // biome-ignore lint/suspicious/noExplicitAny: Spotify SDK return type is complex and not well-defined
+      let result: any;
       try {
         console.log(
-          `[addTracksToPlaylist] Calling spotify.playlists.addItemsToPlaylist...`
+          "[addTracksToPlaylist] Calling spotify.playlists.addItemsToPlaylist..."
         );
         result = await spotify.playlists.addItemsToPlaylist(
           playlistId,
@@ -1916,12 +1898,12 @@ export const addTracksToPlaylist = tool({
           position
         );
         console.log(
-          `[addTracksToPlaylist] API call completed. Result:`,
+          "[addTracksToPlaylist] API call completed. Result:",
           result
         );
       } catch (apiError) {
         console.error(
-          `[addTracksToPlaylist] API call threw an exception:`,
+          "[addTracksToPlaylist] API call threw an exception:",
           apiError
         );
         return {
@@ -1930,32 +1912,32 @@ export const addTracksToPlaylist = tool({
         };
       }
 
-      if (result && result.snapshot_id) {
+      if (result?.snapshot_id) {
         return {
           success: true,
           message: `Successfully added ${trackUris.length} tracks to playlist`,
           snapshot_id: result.snapshot_id,
         };
-      } else if (result === undefined) {
+      }
+      if (result === undefined) {
         // Spotify SDK sometimes returns undefined for successful operations
         // This is a known issue - if no exception was thrown, the operation likely succeeded
         console.log(
-          `[addTracksToPlaylist] SDK returned undefined, but operation likely succeeded`
+          "[addTracksToPlaylist] SDK returned undefined, but operation likely succeeded"
         );
         return {
           success: true,
           message: `Successfully added ${trackUris.length} tracks to playlist (no snapshot_id returned by SDK)`,
         };
-      } else {
-        console.log(
-          `[addTracksToPlaylist] No snapshot_id returned. Raw result:`,
-          result
-        );
-        return {
-          success: false,
-          message: `Failed to add tracks to playlist: Spotify API did not return a snapshot_id. (result is ${typeof result})`,
-        };
       }
+      console.log(
+        "[addTracksToPlaylist] No snapshot_id returned. Raw result:",
+        result
+      );
+      return {
+        success: false,
+        message: `Failed to add tracks to playlist: Spotify API did not return a snapshot_id. (result is ${typeof result})`,
+      };
     } catch (error) {
       console.error("[addTracksToPlaylist] Error:", error);
       return {

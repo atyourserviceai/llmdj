@@ -9,8 +9,8 @@ export default defineConfig({
     cloudflare({
       inspectorPort: 9529, // Set inspector port to avoid conflicts
     }),
-    react(),
-    tailwindcss(),
+    react() as any,
+    tailwindcss() as any,
   ],
   resolve: {
     alias: {

@@ -402,15 +402,17 @@ export async function getMusicPreferences(
 
     const row = result[0];
     return {
-      id: row.id,
-      userId: row.user_id,
-      favoriteGenres: JSON.parse(row.favorite_genres),
-      audioFeaturePreferences: JSON.parse(row.audio_feature_preferences),
-      contextPreferences: JSON.parse(row.context_preferences),
-      timePreferences: JSON.parse(row.time_preferences),
-      discoverySettings: JSON.parse(row.discovery_settings),
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at),
+      id: row.id as string,
+      userId: row.user_id as string,
+      favoriteGenres: JSON.parse(row.favorite_genres as string),
+      audioFeaturePreferences: JSON.parse(
+        row.audio_feature_preferences as string
+      ),
+      contextPreferences: JSON.parse(row.context_preferences as string),
+      timePreferences: JSON.parse(row.time_preferences as string),
+      discoverySettings: JSON.parse(row.discovery_settings as string),
+      createdAt: new Date(row.created_at as string),
+      updatedAt: new Date(row.updated_at as string),
     };
   } catch (error) {
     console.error("Error getting music preferences:", error);
@@ -436,9 +438,9 @@ export async function addListeningRecord(
         ${record.id}, ${record.userId}, ${record.spotifyTrackId},
         ${record.trackName}, ${record.artistName}, ${record.albumName},
         ${JSON.stringify(record.genres)}, ${JSON.stringify(record.audioFeatures)},
-        ${record.playedAt.toISOString()}, ${record.context}, ${record.contextId},
-        ${record.playDuration}, ${record.skipped}, ${record.liked},
-        ${record.timeOfDay}, ${record.listeningContext}, ${record.mood},
+        ${record.playedAt.toISOString()}, ${record.context || null}, ${record.contextId || null},
+        ${record.playDuration || null}, ${record.skipped}, ${record.liked},
+        ${record.timeOfDay}, ${record.listeningContext || null}, ${record.mood || null},
         ${record.createdAt.toISOString()}
       )
     `;
@@ -462,26 +464,45 @@ export async function getRecentListeningHistory(
     `;
 
     return result.map((row) => ({
-      id: row.id,
-      userId: row.user_id,
-      spotifyTrackId: row.spotify_track_id,
-      trackName: row.track_name,
-      artistName: row.artist_name,
-      albumName: row.album_name,
-      genres: JSON.parse(row.genres || "[]"),
+      id: row.id as string,
+      userId: row.user_id as string,
+      spotifyTrackId: row.spotify_track_id as string,
+      trackName: row.track_name as string,
+      artistName: row.artist_name as string,
+      albumName: row.album_name as string,
+      genres: JSON.parse((row.genres as string) || "[]"),
       audioFeatures: row.audio_features
-        ? JSON.parse(row.audio_features)
+        ? JSON.parse(row.audio_features as string)
         : undefined,
-      playedAt: new Date(row.played_at),
-      context: row.context,
-      contextId: row.context_id,
-      playDuration: row.play_duration,
-      skipped: row.skipped,
-      liked: row.liked,
-      timeOfDay: row.time_of_day,
-      listeningContext: row.listening_context,
-      mood: row.mood,
-      createdAt: new Date(row.created_at),
+      playedAt: new Date(row.played_at as string),
+      context: row.context as
+        | "playlist"
+        | "album"
+        | "artist"
+        | "search"
+        | "recommendation"
+        | undefined,
+      contextId: row.context_id as string | undefined,
+      playDuration: row.play_duration as number | undefined,
+      skipped: row.skipped as boolean,
+      liked: row.liked as boolean,
+      timeOfDay: row.time_of_day as
+        | "morning"
+        | "afternoon"
+        | "evening"
+        | "night",
+      listeningContext: row.listening_context as
+        | "workout"
+        | "study"
+        | "party"
+        | "relaxation"
+        | "commute"
+        | "work"
+        | "sleep"
+        | "other"
+        | undefined,
+      mood: row.mood as string | undefined,
+      createdAt: new Date(row.created_at as string),
     }));
   } catch (error) {
     console.error("Error getting listening history:", error);
@@ -504,9 +525,9 @@ export async function storePlaylistData(
         collaborative, purpose, target_mood, target_genres, target_audio_features,
         tracks, metrics, version, created_at, updated_at
       ) VALUES (
-        ${playlist.id}, ${playlist.userId}, ${playlist.spotifyPlaylistId},
-        ${playlist.name}, ${playlist.description}, ${playlist.isPublic},
-        ${playlist.collaborative}, ${playlist.purpose}, ${playlist.targetMood},
+        ${playlist.id}, ${playlist.userId}, ${playlist.spotifyPlaylistId || null},
+        ${playlist.name}, ${playlist.description || null}, ${playlist.isPublic},
+        ${playlist.collaborative}, ${playlist.purpose || null}, ${playlist.targetMood || null},
         ${JSON.stringify(playlist.targetGenres)}, ${JSON.stringify(playlist.targetAudioFeatures)},
         ${JSON.stringify(playlist.tracks)}, ${JSON.stringify(playlist.metrics)},
         ${playlist.version}, ${playlist.createdAt.toISOString()}, ${playlist.updatedAt.toISOString()}
@@ -542,24 +563,34 @@ export async function getUserPlaylists(
     `;
 
     return result.map((row) => ({
-      id: row.id,
-      userId: row.user_id,
-      spotifyPlaylistId: row.spotify_playlist_id,
-      name: row.name,
-      description: row.description,
-      isPublic: row.is_public,
-      collaborative: row.collaborative,
-      purpose: row.purpose,
-      targetMood: row.target_mood,
-      targetGenres: JSON.parse(row.target_genres || "[]"),
+      id: row.id as string,
+      userId: row.user_id as string,
+      spotifyPlaylistId: row.spotify_playlist_id as string | undefined,
+      name: row.name as string,
+      description: row.description as string | undefined,
+      isPublic: row.is_public as boolean,
+      collaborative: row.collaborative as boolean,
+      purpose: row.purpose as
+        | "workout"
+        | "study"
+        | "party"
+        | "relaxation"
+        | "commute"
+        | "work"
+        | "sleep"
+        | "discovery"
+        | "other"
+        | undefined,
+      targetMood: row.target_mood as string | undefined,
+      targetGenres: JSON.parse((row.target_genres as string) || "[]"),
       targetAudioFeatures: row.target_audio_features
-        ? JSON.parse(row.target_audio_features)
+        ? JSON.parse(row.target_audio_features as string)
         : undefined,
-      tracks: JSON.parse(row.tracks || "[]"),
-      metrics: JSON.parse(row.metrics || "{}"),
-      version: row.version,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at),
+      tracks: JSON.parse((row.tracks as string) || "[]"),
+      metrics: JSON.parse((row.metrics as string) || "{}"),
+      version: row.version as number,
+      createdAt: new Date(row.created_at as string),
+      updatedAt: new Date(row.updated_at as string),
     }));
   } catch (error) {
     console.error("Error getting user playlists:", error);
@@ -584,11 +615,11 @@ export async function storeCurrentSession(
         created_at, updated_at
       ) VALUES (
         ${session.id}, ${session.userId}, ${session.isActive},
-        ${JSON.stringify(session.currentTrack)}, ${session.currentContext}, ${session.currentContextId},
-        ${session.currentMood}, ${session.currentActivity}, ${JSON.stringify(session.sessionGenres)},
+        ${JSON.stringify(session.currentTrack)}, ${session.currentContext || null}, ${session.currentContextId || null},
+        ${session.currentMood || null}, ${session.currentActivity || null}, ${JSON.stringify(session.sessionGenres)},
         ${JSON.stringify(session.sessionPreferences)}, ${JSON.stringify(session.recommendations)},
-        ${session.activeDeviceId}, ${session.deviceName}, ${session.startedAt.toISOString()},
-        ${session.endedAt?.toISOString()}, ${session.createdAt.toISOString()}, ${session.updatedAt.toISOString()}
+        ${session.activeDeviceId || null}, ${session.deviceName || null}, ${session.startedAt.toISOString()},
+        ${session.endedAt?.toISOString() || null}, ${session.createdAt.toISOString()}, ${session.updatedAt.toISOString()}
       )
       ON CONFLICT (id) DO UPDATE SET
         is_active = EXCLUDED.is_active,
@@ -626,25 +657,25 @@ export async function getCurrentSession(
 
     const row = result[0];
     return {
-      id: row.id,
-      userId: row.user_id,
-      isActive: row.is_active,
+      id: row.id as string,
+      userId: row.user_id as string,
+      isActive: row.is_active as boolean,
       currentTrack: row.current_track
-        ? JSON.parse(row.current_track)
+        ? JSON.parse(row.current_track as string)
         : undefined,
-      currentContext: row.current_context,
-      currentContextId: row.current_context_id,
-      currentMood: row.current_mood,
-      currentActivity: row.current_activity,
-      sessionGenres: JSON.parse(row.session_genres || "[]"),
-      sessionPreferences: JSON.parse(row.session_preferences || "{}"),
-      recommendations: JSON.parse(row.recommendations || "[]"),
-      activeDeviceId: row.active_device_id,
-      deviceName: row.device_name,
-      startedAt: new Date(row.started_at),
-      endedAt: row.ended_at ? new Date(row.ended_at) : undefined,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at),
+      currentContext: row.current_context as "playlist" | "album" | "artist" | "radio" | "queue" | undefined,
+      currentContextId: row.current_context_id as string | undefined,
+      currentMood: row.current_mood as string | undefined,
+      currentActivity: row.current_activity as string | undefined,
+      sessionGenres: JSON.parse((row.session_genres as string) || "[]"),
+      sessionPreferences: JSON.parse((row.session_preferences as string) || "{}"),
+      recommendations: JSON.parse((row.recommendations as string) || "[]"),
+      activeDeviceId: row.active_device_id as string | undefined,
+      deviceName: row.device_name as string | undefined,
+      startedAt: new Date(row.started_at as string),
+      endedAt: row.ended_at ? new Date(row.ended_at as string) : undefined,
+      createdAt: new Date(row.created_at as string),
+      updatedAt: new Date(row.updated_at as string),
     };
   } catch (error) {
     console.error("Error getting current session:", error);

@@ -301,10 +301,9 @@ export class AppAgent extends AIChatAgent<Env> {
           `[AppAgent] ✅ Token refreshed: ${redactedOld} → ${redactedNew}`
         );
         return true;
-      } else {
-        console.log("[AppAgent] Token refresh did not result in new token");
-        return false;
       }
+      console.log("[AppAgent] Token refresh did not result in new token");
+      return false;
     } catch (error) {
       console.error("[AppAgent] Error during token refresh:", error);
       return false;
@@ -497,7 +496,7 @@ export class AppAgent extends AIChatAgent<Env> {
         const systemPrompt = this.getSystemPrompt();
 
         // AI request with retry logic for token refresh
-        let result;
+        let result: unknown;
         let retryCount = 0;
         const maxRetries = 1;
 
@@ -523,25 +522,17 @@ export class AppAgent extends AIChatAgent<Env> {
                   args as Parameters<StreamTextOnFinishCallback<ToolSet>>[0]
                 );
               },
-              onError: async (error: any) => {
+              onError: async (error: unknown) => {
                 console.error("Error while streaming:", error);
 
-                // Check if this is a 403 authentication error
+                const errorObj = error as { status?: number; message?: string };
                 if (
-                  error?.status === 403 ||
-                  (error?.message && error.message.includes("403"))
+                  errorObj?.status === 403 ||
+                  errorObj?.message?.includes("403")
                 ) {
                   console.log(
-                    "[AppAgent] 403 error detected, attempting token refresh"
+                    "[AppAgent] Detected 403 error during streaming, will retry with token refresh"
                   );
-                  const refreshed = await this.refreshTokenOnError();
-                  if (refreshed && retryCount < maxRetries) {
-                    console.log(
-                      "[AppAgent] Token refreshed, will retry AI request"
-                    );
-                    // The retry will happen in the outer while loop
-                    return;
-                  }
                 }
               },
               maxSteps: 10,
@@ -549,16 +540,16 @@ export class AppAgent extends AIChatAgent<Env> {
 
             // If we get here without error, break out of retry loop
             break;
-          } catch (error: any) {
+          } catch (error: unknown) {
             console.error(
               `[AppAgent] AI request error (attempt ${retryCount + 1}):`,
               error
             );
 
-            // Check if this is a 403 authentication error
+            const errorObj = error as { status?: number; message?: string };
             if (
-              (error?.status === 403 ||
-                (error?.message && error.message.includes("403"))) &&
+              (errorObj?.status === 403 ||
+                errorObj?.message?.includes("403")) &&
               retryCount < maxRetries
             ) {
               console.log(
@@ -583,7 +574,9 @@ export class AppAgent extends AIChatAgent<Env> {
         }
 
         // Merge the AI response stream with tool execution outputs
-        result.mergeIntoDataStream(dataStream);
+        (
+          result as { mergeIntoDataStream: (stream: unknown) => void }
+        ).mergeIntoDataStream(dataStream);
       },
       onError: getErrorMessage,
     });
@@ -680,9 +673,11 @@ export class AppAgent extends AIChatAgent<Env> {
           `;
         } else {
           // Table exists, check if it has the new schema
-          const hasIdColumn = tableInfo.some((col: any) => col.name === "id");
+          const hasIdColumn = tableInfo.some(
+            (col) => (col as { name: string }).name === "id"
+          );
           const hasAtyourserviceColumn = tableInfo.some(
-            (col: any) => col.name === "atyourservice_user_id"
+            (col) => (col as { name: string }).name === "atyourservice_user_id"
           );
 
           if (!hasIdColumn || !hasAtyourserviceColumn) {
@@ -715,7 +710,7 @@ export class AppAgent extends AIChatAgent<Env> {
 
             // Migrate existing data (old schema had user_id as primary key)
             for (const row of existingData) {
-              const oldData = row as any;
+              const oldData = row as Record<string, unknown>;
               const recordId = crypto.randomUUID();
               const now = new Date().toISOString();
 
@@ -727,10 +722,10 @@ export class AppAgent extends AIChatAgent<Env> {
                   id, atyourservice_user_id, spotify_user_id, access_token, refresh_token,
                   expires_at, token_type, scope, created_at, updated_at
                 ) VALUES (
-                  ${recordId}, ${oldData.user_id}, ${oldData.user_id}, ${oldData.access_token},
-                  ${oldData.refresh_token || ""}, ${oldData.expires_at},
-                  ${oldData.token_type || "Bearer"}, ${oldData.scope || ""},
-                  ${oldData.created_at || now}, ${now}
+                  ${recordId}, ${String(oldData.user_id)}, ${String(oldData.user_id)}, ${String(oldData.access_token)},
+                  ${String(oldData.refresh_token || "")}, ${String(oldData.expires_at)},
+                  ${String(oldData.token_type || "Bearer")}, ${String(oldData.scope || "")},
+                  ${String(oldData.created_at || now)}, ${now}
                 )
               `;
             }
@@ -1181,9 +1176,8 @@ export class AppAgent extends AIChatAgent<Env> {
         // Return appropriate HTTP status based on result
         if (result.success) {
           return Response.json(result);
-        } else {
-          return Response.json(result, { status: 400 });
         }
+        return Response.json(result, { status: 400 });
       } catch (error) {
         console.error("[AppAgent] Error storing Spotify tokens:", error);
         return Response.json(
@@ -1392,16 +1386,16 @@ export class AppAgent extends AIChatAgent<Env> {
   async onConnect(connection: Connection) {
     console.log(`[AppAgent] New client connection: ${connection.id}`);
 
-    console.log(`[AppAgent] Connection established`, {
+    console.log("[AppAgent] Connection established", {
       connectionId: connection.id,
       timestamp: new Date().toISOString(),
     });
 
     // Load user info from database (frontend will have already synced latest token)
     try {
-      console.log(`[AppAgent] Loading user info from database...`);
+      console.log("[AppAgent] Loading user info from database...");
       await this.loadUserInfo();
-      console.log(`[AppAgent] ✅ User info loaded from database`);
+      console.log("[AppAgent] ✅ User info loaded from database");
     } catch (error) {
       console.error("[AppAgent] Error loading user info:", error);
     }
