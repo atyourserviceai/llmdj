@@ -66,7 +66,7 @@ export function UserProfile() {
       <button
         type="button"
         onClick={handleDropdownToggle}
-        className="flex items-center justify-center h-9 w-9 bg-blue-500 hover:bg-blue-600 rounded-full text-white text-sm font-semibold transition-colors"
+        className="flex items-center justify-center h-8 w-8 md:h-9 md:w-9 bg-blue-500 hover:bg-blue-600 rounded-full text-white text-xs md:text-sm font-semibold transition-colors flex-shrink-0"
         title={`Signed in as ${userInfo.email}`}
       >
         {userInfo.email.charAt(0).toUpperCase()}
