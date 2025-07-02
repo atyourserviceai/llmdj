@@ -88,8 +88,8 @@
       "routes": [
         {
           "pattern": "llmdj.com",
-          "custom_domain": true
-        }
+          "custom_domain": true,
+        },
       ],
     },
   },

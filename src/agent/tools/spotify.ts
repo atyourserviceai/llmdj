@@ -987,8 +987,9 @@ export const getCurrentPlayback = tool({
       }
       const { spotify: spotifySDK } = authResult;
 
-      const playbackState =
-        await spotifySDK.player.getCurrentlyPlayingTrack(market as any);
+      const playbackState = await spotifySDK.player.getCurrentlyPlayingTrack(
+        market as any
+      );
 
       if (!playbackState || !playbackState.item) {
         return {
@@ -1010,7 +1011,10 @@ export const getCurrentPlayback = tool({
         track: {
           id: currentTrack.id,
           name: currentTrack.name,
-          artists: (currentTrack as any).artists?.map((artist: any) => artist.name).join(", ") || "Unknown",
+          artists:
+            (currentTrack as any).artists
+              ?.map((artist: any) => artist.name)
+              .join(", ") || "Unknown",
           album: (currentTrack as any).album?.name || "Unknown",
           duration_ms: currentTrack.duration_ms,
           popularity: (currentTrack as any).popularity || 0,
@@ -1043,7 +1047,9 @@ export const getCurrentPlayback = tool({
           activityType: "track_play",
           trackId: currentTrack.id,
           trackName: currentTrack.name,
-          artistName: (currentTrack as any).artists?.map((a: any) => a.name).join(", ") || "Unknown",
+          artistName:
+            (currentTrack as any).artists?.map((a: any) => a.name).join(", ") ||
+            "Unknown",
           deviceId: device?.id || undefined,
           deviceName: device?.name,
           duration: Math.floor((playbackState.progress_ms || 0) / 1000),
@@ -1172,7 +1178,10 @@ export const controlSpotifyPlayback = tool({
               message: "Volume percentage is required for volume action",
             };
           }
-          await spotify.player.setPlaybackVolume(volumePercent, deviceId as any);
+          await spotify.player.setPlaybackVolume(
+            volumePercent,
+            deviceId as any
+          );
           result = `Set volume to ${volumePercent}%${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
@@ -1253,7 +1262,7 @@ export const getUserTopTracks = tool({
       const topTracks = await spotify.currentUser.topItems(
         "tracks",
         timeRange,
-        limit
+        limit as any
       );
 
       // Format track data for analysis
@@ -1325,7 +1334,6 @@ export const getUserTopTracks = tool({
 });
 
 export const getUserTopArtists = tool({
-  name: "getUserTopArtists",
   description:
     "Get user's top artists from Spotify to analyze their music preferences",
   parameters: z.object({
@@ -1365,7 +1373,7 @@ export const getUserTopArtists = tool({
       const topArtists = await spotify.currentUser.topItems(
         "artists",
         timeRange,
-        limit
+        limit as any
       );
 
       // Format artist data for analysis
@@ -1432,7 +1440,6 @@ export const getUserTopArtists = tool({
 });
 
 export const getUserPlaylists = tool({
-  name: "getUserPlaylists",
   description:
     "Get user's Spotify playlists to analyze their music organization and preferences. Note: Spotify API limits to 50 playlists per request - if user has more, use multiple calls with offset.",
   parameters: z.object({
@@ -1477,7 +1484,7 @@ export const getUserPlaylists = tool({
 
       // Get user's playlists with offset for pagination
       const userPlaylists = await spotify.currentUser.playlists.playlists(
-        limit,
+        limit as any,
         offset
       );
 
@@ -1492,7 +1499,9 @@ export const getUserPlaylists = tool({
           id: playlist.owner.id,
           name: playlist.owner.display_name,
         },
-        trackCount: includeTrackCounts ? playlist.tracks?.total || 0 : undefined,
+        trackCount: includeTrackCounts
+          ? playlist.tracks?.total || 0
+          : undefined,
         images: playlist.images,
         uri: playlist.uri,
         createdBy: playlist.owner.id === spotifyUserId ? "user" : "other", // Use Spotify user ID from database
@@ -1551,7 +1560,6 @@ export const getUserPlaylists = tool({
 });
 
 export const analyzeMusicTaste = tool({
-  name: "analyzeMusicTaste",
   description:
     "Comprehensive analysis of user's music taste by combining top tracks, artists, and playlists data",
   parameters: z.object({
@@ -1657,8 +1665,10 @@ export const analyzeMusicTaste = tool({
           followedPlaylists:
             playlists.items.length - userCreatedPlaylists.length,
           averageTracksPerPlaylist: Math.round(
-            playlists.items.reduce((sum, p) => sum + (p.tracks?.total || 0), 0) /
-              playlists.items.length
+            playlists.items.reduce(
+              (sum, p) => sum + (p.tracks?.total || 0),
+              0
+            ) / playlists.items.length
           ),
           playlistNames: userCreatedPlaylists.slice(0, 10).map((p) => p.name),
         };
@@ -1776,7 +1786,6 @@ export const analyzeMusicTaste = tool({
  * Create a new Spotify playlist
  */
 export const createSpotifyPlaylist = tool({
-  name: "createSpotifyPlaylist",
   description:
     "Create a new Spotify playlist with the specified name and description",
   parameters: z.object({
@@ -1846,7 +1855,6 @@ export const createSpotifyPlaylist = tool({
  * Add tracks to a Spotify playlist
  */
 export const addTracksToPlaylist = tool({
-  name: "addTracksToPlaylist",
   description: "Add tracks to an existing Spotify playlist",
   parameters: z.object({
     playlistId: z.string().describe("Spotify playlist ID"),
@@ -1884,7 +1892,6 @@ export const addTracksToPlaylist = tool({
       console.log("[addTracksToPlaylist] Position:", position);
 
       // Add tracks to playlist with detailed error handling
-      // biome-ignore lint/suspicious/noExplicitAny: Spotify SDK return type is complex and not well-defined
       let result: any;
       try {
         console.log(
@@ -1892,8 +1899,7 @@ export const addTracksToPlaylist = tool({
         );
         result = await spotify.playlists.addItemsToPlaylist(
           playlistId,
-          trackUris,
-          position
+          trackUris
         );
         console.log(
           "[addTracksToPlaylist] API call completed. Result:",
@@ -1910,11 +1916,10 @@ export const addTracksToPlaylist = tool({
         };
       }
 
-      if (result?.snapshot_id) {
+      if (result) {
         return {
           success: true,
           message: `Successfully added ${trackUris.length} tracks to playlist`,
-          snapshot_id: result.snapshot_id,
         };
       }
       if (result === undefined) {
@@ -1950,7 +1955,6 @@ export const addTracksToPlaylist = tool({
  * Remove tracks from a Spotify playlist
  */
 export const removeTracksFromPlaylist = tool({
-  name: "removeTracksFromPlaylist",
   description: "Remove specific tracks from a Spotify playlist",
   parameters: z.object({
     playlistId: z.string().describe("Spotify playlist ID"),
@@ -1984,15 +1988,12 @@ export const removeTracksFromPlaylist = tool({
       const { spotify } = authResult;
 
       // Remove tracks from playlist
-      const result = await spotify.playlists.removeItemsFromPlaylist(
-        playlistId,
-        { tracks: trackUris.map((uri) => ({ uri })) },
-        snapshotId
-      );
+      await spotify.playlists.removeItemsFromPlaylist(playlistId, {
+        tracks: trackUris.map((uri) => ({ uri })),
+      });
 
       return {
         success: true,
-        snapshotId: result.snapshot_id,
         tracksRemoved: trackUris.length,
         message: `Successfully removed ${trackUris.length} tracks from playlist`,
       };
@@ -2010,7 +2011,6 @@ export const removeTracksFromPlaylist = tool({
  * Update playlist details (name, description, etc.)
  */
 export const updatePlaylistDetails = tool({
-  name: "updatePlaylistDetails",
   description: "Update the details of an existing Spotify playlist",
   parameters: z.object({
     playlistId: z.string().describe("Spotify playlist ID"),

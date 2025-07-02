@@ -324,7 +324,6 @@ export async function getSpotifyProfile(
 
     if (result.length === 0) return null;
 
-    // biome-ignore lint/suspicious/noExplicitAny: SQLite results are dynamic
     const row = result[0] as any;
     return {
       id: String(row.id),
@@ -663,12 +662,20 @@ export async function getCurrentSession(
       currentTrack: row.current_track
         ? JSON.parse(row.current_track as string)
         : undefined,
-      currentContext: row.current_context as "playlist" | "album" | "artist" | "radio" | "queue" | undefined,
+      currentContext: row.current_context as
+        | "playlist"
+        | "album"
+        | "artist"
+        | "radio"
+        | "queue"
+        | undefined,
       currentContextId: row.current_context_id as string | undefined,
       currentMood: row.current_mood as string | undefined,
       currentActivity: row.current_activity as string | undefined,
       sessionGenres: JSON.parse((row.session_genres as string) || "[]"),
-      sessionPreferences: JSON.parse((row.session_preferences as string) || "{}"),
+      sessionPreferences: JSON.parse(
+        (row.session_preferences as string) || "{}"
+      ),
       recommendations: JSON.parse((row.recommendations as string) || "[]"),
       activeDeviceId: row.active_device_id as string | undefined,
       deviceName: row.device_name as string | undefined,
