@@ -17,6 +17,33 @@ import {
 } from "../storage/history";
 
 // =====================================
+// Helper Functions
+// =====================================
+
+/**
+ * Helper function to ensure limit values are valid for Spotify API
+ * The Spotify SDK has very strict literal types, but we want to accept reasonable ranges
+ */
+function validateSpotifyLimit(limit: number): number {
+  // Ensure the limit is within valid Spotify API range (1-50)
+  // Return the value typed as any to work with SDK's strict literal types
+  return Math.min(Math.max(Math.round(limit), 1), 50);
+}
+
+/**
+ * Helper function to validate market parameter for Spotify API
+ * Returns undefined for any invalid or empty market to let Spotify use defaults
+ */
+function validateSpotifyMarket(market?: string): string | undefined {
+  // If no market provided or invalid format, return undefined to use Spotify's default
+  if (!market || market.length !== 2) {
+    return undefined;
+  }
+  // Return the market code in uppercase (Spotify expects ISO 3166-1 alpha-2 country codes)
+  return market.toUpperCase();
+}
+
+// =====================================
 // Spotify API Initialization
 // =====================================
 
@@ -560,8 +587,8 @@ export const searchSpotifyContent = tool({
       const searchResults = await spotify.search(
         query,
         types,
-        market as any,
-        limit as any
+        validateSpotifyMarket(market) as any,
+        validateSpotifyLimit(limit) as any
       );
 
       // Track discovery event - simplified since we don't need userId with agent state
@@ -988,7 +1015,7 @@ export const getCurrentPlayback = tool({
       const { spotify: spotifySDK } = authResult;
 
       const playbackState = await spotifySDK.player.getCurrentlyPlayingTrack(
-        market as any
+        validateSpotifyMarket(market) as any
       );
 
       if (!playbackState || !playbackState.item) {
@@ -1262,7 +1289,7 @@ export const getUserTopTracks = tool({
       const topTracks = await spotify.currentUser.topItems(
         "tracks",
         timeRange,
-        limit as any
+        validateSpotifyLimit(limit) as any
       );
 
       // Format track data for analysis
@@ -1373,7 +1400,7 @@ export const getUserTopArtists = tool({
       const topArtists = await spotify.currentUser.topItems(
         "artists",
         timeRange,
-        limit as any
+        validateSpotifyLimit(limit) as any
       );
 
       // Format artist data for analysis
@@ -1484,7 +1511,7 @@ export const getUserPlaylists = tool({
 
       // Get user's playlists with offset for pagination
       const userPlaylists = await spotify.currentUser.playlists.playlists(
-        limit as any,
+        validateSpotifyLimit(limit) as any,
         offset
       );
 
