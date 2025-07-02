@@ -5,9 +5,12 @@
  * All tools are wrapped with error handling here to ensure consistent behavior.
  */
 
+import { tool } from "ai";
+import { z } from "zod";
 // Import raw, unwrapped tools from their source modules
 import * as rawBrowserTools from "./browser";
 import * as rawBrowserbaseTools from "./browserbase";
+import { getGmailTools as getRawGmailTools } from "./composio";
 import * as rawContextTools from "./context";
 import * as rawIntegrationTools from "./integration";
 import * as rawMessagingTools from "./messaging";
@@ -16,11 +19,8 @@ import * as rawOnboardingTools from "./onboarding";
 import * as rawSchedulingTools from "./scheduling";
 import * as rawSearchTools from "./search";
 import * as rawSimpleFetchTools from "./simpleFetch";
-import * as rawStateTools from "./state";
 import { spotifyTools as rawSpotifyTools } from "./spotify";
-import { getGmailTools as getRawGmailTools } from "./composio";
-import { z } from "zod";
-import { tool } from "ai";
+import * as rawStateTools from "./state";
 
 // Import the wrapper function
 import {

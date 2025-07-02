@@ -1,6 +1,6 @@
-import { useEffect, useCallback, useState, useRef } from "react";
-import type { AgentMode, AppAgentState } from "../agent/AppAgent";
 import { useAgent } from "agents/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { AgentMode, AppAgentState } from "../agent/AppAgent";
 
 export function useAgentState(
   externalConfig: {

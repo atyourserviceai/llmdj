@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { getOAuthConfig, type OAuthConfig } from "../../config/oauth";
+import { type OAuthConfig, getOAuthConfig } from "../../config/oauth";
 
 // JWT token utilities (client-side versions)
 function isJWTToken(token: string): boolean {

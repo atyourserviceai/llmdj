@@ -1,6 +1,6 @@
 import { getCurrentAgent } from "agents";
-import type { AppAgent } from "../AppAgent";
 import { z } from "zod";
+import type { AppAgent } from "../AppAgent";
 
 export const debugSpotifyState = {
   name: "debugSpotifyState",

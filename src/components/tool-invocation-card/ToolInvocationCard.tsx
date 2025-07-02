@@ -1,15 +1,15 @@
+import {
+  ToolCategory,
+  getFriendlyToolName,
+  getToolCategory,
+} from "@/agent/tools/utils";
+import { SpotifyAuth } from "@/components/auth/SpotifyAuth";
 import { Button } from "@/components/button/Button";
 import { Card } from "@/components/card/Card";
 import { Tooltip } from "@/components/tooltip/Tooltip";
-import { SpotifyAuth } from "@/components/auth/SpotifyAuth";
 import { APPROVAL } from "@/shared";
 import { CaretDown, Eye, Robot } from "@phosphor-icons/react";
 import { useState } from "react";
-import {
-  getFriendlyToolName,
-  getToolCategory,
-  ToolCategory,
-} from "@/agent/tools/utils";
 import type { ToolInvocation } from "../../types/tool-invocation";
 
 interface ToolInvocationCardProps {

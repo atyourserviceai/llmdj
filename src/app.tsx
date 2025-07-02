@@ -7,12 +7,13 @@ import { useAgentState } from "./hooks/useAgentState";
 import { useErrorHandling } from "./hooks/useErrorHandling";
 import { useMessageEditing } from "./hooks/useMessageEditing";
 
+import { AuthGuard } from "./components/auth/AuthGuard";
 // OAuth imports
 import { AuthProvider, useAuth } from "./components/auth/AuthProvider";
-import { AuthGuard } from "./components/auth/AuthGuard";
-import { useAgentAuth } from "./hooks/useAgentAuth";
 import { ErrorBoundary } from "./components/error/ErrorBoundary";
+import { useAgentAuth } from "./hooks/useAgentAuth";
 
+import { ActionButtons } from "@/components/action-buttons/ActionButtons";
 import { Avatar } from "@/components/avatar/Avatar";
 // Component imports
 import { Card } from "@/components/card/Card";
@@ -26,7 +27,6 @@ import { MissingResponseIndicator } from "@/components/chat/MissingResponseIndic
 import { PlaybookContainer } from "@/components/chat/PlaybookContainer";
 import { MemoizedMarkdown } from "@/components/memoized-markdown";
 import { ToolInvocationCard } from "@/components/tool-invocation-card/ToolInvocationCard";
-import { ActionButtons } from "@/components/action-buttons/ActionButtons";
 
 // Define agent data interface for typing
 interface AgentData {

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/button/Button";
+import { useCallback, useEffect, useState } from "react";
 
 interface SpotifyConfig {
   SPOTIFY_CLIENT_ID: string;

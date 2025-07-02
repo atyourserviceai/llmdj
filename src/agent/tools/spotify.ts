@@ -4,16 +4,16 @@
  * playlist management, and music analysis capabilities.
  */
 
+import { SpotifyApi } from "@spotify/web-api-ts-sdk";
 import { getCurrentAgent } from "agents";
 import { tool } from "ai";
 import { z } from "zod";
-import { SpotifyApi } from "@spotify/web-api-ts-sdk";
 import type { AppAgent, AppAgentState } from "../AppAgent";
 
 import {
+  addDiscoveryEntry,
   addMusicSessionEntry,
   addRecommendationEntry,
-  addDiscoveryEntry,
 } from "../storage/history";
 
 // =====================================
