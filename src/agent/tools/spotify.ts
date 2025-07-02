@@ -862,13 +862,13 @@ export const getSpotifyRecommendations = tool({
               value: id,
             })) || []),
             ...(seedGenres?.map((genre) => ({
-              type: "genre" as const,
+              type: "mood" as const,
               value: genre,
             })) || []),
             ...(audioFeatureTargets
               ? [
                   {
-                    type: "features" as const,
+                    type: "context" as const,
                     value: JSON.stringify(audioFeatureTargets),
                   },
                 ]
@@ -1068,7 +1068,6 @@ export const getCurrentPlayback = tool({
  * Control Spotify playback (play, pause, skip, etc.)
  */
 export const controlSpotifyPlayback = tool({
-  name: "controlSpotifyPlayback",
   description:
     "Control Spotify playback including play, pause, skip, seek, and volume control",
   parameters: z.object({
@@ -1129,29 +1128,29 @@ export const controlSpotifyPlayback = tool({
         case "play":
           if (trackUris || contextUri) {
             await spotify.player.startResumePlayback(
-              deviceId,
+              deviceId as any,
               contextUri,
               trackUris
             );
             result = `Started playback${deviceId ? ` on device ${deviceId}` : ""}`;
           } else {
-            await spotify.player.startResumePlayback(deviceId);
+            await spotify.player.startResumePlayback(deviceId as any);
             result = `Resumed playback${deviceId ? ` on device ${deviceId}` : ""}`;
           }
           break;
 
         case "pause":
-          await spotify.player.pausePlayback(deviceId);
+          await spotify.player.pausePlayback(deviceId as any);
           result = `Paused playback${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
         case "skip_next":
-          await spotify.player.skipToNext(deviceId);
+          await spotify.player.skipToNext(deviceId as any);
           result = `Skipped to next track${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
         case "skip_previous":
-          await spotify.player.skipToPrevious(deviceId);
+          await spotify.player.skipToPrevious(deviceId as any);
           result = `Skipped to previous track${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
@@ -1162,7 +1161,7 @@ export const controlSpotifyPlayback = tool({
               message: "Position in milliseconds is required for seek action",
             };
           }
-          await spotify.player.seekToPosition(positionMs, deviceId);
+          await spotify.player.seekToPosition(positionMs, deviceId as any);
           result = `Seeked to position ${Math.floor(positionMs / 1000)}s${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
@@ -1173,7 +1172,7 @@ export const controlSpotifyPlayback = tool({
               message: "Volume percentage is required for volume action",
             };
           }
-          await spotify.player.setPlaybackVolume(volumePercent, deviceId);
+          await spotify.player.setPlaybackVolume(volumePercent, deviceId as any);
           result = `Set volume to ${volumePercent}%${deviceId ? ` on device ${deviceId}` : ""}`;
           break;
 
@@ -1215,7 +1214,6 @@ export const controlSpotifyPlayback = tool({
 });
 
 export const getUserTopTracks = tool({
-  name: "getUserTopTracks",
   description:
     "Get user's top tracks from Spotify to analyze their music preferences",
   parameters: z.object({
