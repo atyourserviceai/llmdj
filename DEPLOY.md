@@ -44,7 +44,7 @@ SPOTIFY_REDIRECT_URI="<llmdj-url>/spotify/callback"
 | -------------- | ------------------------------------------ | --------------------------------------- | ------------------------------------------------- |
 | **Local**      | `http://localhost:48787`                   | `http://localhost:5173`                 | `http://localhost:5174`                           |
 | **Staging**    | `https://staging.gateway.atyourservice.ai` | `https://dev.atyourserviceai.pages.dev` | `https://llmdj-staging.augmentedmind.workers.dev` |
-| **Production** | `https://gateway.atyourservice.ai`         | `https://atyourservice.ai`              | `https://llmdj.augmentedmind.workers.dev`         |
+| **Production** | `https://gateway.atyourservice.ai`         | `https://atyourservice.ai`              | `https://llmdj.com` (custom domain)               |
 
 ### Required Secrets
 
