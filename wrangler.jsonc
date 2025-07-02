@@ -76,20 +76,20 @@
         },
       ],
       "vars": {
-        "GATEWAY_BASE_URL": "https://atyourserviceai-gateway.motin.eu",
+        "GATEWAY_BASE_URL": "https://gateway.atyourservice.ai",
         "SETTINGS_ENVIRONMENT": "production",
         "COMPOSIO_API_KEY": "",
         "BROWSERBASE_API_KEY": "",
-        "SPOTIFY_REDIRECT_URI": "https://llmdj-production.atyourservice.ai/spotify/callback",
+        "SPOTIFY_REDIRECT_URI": "https://llmdj.com/spotify/callback",
         "OAUTH_PROVIDER_BASE_URL": "https://atyourservice.ai",
-        "ATYOURSERVICE_OAUTH_CLIENT_ID": "llmdj",
-        "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj-production.atyourservice.ai/auth/callback",
+        "ATYOURSERVICE_OAUTH_CLIENT_ID": "llmdj-oiki8k",
+        "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj.com/auth/callback",
       },
       "routes": [
         {
           "pattern": "llmdj.com",
-          "custom_domain": true,
-        },
+          "custom_domain": true
+        }
       ],
     },
   },
