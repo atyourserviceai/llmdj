@@ -18,7 +18,7 @@ export function MessageList({ children, className = "" }: MessageListProps) {
       // Use smooth scrolling behavior
       containerRef.current.scrollTo({
         top: containerRef.current.scrollHeight,
-        behavior: 'smooth'
+        behavior: "smooth",
       });
     }
   }, []);

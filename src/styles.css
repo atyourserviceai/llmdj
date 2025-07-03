@@ -7,7 +7,8 @@
 }
 
 /* Ensure the app takes full viewport height on mobile */
-html, body {
+html,
+body {
   height: 100%;
   height: calc(var(--vh, 1vh) * 100);
   /* Prevent horizontal scroll on mobile */
@@ -16,7 +17,8 @@ html, body {
 
 /* Support for modern dynamic viewport units as fallback */
 @supports (height: 100dvh) {
-  html, body {
+  html,
+  body {
     height: 100dvh;
   }
 }
