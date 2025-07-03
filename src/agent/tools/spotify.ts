@@ -871,38 +871,43 @@ export const getSpotifyRecommendations = tool({
 
       // Track each recommendation in history
       for (const track of formattedRecommendations) {
-        await addRecommendationEntry(this as unknown as AppAgent, {
-          userId,
-          timestamp: new Date().toISOString(),
-          type: "track",
-          recommendationId: track.id,
-          recommendationName: track.name,
-          artistName: track.artists,
-          reason: "Spotify recommendations API",
-          basedOn: [
-            ...(seedTracks?.map((id) => ({
-              type: "track" as const,
-              value: id,
-            })) || []),
-            ...(seedArtists?.map((id) => ({
-              type: "artist" as const,
-              value: id,
-            })) || []),
-            ...(seedGenres?.map((genre) => ({
-              type: "mood" as const,
-              value: genre,
-            })) || []),
-            ...(audioFeatureTargets
-              ? [
-                  {
-                    type: "context" as const,
-                    value: JSON.stringify(audioFeatureTargets),
-                  },
-                ]
-              : []),
-          ],
-          confidence: 0.8, // Spotify's recommendations are generally high quality
-        });
+        try {
+          await addRecommendationEntry(agent, {
+            userId,
+            timestamp: new Date().toISOString(),
+            type: "track",
+            recommendationId: track.id,
+            recommendationName: track.name,
+            artistName: track.artists,
+            reason: "Spotify recommendations API",
+            basedOn: [
+              ...(seedTracks?.map((id) => ({
+                type: "track" as const,
+                value: id,
+              })) || []),
+              ...(seedArtists?.map((id) => ({
+                type: "artist" as const,
+                value: id,
+              })) || []),
+              ...(seedGenres?.map((genre) => ({
+                type: "mood" as const,
+                value: genre,
+              })) || []),
+              ...(audioFeatureTargets
+                ? [
+                    {
+                      type: "context" as const,
+                      value: JSON.stringify(audioFeatureTargets),
+                    },
+                  ]
+                : []),
+            ],
+            confidence: 0.8, // Spotify's recommendations are generally high quality
+          });
+        } catch (historyError) {
+          console.error("[getSpotifyRecommendations] History tracking failed for track:", track.id, historyError);
+          // Don't fail the whole operation if history tracking fails
+        }
       }
 
       return {
@@ -1067,20 +1072,25 @@ export const getCurrentPlayback = tool({
 
       // Track current playback in session
       if (playbackState.is_playing && currentTrack) {
-        await addMusicSessionEntry(this as unknown as AppAgent, {
-          userId,
-          sessionId: crypto.randomUUID(), // This should be managed per session
-          timestamp: new Date().toISOString(),
-          activityType: "track_play",
-          trackId: currentTrack.id,
-          trackName: currentTrack.name,
-          artistName:
-            (currentTrack as any).artists?.map((a: any) => a.name).join(", ") ||
-            "Unknown",
-          deviceId: device?.id || undefined,
-          deviceName: device?.name,
-          duration: Math.floor((playbackState.progress_ms || 0) / 1000),
-        });
+        try {
+          await addMusicSessionEntry(agent, {
+            userId,
+            sessionId: crypto.randomUUID(), // This should be managed per session
+            timestamp: new Date().toISOString(),
+            activityType: "track_play",
+            trackId: currentTrack.id,
+            trackName: currentTrack.name,
+            artistName:
+              (currentTrack as any).artists?.map((a: any) => a.name).join(", ") ||
+              "Unknown",
+            deviceId: device?.id || undefined,
+            deviceName: device?.name,
+            duration: Math.floor((playbackState.progress_ms || 0) / 1000),
+          });
+        } catch (historyError) {
+          console.error("[getCurrentPlayback] History tracking failed:", historyError);
+          // Don't fail the whole operation if history tracking fails
+        }
       }
 
       return {
@@ -1159,32 +1169,74 @@ export const controlSpotifyPlayback = tool({
       let result: unknown;
       switch (action) {
         case "play":
-          if (trackUris || contextUri) {
-            await spotify.player.startResumePlayback(
-              deviceId as any,
-              contextUri,
-              trackUris
-            );
-            result = `Started playback${deviceId ? ` on device ${deviceId}` : ""}`;
-          } else {
-            await spotify.player.startResumePlayback(deviceId as any);
-            result = `Resumed playback${deviceId ? ` on device ${deviceId}` : ""}`;
+          try {
+            if (trackUris || contextUri) {
+              await spotify.player.startResumePlayback(
+                deviceId as any,
+                contextUri,
+                trackUris
+              );
+              result = `Started playback${deviceId ? ` on device ${deviceId}` : ""}`;
+            } else {
+              await spotify.player.startResumePlayback(deviceId as any);
+              result = `Resumed playback${deviceId ? ` on device ${deviceId}` : ""}`;
+            }
+          } catch (playError: any) {
+            // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
+            if (playError?.message?.includes('is not valid JSON') || playError?.name === 'SyntaxError') {
+              // This is likely a successful response that couldn't be parsed as JSON
+              result = trackUris || contextUri
+                ? `Started playback${deviceId ? ` on device ${deviceId}` : ""}`
+                : `Resumed playback${deviceId ? ` on device ${deviceId}` : ""}`;
+            } else {
+              throw playError; // Re-throw if it's a different error
+            }
           }
           break;
 
         case "pause":
-          await spotify.player.pausePlayback(deviceId as any);
-          result = `Paused playback${deviceId ? ` on device ${deviceId}` : ""}`;
+          try {
+            await spotify.player.pausePlayback(deviceId as any);
+            result = `Paused playback${deviceId ? ` on device ${deviceId}` : ""}`;
+          } catch (pauseError: any) {
+            // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
+            if (pauseError?.message?.includes('is not valid JSON') || pauseError?.name === 'SyntaxError') {
+              // This is likely a successful response that couldn't be parsed as JSON
+              result = `Paused playback${deviceId ? ` on device ${deviceId}` : ""}`;
+            } else {
+              throw pauseError; // Re-throw if it's a different error
+            }
+          }
           break;
 
         case "skip_next":
-          await spotify.player.skipToNext(deviceId as any);
-          result = `Skipped to next track${deviceId ? ` on device ${deviceId}` : ""}`;
+          try {
+            await spotify.player.skipToNext(deviceId as any);
+            result = `Skipped to next track${deviceId ? ` on device ${deviceId}` : ""}`;
+          } catch (skipError: any) {
+            // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
+            if (skipError?.message?.includes('is not valid JSON') || skipError?.name === 'SyntaxError') {
+              // This is likely a successful response that couldn't be parsed as JSON
+              result = `Skipped to next track${deviceId ? ` on device ${deviceId}` : ""}`;
+            } else {
+              throw skipError; // Re-throw if it's a different error
+            }
+          }
           break;
 
         case "skip_previous":
-          await spotify.player.skipToPrevious(deviceId as any);
-          result = `Skipped to previous track${deviceId ? ` on device ${deviceId}` : ""}`;
+          try {
+            await spotify.player.skipToPrevious(deviceId as any);
+            result = `Skipped to previous track${deviceId ? ` on device ${deviceId}` : ""}`;
+          } catch (skipError: any) {
+            // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
+            if (skipError?.message?.includes('is not valid JSON') || skipError?.name === 'SyntaxError') {
+              // This is likely a successful response that couldn't be parsed as JSON
+              result = `Skipped to previous track${deviceId ? ` on device ${deviceId}` : ""}`;
+            } else {
+              throw skipError; // Re-throw if it's a different error
+            }
+          }
           break;
 
         case "seek":
@@ -1194,8 +1246,18 @@ export const controlSpotifyPlayback = tool({
               message: "Position in milliseconds is required for seek action",
             };
           }
-          await spotify.player.seekToPosition(positionMs, deviceId as any);
-          result = `Seeked to position ${Math.floor(positionMs / 1000)}s${deviceId ? ` on device ${deviceId}` : ""}`;
+          try {
+            await spotify.player.seekToPosition(positionMs, deviceId as any);
+            result = `Seeked to position ${Math.floor(positionMs / 1000)}s${deviceId ? ` on device ${deviceId}` : ""}`;
+          } catch (seekError: any) {
+            // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
+            if (seekError?.message?.includes('is not valid JSON') || seekError?.name === 'SyntaxError') {
+              // This is likely a successful response that couldn't be parsed as JSON
+              result = `Seeked to position ${Math.floor(positionMs / 1000)}s${deviceId ? ` on device ${deviceId}` : ""}`;
+            } else {
+              throw seekError; // Re-throw if it's a different error
+            }
+          }
           break;
 
         case "volume":
@@ -1205,11 +1267,21 @@ export const controlSpotifyPlayback = tool({
               message: "Volume percentage is required for volume action",
             };
           }
-          await spotify.player.setPlaybackVolume(
-            volumePercent,
-            deviceId as any
-          );
-          result = `Set volume to ${volumePercent}%${deviceId ? ` on device ${deviceId}` : ""}`;
+          try {
+            await spotify.player.setPlaybackVolume(
+              volumePercent,
+              deviceId as any
+            );
+            result = `Set volume to ${volumePercent}%${deviceId ? ` on device ${deviceId}` : ""}`;
+          } catch (volumeError: any) {
+            // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
+            if (volumeError?.message?.includes('is not valid JSON') || volumeError?.name === 'SyntaxError') {
+              // This is likely a successful response that couldn't be parsed as JSON
+              result = `Set volume to ${volumePercent}%${deviceId ? ` on device ${deviceId}` : ""}`;
+            } else {
+              throw volumeError; // Re-throw if it's a different error
+            }
+          }
           break;
 
         default:
@@ -1220,18 +1292,23 @@ export const controlSpotifyPlayback = tool({
       }
 
       // Track the action in music session history
-      await addMusicSessionEntry(this as unknown as AppAgent, {
-        userId: spotifyUserId,
-        sessionId: crypto.randomUUID(), // TODO: Use actual session tracking
-        timestamp: new Date().toISOString(),
-        activityType:
-          action === "play"
-            ? "track_play"
-            : action === "skip_next" || action === "skip_previous"
-              ? "track_skip"
-              : "session_start",
-        context: "playback_control",
-      });
+      try {
+        await addMusicSessionEntry(agent, {
+          userId: spotifyUserId,
+          sessionId: crypto.randomUUID(), // TODO: Use actual session tracking
+          timestamp: new Date().toISOString(),
+          activityType:
+            action === "play"
+              ? "track_play"
+              : action === "skip_next" || action === "skip_previous"
+                ? "track_skip"
+                : "session_start",
+          context: "playback_control",
+        });
+      } catch (historyError) {
+        console.error("[controlSpotifyPlayback] History tracking failed:", historyError);
+        // Don't fail the whole operation if history tracking fails
+      }
 
       return {
         success: true,
