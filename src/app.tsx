@@ -1213,12 +1213,14 @@ function Chat() {
           {renderMessages()}
         </ChatContainer>
 
-        {/* Playbook/Spotify Panel - Now visible on both mobile and desktop */}
-        <PlaybookContainer
-          agentMode={agentMode}
-          agentState={agentState}
-          showDebug={showDebug}
-        />
+        {/* Playbook Panel - Desktop only */}
+        <div className="hidden md:block">
+          <PlaybookContainer
+            agentMode={agentMode}
+            agentState={agentState}
+            showDebug={showDebug}
+          />
+        </div>
       </div>
     </div>
   );
