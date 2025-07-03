@@ -736,7 +736,7 @@ function getSpotifyCallbackHTML(
   <script>
     console.log('[SpotifyCallback] Script starting...');
     console.log('[SpotifyCallback] Received data:', {
-      code: ${JSON.stringify(tokenData?.code?.substring(0, 20) + "...")},
+      code: ${JSON.stringify(`${tokenData?.code?.substring(0, 20)}...`)},
       state: ${JSON.stringify(tokenData?.state)}
     });
 

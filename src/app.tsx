@@ -549,7 +549,7 @@ function Chat() {
     async (code: string, state: string) => {
       try {
         console.log("[DEBUG] Starting OAuth token exchange...");
-        console.log("[DEBUG] Received state:", state?.substring(0, 10) + "...");
+        console.log("[DEBUG] Received state:", `${state?.substring(0, 10)}...`);
 
         // Get the stored code verifier and state from sessionStorage
         const storedCodeVerifier = sessionStorage.getItem(
@@ -559,7 +559,7 @@ function Chat() {
 
         console.log(
           "[DEBUG] Stored state:",
-          storedState?.substring(0, 10) + "..."
+          `${storedState?.substring(0, 10)}...`
         );
         console.log("[DEBUG] Code verifier exists:", !!storedCodeVerifier);
         console.log(
@@ -573,11 +573,11 @@ function Chat() {
           console.error("[DEBUG] Code verifier exists:", !!storedCodeVerifier);
           console.error(
             "[DEBUG] Expected state:",
-            storedState?.substring(0, 10) + "..."
+            `${storedState?.substring(0, 10)}...`
           );
           console.error(
             "[DEBUG] Received state:",
-            state?.substring(0, 10) + "..."
+            `${state?.substring(0, 10)}...`
           );
           return;
         }
@@ -841,12 +841,12 @@ function Chat() {
       const spotifyCallback = urlParams.get("spotify_callback");
 
       console.log("[DEBUG] URL parameters:", {
-        code: code?.substring(0, 10) + "...",
-        state: state?.substring(0, 10) + "...",
+        code: `${code?.substring(0, 10)}...`,
+        state: `${state?.substring(0, 10)}...`,
         error,
         errorDescription,
-        spotifyCode: spotifyCode?.substring(0, 10) + "...",
-        spotifyState: spotifyState?.substring(0, 10) + "...",
+        spotifyCode: `${spotifyCode?.substring(0, 10)}...`,
+        spotifyState: `${spotifyState?.substring(0, 10)}...`,
         spotifyCallback,
       });
 
