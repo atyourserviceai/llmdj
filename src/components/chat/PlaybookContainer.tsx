@@ -38,7 +38,7 @@ export function PlaybookContainer({
   };
 
   return (
-    <div className="h-full w-full md:w-2/5 lg:w-2/5 md:max-w-[600px] flex-shrink-0 shadow-xl rounded-md overflow-hidden relative border border-neutral-300 dark:border-neutral-800">
+    <div className="h-full w-full md:w-80 lg:w-96 xl:w-[420px] flex-shrink-0 shadow-xl rounded-md overflow-hidden relative border border-neutral-300 dark:border-neutral-800">
       <div className="h-full flex flex-col">
         {/* Mode Info Card - Desktop only */}
         <div className="hidden md:block p-4">
