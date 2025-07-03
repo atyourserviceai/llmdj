@@ -1,5 +1,6 @@
 import { Button } from "@/components/button/Button";
 import { useCallback, useEffect, useState } from "react";
+import type { AppAgentState } from "../../agent/AppAgent";
 
 interface SpotifyConfig {
   SPOTIFY_CLIENT_ID: string;
@@ -7,6 +8,7 @@ interface SpotifyConfig {
 }
 
 interface SpotifyAuthProps {
+  agentState: AppAgentState | null;
   onAuthSuccess: (tokens: {
     access_token: string;
     refresh_token?: string;
@@ -15,10 +17,16 @@ interface SpotifyAuthProps {
   onAuthError: (error: string) => void;
 }
 
-export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
+export function SpotifyAuth({
+  agentState,
+  onAuthSuccess,
+  onAuthError,
+}: SpotifyAuthProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const [config, setConfig] = useState<SpotifyConfig | null>(null);
+
+  // Use agent state for connection status instead of local state
+  const isConnected = agentState?.spotifyAuth?.isConnected || false;
 
   // Removed excessive logging that was cluttering console on every render
 
@@ -175,7 +183,7 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
         );
         console.log("[SpotifyAuth] Cleaned up URL");
 
-        setIsConnected(true);
+        setIsLoading(false);
         console.log("[SpotifyAuth] Calling onAuthSuccess with tokens...");
         onAuthSuccess(tokens);
       } catch (error) {
@@ -185,8 +193,6 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
             ? error.message
             : "Failed to complete Spotify authentication"
         );
-      } finally {
-        setIsLoading(false);
       }
     },
     [config, onAuthSuccess, onAuthError]

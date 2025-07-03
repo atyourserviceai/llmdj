@@ -1073,6 +1073,7 @@ function Chat() {
                     return (
                       <div key={`${message.id}-tool-${toolCallId}`}>
                         <ToolInvocationCard
+                          agentState={agentState}
                           toolInvocation={toolInvocation}
                           toolCallId={toolCallId}
                           needsConfirmation={needsConfirmation}

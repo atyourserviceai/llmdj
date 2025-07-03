@@ -11,8 +11,10 @@ import { APPROVAL } from "@/shared";
 import { CaretDown, Eye, Robot } from "@phosphor-icons/react";
 import { useState } from "react";
 import type { ToolInvocation } from "../../types/tool-invocation";
+import type { AppAgentState } from "../../agent/AppAgent";
 
 interface ToolInvocationCardProps {
+  agentState: AppAgentState | null;
   toolInvocation: ToolInvocation;
   toolCallId: string;
   needsConfirmation: boolean;
@@ -40,6 +42,7 @@ const getCategoryColorClass = (category: ToolCategory): string => {
 };
 
 export function ToolInvocationCard({
+  agentState,
   toolInvocation,
   toolCallId,
   needsConfirmation,
@@ -322,6 +325,7 @@ export function ToolInvocationCard({
                       console.error("Spotify auth error:", error);
                       // Could show an error message or dispatch an error event
                     }}
+                    agentState={agentState}
                   />
                 </div>
               ) : (
