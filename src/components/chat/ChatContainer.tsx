@@ -11,7 +11,6 @@ type ChatContainerProps = {
   inputValue: string;
   isLoading: boolean;
   pendingConfirmation: boolean;
-  activeTab: "chat" | "playbook";
   children: ReactNode;
   suggestedActionsComponent?: ReactNode;
   onToggleTheme: () => void;
@@ -29,7 +28,6 @@ export function ChatContainer({
   inputValue,
   isLoading,
   pendingConfirmation,
-  activeTab,
   children,
   suggestedActionsComponent,
   onToggleTheme,
@@ -40,11 +38,7 @@ export function ChatContainer({
   onInputSubmit,
 }: ChatContainerProps) {
   return (
-    <div
-      className={`h-full w-full md:w-4/5 lg:w-3/5 max-w-[600px] md:max-w-[800px] flex-shrink-0 flex flex-col shadow-xl rounded-md overflow-hidden relative border border-neutral-300 dark:border-neutral-800 ${
-        activeTab === "chat" ? "block" : "hidden md:flex"
-      }`}
-    >
+    <div className="h-full w-full md:w-3/5 lg:w-3/5 flex-shrink-0 flex flex-col shadow-xl rounded-md overflow-hidden relative border border-neutral-300 dark:border-neutral-800">
       {/* Header */}
       <ChatHeader
         theme={theme}

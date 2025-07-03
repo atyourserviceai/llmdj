@@ -19,7 +19,7 @@ import { Avatar } from "@/components/avatar/Avatar";
 import { Card } from "@/components/card/Card";
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { ChatMessage } from "@/components/chat/ChatMessage";
-import { ChatTabs } from "@/components/chat/ChatTabs";
+
 import { EmptyChat } from "@/components/chat/EmptyChat";
 import { ErrorMessage } from "@/components/chat/ErrorMessage";
 import { LoadingIndicator } from "@/components/chat/LoadingIndicator";
@@ -205,7 +205,6 @@ function Chat() {
     return (savedTheme as "dark" | "light") || "dark";
   });
   const [showDebug, setShowDebug] = useState(false);
-  const [activeTab, setActiveTab] = useState<"chat" | "playbook">("chat");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Add temporary loading state for smoother mode transitions
   const [temporaryLoading, setTemporaryLoading] = useState(false);
@@ -483,10 +482,6 @@ function Chat() {
     function handleSetChatInput(event: CustomEvent) {
       if (event.detail) {
         setInput(event.detail.text || "");
-        // If we're not in chat tab, switch to it
-        if (activeTab !== "chat") {
-          setActiveTab("chat");
-        }
       }
     }
 
@@ -503,7 +498,7 @@ function Chat() {
         handleSetChatInput as EventListener
       );
     };
-  }, [setInput, activeTab]);
+  }, [setInput]);
 
   // Handle OAuth token exchange
   const handleOAuthTokenExchange = useCallback(
@@ -1119,8 +1114,9 @@ function Chat() {
   const handleRetryLastUserMessageWithTokenCheck = () => {
     // Check for token expiration before retrying (with safety check)
     if (auth?.checkTokenExpiration()) {
-      return; // Token expired, user will be prompted to re-authentication
+      return; // Token expired, user will be prompted to re-authenticate
     }
+
     handleRetryLastUserMessage();
   };
 
@@ -1188,8 +1184,8 @@ function Chat() {
   return (
     <div className="h-[100vh] w-full p-2 md:p-4 flex justify-center items-center bg-fixed overflow-hidden">
       {/* Main Container - Responsive layout with chat and playbook */}
-      <div className="h-[calc(100vh-1rem)] md:h-[calc(100vh-2rem)] w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 pb-14 md:pb-0">
-        {/* Chat UI */}
+      <div className="h-[calc(100vh-1rem)] md:h-[calc(100vh-2rem)] w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4">
+        {/* Chat UI - Full width on mobile, shared width on desktop */}
         <ChatContainer
           theme={theme}
           showDebug={showDebug}
@@ -1197,7 +1193,6 @@ function Chat() {
           inputValue={agentInput}
           isLoading={isLoading}
           pendingConfirmation={pendingToolCallConfirmation}
-          activeTab={activeTab}
           onToggleTheme={toggleTheme}
           onToggleDebug={() => setShowDebug((prev) => !prev)}
           onChangeMode={(newMode) => {
@@ -1218,17 +1213,13 @@ function Chat() {
           {renderMessages()}
         </ChatContainer>
 
-        {/* Playbook Panel */}
+        {/* Spotify Panel - Desktop only */}
         <PlaybookContainer
-          activeTab={activeTab}
           agentMode={agentMode}
           agentState={agentState}
           showDebug={showDebug}
         />
       </div>
-
-      {/* Mobile Tabs at the bottom */}
-      <ChatTabs activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
 }
