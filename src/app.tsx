@@ -25,6 +25,7 @@ import { ErrorMessage } from "@/components/chat/ErrorMessage";
 import { LoadingIndicator } from "@/components/chat/LoadingIndicator";
 import { MissingResponseIndicator } from "@/components/chat/MissingResponseIndicator";
 import { PlaybookContainer } from "@/components/chat/PlaybookContainer";
+import { SpotifyPlayerCard } from "@/components/chat/SpotifyPlayerCard";
 import { MemoizedMarkdown } from "@/components/memoized-markdown";
 import { ToolInvocationCard } from "@/components/tool-invocation-card/ToolInvocationCard";
 
@@ -950,14 +951,51 @@ function Chat() {
                       return null;
                     }
 
+                    // Check if this tool result has embedded player data
+                    const hasEmbeddedPlayer =
+                      toolInvocation.state === "result" &&
+                      toolInvocation.result &&
+                      typeof toolInvocation.result === "object" &&
+                      "showEmbeddedPlayer" in toolInvocation.result &&
+                      toolInvocation.result.showEmbeddedPlayer === true &&
+                      "embeddedPlayerData" in toolInvocation.result &&
+                      toolInvocation.result.embeddedPlayerData &&
+                      typeof toolInvocation.result.embeddedPlayerData ===
+                        "object";
+
                     return (
-                      <ToolInvocationCard
-                        key={`${message.id}-tool-${toolCallId}`}
-                        toolInvocation={toolInvocation}
-                        toolCallId={toolCallId}
-                        needsConfirmation={needsConfirmation}
-                        addToolResult={addToolResult}
-                      />
+                      <div key={`${message.id}-tool-${toolCallId}`}>
+                        <ToolInvocationCard
+                          toolInvocation={toolInvocation}
+                          toolCallId={toolCallId}
+                          needsConfirmation={needsConfirmation}
+                          addToolResult={addToolResult}
+                        />
+
+                        {/* Render Spotify player directly in chat when available */}
+                        {hasEmbeddedPlayer && (
+                          <div className="mt-3">
+                            <SpotifyPlayerCard
+                              uri={
+                                (toolInvocation.result as any)
+                                  .embeddedPlayerData.uri
+                              }
+                              title={
+                                (toolInvocation.result as any)
+                                  .embeddedPlayerData.title
+                              }
+                              description={
+                                (toolInvocation.result as any)
+                                  .embeddedPlayerData.description
+                              }
+                              reason={
+                                (toolInvocation.result as any)
+                                  .embeddedPlayerData.reason
+                              }
+                            />
+                          </div>
+                        )}
+                      </div>
                     );
                   }
 
