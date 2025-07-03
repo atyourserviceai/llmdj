@@ -59,7 +59,7 @@ export function ChatInput({
         e.preventDefault();
         onSubmit(e);
       }}
-      className="p-3 bg-white dark:bg-neutral-900 absolute bottom-0 left-0 right-0 z-20 border-t border-neutral-300 dark:border-neutral-800 md:pb-3"
+      className="p-3 bg-white dark:bg-neutral-900 border-t border-neutral-300 dark:border-neutral-800"
     >
       <div className="flex items-center gap-2">
         <div className="flex-1 relative">

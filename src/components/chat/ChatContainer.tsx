@@ -38,32 +38,37 @@ export function ChatContainer({
   onInputSubmit,
 }: ChatContainerProps) {
   return (
-    <div className="h-full w-full md:w-3/5 lg:w-3/5 flex-shrink-0 flex flex-col shadow-xl rounded-md overflow-hidden relative border border-neutral-300 dark:border-neutral-800">
+    <div className="h-full w-full md:w-3/5 lg:w-3/5 flex-shrink-0 flex flex-col shadow-xl rounded-md overflow-hidden border border-neutral-300 dark:border-neutral-800">
       {/* Header */}
-      <ChatHeader
-        theme={theme}
-        showDebug={showDebug}
-        agentMode={agentMode}
-        onToggleTheme={onToggleTheme}
-        onToggleDebug={onToggleDebug}
-        onChangeMode={onChangeMode}
-        onClearHistory={onClearHistory}
-      />
+      <div className="flex-shrink-0">
+        <ChatHeader
+          theme={theme}
+          showDebug={showDebug}
+          agentMode={agentMode}
+          onToggleTheme={onToggleTheme}
+          onToggleDebug={onToggleDebug}
+          onChangeMode={onChangeMode}
+          onClearHistory={onClearHistory}
+        />
+      </div>
 
-      {/* Messages */}
-      <MessageList>{children}</MessageList>
+      {/* Messages - Takes remaining space */}
+      <div className="flex-1 min-h-0 flex flex-col">
+        <MessageList>{children}</MessageList>
+        {/* Suggested actions */}
+        {suggestedActionsComponent}
+      </div>
 
-      {/* Suggested actions */}
-      {suggestedActionsComponent}
-
-      {/* Input */}
-      <ChatInput
-        value={inputValue}
-        onChange={onInputChange}
-        onSubmit={onInputSubmit}
-        isLoading={isLoading}
-        pendingConfirmation={pendingConfirmation}
-      />
+      {/* Input - Fixed at bottom */}
+      <div className="flex-shrink-0">
+        <ChatInput
+          value={inputValue}
+          onChange={onInputChange}
+          onSubmit={onInputSubmit}
+          isLoading={isLoading}
+          pendingConfirmation={pendingConfirmation}
+        />
+      </div>
     </div>
   );
 }

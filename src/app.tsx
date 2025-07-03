@@ -1327,7 +1327,7 @@ function Chat() {
   }, [agentMessages, isLoading, temporaryLoading, reloadWithTokenCheck]);
 
   return (
-    <div className="h-[100vh] w-full p-2 md:p-4 flex justify-center items-center bg-fixed overflow-hidden">
+    <div className="min-h-screen max-h-screen w-full p-2 md:p-4 flex justify-center items-center bg-fixed overflow-hidden">
       {/* Main Container - Responsive layout with chat and playbook */}
       <div className="h-[calc(100vh-1rem)] md:h-[calc(100vh-2rem)] w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
         {/* Chat UI - Full width on mobile, shared width on desktop */}
