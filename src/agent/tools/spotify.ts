@@ -1379,7 +1379,7 @@ export const controlSpotifyPlayback = tool({
         const returnData = {
           success: true,
           message:
-            "I've loaded an embedded Spotify player for you since no active device was found. Click the play button in the player below to start the music.",
+            "Using embedded player since no active Spotify device is available. You can control playback directly in the player below.",
           showEmbeddedPlayer: true,
           embeddedPlayerData: {
             uri: playerUri,
