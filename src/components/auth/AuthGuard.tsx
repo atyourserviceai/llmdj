@@ -66,11 +66,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
         <div className="max-w-md w-full">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-white mb-3 leading-tight max-w-lg mx-auto">
-              Tired of Siri not understanding your music requests?
+              LLMDJ
             </h1>
-            <p className="text-green-400 text-lg mb-1">✨ LLMDJ ✨</p>
+            <p className="text-green-400 text-lg mb-1">
+              ✨ AI Playlist Curator & DJ ✨
+            </p>
             <p className="text-gray-400 text-sm mt-2">
-              Where Siri fails, LLMDJ succeeds
+              Ask and get a song played or a playlist curated by AI
             </p>
           </div>
 
