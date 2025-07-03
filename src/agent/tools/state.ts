@@ -153,10 +153,10 @@ export const getModeInfo = tool({
         currentMode,
         availableTransitions: [] as string[],
         modeDescriptions: {
-          onboarding: "Configure agent settings and initial setup",
-          integration: "Test tools and integrations before deployment",
-          plan: "Analyze tasks and create strategic plans",
-          act: "Execute tasks and take concrete actions",
+          onboarding: "Connect Spotify and discover your music taste",
+          integration: "Test Spotify API connection and music tools",
+          plan: "Plan music discovery and playlist strategies",
+          act: "Control music playback and create playlists",
         },
       };
 

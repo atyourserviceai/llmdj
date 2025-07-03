@@ -27,13 +27,13 @@ export function ModeInfoCard({ agentMode }: ModeInfoCardProps) {
 
       <p className="text-sm text-neutral-600 dark:text-neutral-400">
         {agentMode === "onboarding" &&
-          "Let me help you configure your agent settings and initial setup. I'll guide you through:"}
+          "Let me connect to your Spotify and discover your music taste. I'll help you:"}
         {agentMode === "integration" &&
-          "In this mode, we can test your tools and integrations before using them. I'll help you:"}
+          "In this mode, we can test your Spotify connection and music tools. I'll help you:"}
         {agentMode === "plan" &&
-          "Let me help you analyze tasks and create strategic plans. Try asking about:"}
+          "Let me help you plan your music discovery and playlist strategies. Try asking about:"}
         {agentMode === "act" &&
-          "Ready to execute tasks and take action. I can help you:"}
+          "Ready to control your music and create playlists. I can help you:"}
       </p>
 
       <div className="text-sm space-y-2">
@@ -41,15 +41,15 @@ export function ModeInfoCard({ agentMode }: ModeInfoCardProps) {
           <>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Configuring your agent settings and preferences</span>
+              <span>Connect your Spotify account securely</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Setting up operators and admin contacts</span>
+              <span>Analyze your existing playlists and listening history</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Preparing your agent for integration testing</span>
+              <span>Discover your music preferences automatically</span>
             </div>
           </>
         )}
@@ -58,19 +58,19 @@ export function ModeInfoCard({ agentMode }: ModeInfoCardProps) {
           <>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Test tools and integrations with sample data</span>
+              <span>Test your Spotify API connection and permissions</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Document how tools should be used in your context</span>
+              <span>Verify playback controls and device availability</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Get recommendations for fixing any issues</span>
+              <span>Test music search and discovery functionality</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>When ready, transition to planning mode</span>
+              <span>Validate playlist operations with sample data</span>
             </div>
           </>
         )}
@@ -79,15 +79,15 @@ export function ModeInfoCard({ agentMode }: ModeInfoCardProps) {
           <>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Break down complex tasks into manageable steps</span>
+              <span>Plan playlists and listening sessions</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Create strategic approaches to problems</span>
+              <span>Discuss music discovery strategies</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Analyze requirements and resources</span>
+              <span>Explore new genres and artists (read-only)</span>
             </div>
           </>
         )}
@@ -96,15 +96,15 @@ export function ModeInfoCard({ agentMode }: ModeInfoCardProps) {
           <>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Execute planned tasks and actions</span>
+              <span>Control Spotify playback (play, pause, skip, volume)</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Interact with external systems and services</span>
+              <span>Create and manage playlists in real-time</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[#F48120]">•</span>
-              <span>Take concrete steps toward achieving goals</span>
+              <span>Perform live DJ operations and recommendations</span>
             </div>
           </>
         )}
