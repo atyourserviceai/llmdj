@@ -34,6 +34,18 @@ html, body {
     overscroll-behavior: none;
     /* Smooth scrolling for better UX */
     -webkit-overflow-scrolling: touch;
+    /* Prevent any body scrolling that could cause layout issues */
+    overflow: hidden;
+    /* Ensure no margin/padding causing gaps */
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Prevent any element from causing body scroll */
+  #root {
+    overflow: hidden;
+    height: 100%;
+    height: calc(var(--vh, 1vh) * 100);
   }
 }
 
