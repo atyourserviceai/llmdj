@@ -7,7 +7,17 @@
       name="description"
       content="LLMDJ - AI-powered Spotify DJ agent. Control your music through natural language conversation."
     />
-    <meta name="theme-color" content="#1DB954" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="theme-color"
+      content="#000000"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#000000"
+      media="(prefers-color-scheme: dark)"
+    />
     <meta
       name="keywords"
       content="AI, DJ, Spotify, music, playlist, agent, artificial intelligence"
@@ -56,12 +66,23 @@
 
     <!-- Prevent flash of unstyled content -->
     <style>
-      html {
-        background: var(--background);
+      html,
+      body {
+        background: linear-gradient(to bottom right, #14532d, #000000, #14532d);
+        background-attachment: fixed;
+        margin: 0;
+        padding: 0;
       }
       @media (prefers-color-scheme: dark) {
-        html {
-          background: var(--background);
+        html,
+        body {
+          background: linear-gradient(
+            to bottom right,
+            #14532d,
+            #000000,
+            #14532d
+          );
+          background-attachment: fixed;
         }
       }
     </style>
