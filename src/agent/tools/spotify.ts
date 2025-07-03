@@ -1348,9 +1348,56 @@ export const controlSpotifyPlayback = tool({
       };
     } catch (error) {
       console.error("[controlSpotifyPlayback] Error:", error);
+
+      // Check if this is a "no active device" error and try embedded player as fallback
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      const isNoActiveDeviceError =
+        errorMessage.includes("NO_ACTIVE_DEVICE") ||
+        errorMessage.includes("No active device found") ||
+        errorMessage.includes('"reason": "NO_ACTIVE_DEVICE"') ||
+        errorMessage.includes('"reason" : "NO_ACTIVE_DEVICE"');
+
+      if (isNoActiveDeviceError && (action === "play" || action === "pause")) {
+        // Determine the URI to use for the embedded player
+        let playerUri = "spotify:playlist:37i9dQZF1DX0XUsuxWHRQd"; // Default to a popular playlist
+        let title = "Spotify Player";
+        let description =
+          "Use this player to control music when no Spotify device is active";
+
+        if (trackUris && trackUris.length > 0) {
+          playerUri = trackUris[0];
+          title = "Play Track";
+          description = "Playing the requested track in embedded player";
+        } else if (contextUri) {
+          playerUri = contextUri;
+          title = "Play Music";
+          description = "Playing the requested music in embedded player";
+        }
+
+        const returnData = {
+          success: true,
+          message:
+            "I've loaded an embedded Spotify player for you since no active device was found. Click the play button in the player below to start the music.",
+          showEmbeddedPlayer: true,
+          embeddedPlayerData: {
+            uri: playerUri,
+            title: title,
+            description: description,
+            reason: "No active device found",
+          },
+          action,
+          deviceId: "embedded-player",
+          fallbackUsed: true,
+        };
+
+        return returnData;
+      }
+
       return {
         success: false,
-        message: `Failed to control playback: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Failed to control playback: ${errorMessage}`,
       };
     }
   },

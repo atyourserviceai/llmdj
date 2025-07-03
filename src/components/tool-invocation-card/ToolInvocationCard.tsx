@@ -4,6 +4,7 @@ import {
   getToolCategory,
 } from "@/agent/tools/utils";
 import { SpotifyAuth } from "@/components/auth/SpotifyAuth";
+import { SpotifyPlayerCard } from "@/components/chat/SpotifyPlayerCard";
 import { Button } from "@/components/button/Button";
 import { Card } from "@/components/card/Card";
 import { Tooltip } from "@/components/tooltip/Tooltip";
@@ -56,8 +57,15 @@ export function ToolInvocationCard({
     "type" in toolInvocation.result.result &&
     toolInvocation.result.result.type === "spotify_auth_ui";
 
+  // Check if this has an embedded player that should be auto-expanded
+  const hasEmbeddedPlayer =
+    toolInvocation.result &&
+    typeof toolInvocation.result === "object" &&
+    "showEmbeddedPlayer" in toolInvocation.result &&
+    toolInvocation.result.showEmbeddedPlayer === true;
+
   const [isExpanded, setIsExpanded] = useState(
-    needsConfirmation || isSpotifyAuthTool
+    needsConfirmation || isSpotifyAuthTool || hasEmbeddedPlayer
   );
   const [showRawData, setShowRawData] = useState(false);
 
@@ -315,6 +323,34 @@ export function ToolInvocationCard({
                       console.error("Spotify auth error:", error);
                       // Could show an error message or dispatch an error event
                     }}
+                  />
+                </div>
+              ) : (() => {
+                  // Check if this is a tool result that requires embedded Spotify player
+                  return (
+                    toolInvocation.result &&
+                    typeof toolInvocation.result === "object" &&
+                    "showEmbeddedPlayer" in toolInvocation.result &&
+                    toolInvocation.result.showEmbeddedPlayer === true &&
+                    "embeddedPlayerData" in toolInvocation.result &&
+                    toolInvocation.result.embeddedPlayerData &&
+                    typeof toolInvocation.result.embeddedPlayerData === "object"
+                  );
+                })() ? (
+                <div className="mb-4">
+                  <p className="text-sm mb-3">{getResultSummary()}</p>
+                  <SpotifyPlayerCard
+                    uri={(toolInvocation.result as any).embeddedPlayerData.uri}
+                    title={
+                      (toolInvocation.result as any).embeddedPlayerData.title
+                    }
+                    description={
+                      (toolInvocation.result as any).embeddedPlayerData
+                        .description
+                    }
+                    reason={
+                      (toolInvocation.result as any).embeddedPlayerData.reason
+                    }
                   />
                 </div>
               ) : (

@@ -5,11 +5,10 @@ type EmptyChatProps = {
   message?: string;
 };
 
-export function EmptyChat({
-  message,
-}: EmptyChatProps) {
+export function EmptyChat({ message }: EmptyChatProps) {
   // LLMDJ-specific welcome message if none provided
-  const defaultMessage = "Ready to discover your next favorite song? Try asking me to create a playlist, find similar artists, or explore new music based on your mood!";
+  const defaultMessage =
+    "Ready to discover your next favorite song? Try asking me to create a playlist, find similar artists, or explore new music based on your mood!";
 
   return (
     <div className="h-full flex items-center justify-center">
