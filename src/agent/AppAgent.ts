@@ -172,7 +172,7 @@ export interface AppAgentState {
 export class AppAgent extends AIChatAgent<Env> {
   // Define initial agent state including the current mode
   initialState: AppAgentState = {
-    mode: "onboarding" as AgentMode,
+    mode: "act" as AgentMode,
     settings: {
       language: "en",
       operators: [],
@@ -201,9 +201,9 @@ export class AppAgent extends AIChatAgent<Env> {
       !["onboarding", "integration", "plan", "act"].includes(state.mode)
     ) {
       console.log(
-        "[AppAgent] No valid mode found in state, defaulting to onboarding mode"
+        "[AppAgent] No valid mode found in state, defaulting to act mode"
       );
-      state.mode = "onboarding";
+      state.mode = "act";
     }
 
     // Ensure settings exists
