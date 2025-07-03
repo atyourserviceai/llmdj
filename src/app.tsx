@@ -505,8 +505,8 @@ function Chat() {
   const handleOAuthTokenExchange = useCallback(
     async (code: string, state: string) => {
       try {
-        console.log("Starting OAuth token exchange...");
-        console.log("Received state:", state);
+        console.log("[DEBUG] Starting OAuth token exchange...");
+        console.log("[DEBUG] Received state:", state?.substring(0, 10) + "...");
 
         // Get the stored code verifier and state from sessionStorage
         const storedCodeVerifier = sessionStorage.getItem(
@@ -514,17 +514,37 @@ function Chat() {
         );
         const storedState = sessionStorage.getItem("spotify_state");
 
-        console.log("Stored state:", storedState);
-        console.log("Code verifier exists:", !!storedCodeVerifier);
+        console.log(
+          "[DEBUG] Stored state:",
+          storedState?.substring(0, 10) + "..."
+        );
+        console.log("[DEBUG] Code verifier exists:", !!storedCodeVerifier);
+        console.log(
+          "[DEBUG] Code verifier length:",
+          storedCodeVerifier?.length
+        );
 
         if (!storedCodeVerifier || storedState !== state) {
-          console.error("Invalid OAuth state or missing code verifier");
-          console.error("State match:", storedState === state);
-          console.error("Code verifier exists:", !!storedCodeVerifier);
+          console.error("[DEBUG] Invalid OAuth state or missing code verifier");
+          console.error("[DEBUG] State match:", storedState === state);
+          console.error("[DEBUG] Code verifier exists:", !!storedCodeVerifier);
+          console.error(
+            "[DEBUG] Expected state:",
+            storedState?.substring(0, 10) + "..."
+          );
+          console.error(
+            "[DEBUG] Received state:",
+            state?.substring(0, 10) + "..."
+          );
           return;
         }
 
+        console.log(
+          "[DEBUG] PKCE validation passed, proceeding with token exchange"
+        );
+
         // Get Spotify config
+        console.log("[DEBUG] Fetching Spotify config...");
         const configResponse = await fetch("/spotify/config");
         if (!configResponse.ok) {
           throw new Error("Failed to load Spotify configuration");
@@ -533,8 +553,10 @@ function Chat() {
           SPOTIFY_CLIENT_ID: string;
           SPOTIFY_REDIRECT_URI: string;
         };
+        console.log("[DEBUG] Spotify config loaded:", config);
 
         // Exchange authorization code for tokens
+        console.log("[DEBUG] Exchanging code for tokens with Spotify API...");
         const tokenResponse = await fetch(
           "https://accounts.spotify.com/api/token",
           {
@@ -552,30 +574,50 @@ function Chat() {
           }
         );
 
+        console.log(
+          "[DEBUG] Spotify token response status:",
+          tokenResponse.status,
+          tokenResponse.ok
+        );
+
         if (!tokenResponse.ok) {
           const errorData = (await tokenResponse.json()) as {
             error?: string;
             error_description?: string;
           };
+          console.error("[DEBUG] Spotify token exchange error:", errorData);
           throw new Error(
             `Token exchange failed: ${errorData.error_description || errorData.error}`
           );
         }
 
-        const tokens = await tokenResponse.json();
-        console.log("Token exchange successful, tokens received");
+        const tokens = (await tokenResponse.json()) as {
+          access_token: string;
+          refresh_token?: string;
+          expires_in?: number;
+          token_type?: string;
+          scope?: string;
+        };
+        console.log("[DEBUG] Token exchange successful, tokens received:", {
+          hasAccessToken: !!tokens.access_token,
+          hasRefreshToken: !!tokens.refresh_token,
+          expiresIn: tokens.expires_in,
+          scope: tokens.scope,
+        });
 
         // Clean up sessionStorage
         sessionStorage.removeItem("spotify_code_verifier");
         sessionStorage.removeItem("spotify_state");
+        console.log("[DEBUG] Cleaned up sessionStorage");
 
         // Dispatch the success event with tokens
+        console.log("[DEBUG] Dispatching spotify-auth-success event");
         const event = new CustomEvent("spotify-auth-success", {
           detail: { tokens },
         });
         window.dispatchEvent(event);
       } catch (error) {
-        console.error("OAuth token exchange failed:", error);
+        console.error("[DEBUG] OAuth token exchange failed:", error);
       }
     },
     []
@@ -585,7 +627,7 @@ function Chat() {
   useEffect(() => {
     function handleSpotifyAuthSuccess(event: CustomEvent) {
       const { tokens } = event.detail;
-      console.log("[App] handleSpotifyAuthSuccess called with tokens:", {
+      console.log("[DEBUG] handleSpotifyAuthSuccess called with tokens:", {
         hasAccessToken: !!tokens?.access_token,
         hasRefreshToken: !!tokens?.refresh_token,
         expiresIn: tokens?.expires_in,
@@ -595,15 +637,26 @@ function Chat() {
 
       // Call the agent endpoint to store tokens securely
       const storeTokens = async () => {
-        console.log("[App] Starting token storage process...");
+        console.log("[DEBUG] Starting token storage process...");
         try {
           // Get the user's AtYourService.ai OAuth token for authentication
           const authMethodStr = localStorage.getItem("auth_method");
+          console.log(
+            "[DEBUG] Auth method from localStorage:",
+            !!authMethodStr
+          );
+
           if (!authMethodStr) {
             throw new Error("No authentication found. Please sign in first.");
           }
 
           const authMethod = JSON.parse(authMethodStr);
+          console.log("[DEBUG] Parsed auth method:", {
+            hasApiKey: !!authMethod?.apiKey,
+            type: authMethod?.type,
+            hasUserInfo: !!authMethod?.userInfo,
+          });
+
           if (!authMethod?.apiKey) {
             throw new Error(
               "Invalid authentication data. Please sign in again."
@@ -611,7 +664,22 @@ function Chat() {
           }
 
           const endpoint = `/agents/${finalAgentConfig.agent}/${finalAgentConfig.name}/store-spotify-tokens`;
-          console.log("[App] Calling endpoint:", endpoint);
+          console.log("[DEBUG] Calling endpoint:", endpoint);
+
+          const requestBody = {
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_in: tokens.expires_in,
+            token_type: tokens.token_type,
+            scope: tokens.scope,
+          };
+          console.log("[DEBUG] Request body:", {
+            hasAccessToken: !!requestBody.access_token,
+            hasRefreshToken: !!requestBody.refresh_token,
+            expiresIn: requestBody.expires_in,
+            tokenType: requestBody.token_type,
+            scope: requestBody.scope,
+          });
 
           const response = await fetch(endpoint, {
             method: "POST",
@@ -619,24 +687,18 @@ function Chat() {
               "Content-Type": "application/json",
               Authorization: `Bearer ${authMethod.apiKey}`,
             },
-            body: JSON.stringify({
-              access_token: tokens.access_token,
-              refresh_token: tokens.refresh_token,
-              expires_in: tokens.expires_in,
-              token_type: tokens.token_type,
-              scope: tokens.scope,
-            }),
+            body: JSON.stringify(requestBody),
           });
 
           console.log(
-            "[App] Store tokens response:",
+            "[DEBUG] Store tokens response:",
             response.status,
             response.ok
           );
 
           if (!response.ok) {
             console.error(
-              "[App] Store tokens response not ok:",
+              "[DEBUG] Store tokens response not ok:",
               response.status,
               response.statusText
             );
@@ -644,13 +706,13 @@ function Chat() {
           }
 
           const result = await response.json();
-          console.log("[App] Tokens stored successfully:", result);
+          console.log("[DEBUG] Tokens stored successfully:", result);
 
           // Create a user message indicating authentication completed
           const authMessage =
             "I've successfully completed Spotify authentication.";
 
-          console.log("[App] Creating user message:", authMessage);
+          console.log("[DEBUG] Creating user message:", authMessage);
 
           const newMessage = {
             id: crypto.randomUUID(),
@@ -666,7 +728,9 @@ function Chat() {
           };
 
           // Add the message to the chat
-          console.log("[App] Adding message to chat and triggering reload...");
+          console.log(
+            "[DEBUG] Adding message to chat and triggering reload..."
+          );
           setMessages([...agentMessages, newMessage]);
 
           // Trigger the agent to respond
@@ -674,11 +738,11 @@ function Chat() {
             reload();
           }, 100);
         } catch (error) {
-          console.error("[App] Error storing Spotify tokens:", error);
+          console.error("[DEBUG] Error storing Spotify tokens:", error);
           // Show error message to user
           const errorMessage = `Failed to store Spotify authentication. Error: ${error instanceof Error ? error.message : String(error)}`;
 
-          console.log("[App] Creating error message:", errorMessage);
+          console.log("[DEBUG] Creating error message:", errorMessage);
 
           const newMessage = {
             id: crypto.randomUUID(),
@@ -719,40 +783,83 @@ function Chat() {
   // Separate effect for OAuth callback check - only run once on mount
   useEffect(() => {
     const checkOAuthCallback = () => {
+      console.log("[DEBUG] Checking for OAuth callback...");
+
+      // Check URL parameters (for direct OAuth returns)
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get("code");
       const state = urlParams.get("state");
       const error = urlParams.get("error");
       const errorDescription = urlParams.get("error_description");
 
-      if (error) {
-        console.error("Spotify OAuth error:", error, errorDescription);
-        // Clean up URL
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
+      // Check for Spotify-specific callback parameters
+      const spotifyCode = urlParams.get("spotify_code");
+      const spotifyState = urlParams.get("spotify_state");
+      const spotifyCallback = urlParams.get("spotify_callback");
+
+      console.log("[DEBUG] URL parameters:", {
+        code: code?.substring(0, 10) + "...",
+        state: state?.substring(0, 10) + "...",
+        error,
+        errorDescription,
+        spotifyCode: spotifyCode?.substring(0, 10) + "...",
+        spotifyState: spotifyState?.substring(0, 10) + "...",
+        spotifyCallback,
+      });
+
+      // Check localStorage for Spotify callback data (from server callback - backup method)
+      const storedSpotifyData = localStorage.getItem("spotify_callback_data");
+      console.log(
+        "[DEBUG] Spotify callback data in localStorage:",
+        storedSpotifyData
+      );
+
+      // Handle Spotify OAuth callback (URL parameters method)
+      if (spotifyCallback === "true" && spotifyCode && spotifyState) {
+        console.log(
+          "[DEBUG] Spotify OAuth callback detected via URL parameters"
         );
+
+        // Clean up URL parameters
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete("spotify_code");
+        newUrl.searchParams.delete("spotify_state");
+        newUrl.searchParams.delete("spotify_callback");
+        window.history.replaceState({}, "", newUrl.toString());
+
+        // Process the OAuth callback
+        handleOAuthTokenExchange(spotifyCode, spotifyState);
         return;
       }
 
-      if (code && state) {
-        console.log("OAuth callback detected, triggering token exchange");
-        // Clean up URL first
-        window.history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-
-        // Trigger the token exchange
-        handleOAuthTokenExchange(code, state);
+      // Handle Spotify OAuth callback (localStorage method - fallback)
+      if (storedSpotifyData) {
+        console.log("[DEBUG] Spotify OAuth callback detected via localStorage");
+        try {
+          const { code: storedCode, state: storedState } =
+            JSON.parse(storedSpotifyData);
+          localStorage.removeItem("spotify_callback_data");
+          handleOAuthTokenExchange(storedCode, storedState);
+          return;
+        } catch (error) {
+          console.error("[DEBUG] Error parsing stored Spotify data:", error);
+        }
       }
+
+      // Handle AtYourService.ai OAuth callback
+      if (code && state && !spotifyCallback) {
+        console.log("[DEBUG] AtYourService.ai OAuth callback detected");
+        handleOAuthTokenExchange(code, state);
+        return;
+      }
+
+      console.log(
+        "[DEBUG] No OAuth callback data found in URL or localStorage"
+      );
     };
 
-    // Check for OAuth callback on initial load only
     checkOAuthCallback();
-  }, [handleOAuthTokenExchange]); // Include handleOAuthTokenExchange dependency
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   // Handle action button clicks from the suggestActions tool
   useEffect(() => {

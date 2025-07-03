@@ -274,6 +274,7 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
   };
 
   const initiateSpotifyAuth = async () => {
+    console.log("[DEBUG] initiateSpotifyAuth called - BUTTON CLICKED");
     console.log(
       "[SpotifyAuth] initiateSpotifyAuth called, current config:",
       config
@@ -282,6 +283,7 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
 
     try {
       // Generate PKCE parameters
+      console.log("[DEBUG] Generating PKCE parameters...");
       const codeVerifier = generateRandomString(128);
       const codeChallenge = await generateCodeChallenge(codeVerifier);
       const state = generateRandomString(16);
@@ -296,6 +298,10 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
       sessionStorage.setItem("spotify_code_verifier", codeVerifier);
       sessionStorage.setItem("spotify_state", state);
       console.log("[SpotifyAuth] Stored PKCE parameters in sessionStorage");
+      console.log("[DEBUG] SessionStorage after storing:", {
+        hasCodeVerifier: !!sessionStorage.getItem("spotify_code_verifier"),
+        hasState: !!sessionStorage.getItem("spotify_state"),
+      });
 
       // Get configuration from server
       if (!config) {
@@ -339,6 +345,7 @@ export function SpotifyAuth({ onAuthSuccess, onAuthError }: SpotifyAuthProps) {
 
       const authUrl = `https://accounts.spotify.com/authorize?${params.toString()}`;
       console.log("[SpotifyAuth] Redirecting to Spotify OAuth URL:", authUrl);
+      console.log("[DEBUG] About to redirect to Spotify...");
 
       // Redirect to Spotify for authorization
       window.location.href = authUrl;

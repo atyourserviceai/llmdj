@@ -6,9 +6,9 @@ COMPOSIO_API_KEY=your-composio-api-key
 # Get these from https://developer.spotify.com/dashboard
 # 1. Create a new app at https://developer.spotify.com/dashboard
 # 2. Add redirect URIs:
-#    - https://llmdj.motin.eu/auth/callback (for local dev)
-#    - https://llmdj-dev.atyourservice.ai/auth/callback (for dev environment)
+#    - https://llmdj.motin.eu/spotify/callback (for local dev)
+#    - https://llmdj-dev.atyourservice.ai/spotify/callback (for dev environment)
 # 3. Copy the Client ID and Client Secret from your app settings
 SPOTIFY_CLIENT_ID=your-spotify-client-id
 SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
-SPOTIFY_REDIRECT_URI=https://llmdj.motin.eu/auth/callback
+SPOTIFY_REDIRECT_URI=https://llmdj.motin.eu/spotify/callback

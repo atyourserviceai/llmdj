@@ -734,15 +734,26 @@ function getSpotifyCallbackHTML(
     <p class="success">Redirecting to your LLMDJ agent...</p>
   </div>
   <script>
-    // Store Spotify auth data in a separate key to avoid overwriting main auth
-    localStorage.setItem('spotify_callback_data', JSON.stringify({
-      code: ${JSON.stringify(tokenData?.code)},
+    console.log('[SpotifyCallback] Script starting...');
+    console.log('[SpotifyCallback] Received data:', {
+      code: ${JSON.stringify(tokenData?.code?.substring(0, 20) + "...")},
       state: ${JSON.stringify(tokenData?.state)}
-    }));
+    });
 
-    // Redirect to main app
+    // Since localStorage doesn't work across domains, pass data via URL parameters
+    console.log('[SpotifyCallback] Redirecting with OAuth data in URL parameters...');
+
+    const redirectUrl = new URL('/', window.location.origin);
+    redirectUrl.searchParams.set('spotify_code', ${JSON.stringify(tokenData?.code)});
+    redirectUrl.searchParams.set('spotify_state', ${JSON.stringify(tokenData?.state)});
+    redirectUrl.searchParams.set('spotify_callback', 'true');
+
+    console.log('[SpotifyCallback] Redirect URL:', redirectUrl.toString());
+
+    // Redirect to main app with OAuth data in URL
     setTimeout(() => {
-      window.location.href = '/';
+      console.log('[SpotifyCallback] Redirecting now...');
+      window.location.href = redirectUrl.toString();
     }, 1500);
   </script>
 </body>
