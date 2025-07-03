@@ -149,6 +149,46 @@ function SuggestedActions({
 }
 
 function Chat() {
+  // Handle mobile viewport height issues with URL bar
+  useEffect(() => {
+    const setMobileViewportHeight = () => {
+      // Use the actual viewport height, accounting for mobile browser URL bars
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    // Set initial value
+    setMobileViewportHeight();
+
+    // Add a small delay for initial load to ensure accurate measurement
+    const initialTimer = setTimeout(setMobileViewportHeight, 100);
+
+    // Define orientation change handler so we can properly remove it
+    const handleOrientationChange = () => {
+      // Add delay for orientation change to let browser settle
+      setTimeout(setMobileViewportHeight, 300);
+    };
+
+    // Update on resize (handles URL bar showing/hiding)
+    window.addEventListener('resize', setMobileViewportHeight);
+    window.addEventListener('orientationchange', handleOrientationChange);
+
+    // Also listen for visual viewport changes (more modern approach)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', setMobileViewportHeight);
+    }
+
+    // Cleanup
+    return () => {
+      clearTimeout(initialTimer);
+      window.removeEventListener('resize', setMobileViewportHeight);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', setMobileViewportHeight);
+      }
+    };
+  }, []);
+
   // Add global error handlers for better error handling
   useEffect(() => {
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
@@ -1328,9 +1368,21 @@ function Chat() {
   }, [agentMessages, isLoading, temporaryLoading, reloadWithTokenCheck]);
 
   return (
-    <div className="min-h-screen max-h-screen w-full p-2 md:p-4 flex justify-center items-center bg-fixed overflow-hidden">
+    <div
+      className="w-full p-2 md:p-4 flex justify-center items-center bg-fixed overflow-hidden"
+      style={{
+        height: 'calc(var(--vh, 1vh) * 100)',
+        minHeight: 'calc(var(--vh, 1vh) * 100)'
+      }}
+    >
       {/* Main Container - Responsive layout with chat and playbook */}
-      <div className="h-[calc(100vh-1rem)] md:h-[calc(100vh-2rem)] w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
+            <div
+        className="w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0"
+        style={{
+          height: 'calc(var(--vh, 1vh) * 100 - 1rem)',
+          maxHeight: 'calc(var(--vh, 1vh) * 100 - 1rem)'
+        }}
+      >
         {/* Chat UI - Full width on mobile, shared width on desktop */}
         <ChatContainer
           theme={theme}

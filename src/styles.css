@@ -1,5 +1,42 @@
 @import "tailwindcss";
 
+/* Mobile viewport height support */
+:root {
+  /* Fallback for browsers that don't support custom properties */
+  --vh: 1vh;
+}
+
+/* Ensure the app takes full viewport height on mobile */
+html, body {
+  height: 100%;
+  height: calc(var(--vh, 1vh) * 100);
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+}
+
+/* Support for modern dynamic viewport units as fallback */
+@supports (height: 100dvh) {
+  html, body {
+    height: 100dvh;
+  }
+}
+
+/* Ensure mobile browsers hide URL bar when possible */
+@media screen and (max-width: 768px) {
+  html {
+    /* This encourages mobile browsers to hide the URL bar */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+  }
+
+  body {
+    /* Prevent bounce scrolling on iOS */
+    overscroll-behavior: none;
+    /* Smooth scrolling for better UX */
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* Markdown Table Styling (Tailwind @apply) */
 .markdown-body table {
   @apply w-full border-collapse my-4 text-[0.95em];
