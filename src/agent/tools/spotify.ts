@@ -905,7 +905,11 @@ export const getSpotifyRecommendations = tool({
             confidence: 0.8, // Spotify's recommendations are generally high quality
           });
         } catch (historyError) {
-          console.error("[getSpotifyRecommendations] History tracking failed for track:", track.id, historyError);
+          console.error(
+            "[getSpotifyRecommendations] History tracking failed for track:",
+            track.id,
+            historyError
+          );
           // Don't fail the whole operation if history tracking fails
         }
       }
@@ -1081,14 +1085,18 @@ export const getCurrentPlayback = tool({
             trackId: currentTrack.id,
             trackName: currentTrack.name,
             artistName:
-              (currentTrack as any).artists?.map((a: any) => a.name).join(", ") ||
-              "Unknown",
+              (currentTrack as any).artists
+                ?.map((a: any) => a.name)
+                .join(", ") || "Unknown",
             deviceId: device?.id || undefined,
             deviceName: device?.name,
             duration: Math.floor((playbackState.progress_ms || 0) / 1000),
           });
         } catch (historyError) {
-          console.error("[getCurrentPlayback] History tracking failed:", historyError);
+          console.error(
+            "[getCurrentPlayback] History tracking failed:",
+            historyError
+          );
           // Don't fail the whole operation if history tracking fails
         }
       }
@@ -1183,11 +1191,15 @@ export const controlSpotifyPlayback = tool({
             }
           } catch (playError: any) {
             // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
-            if (playError?.message?.includes('is not valid JSON') || playError?.name === 'SyntaxError') {
+            if (
+              playError?.message?.includes("is not valid JSON") ||
+              playError?.name === "SyntaxError"
+            ) {
               // This is likely a successful response that couldn't be parsed as JSON
-              result = trackUris || contextUri
-                ? `Started playback${deviceId ? ` on device ${deviceId}` : ""}`
-                : `Resumed playback${deviceId ? ` on device ${deviceId}` : ""}`;
+              result =
+                trackUris || contextUri
+                  ? `Started playback${deviceId ? ` on device ${deviceId}` : ""}`
+                  : `Resumed playback${deviceId ? ` on device ${deviceId}` : ""}`;
             } else {
               throw playError; // Re-throw if it's a different error
             }
@@ -1200,7 +1212,10 @@ export const controlSpotifyPlayback = tool({
             result = `Paused playback${deviceId ? ` on device ${deviceId}` : ""}`;
           } catch (pauseError: any) {
             // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
-            if (pauseError?.message?.includes('is not valid JSON') || pauseError?.name === 'SyntaxError') {
+            if (
+              pauseError?.message?.includes("is not valid JSON") ||
+              pauseError?.name === "SyntaxError"
+            ) {
               // This is likely a successful response that couldn't be parsed as JSON
               result = `Paused playback${deviceId ? ` on device ${deviceId}` : ""}`;
             } else {
@@ -1215,7 +1230,10 @@ export const controlSpotifyPlayback = tool({
             result = `Skipped to next track${deviceId ? ` on device ${deviceId}` : ""}`;
           } catch (skipError: any) {
             // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
-            if (skipError?.message?.includes('is not valid JSON') || skipError?.name === 'SyntaxError') {
+            if (
+              skipError?.message?.includes("is not valid JSON") ||
+              skipError?.name === "SyntaxError"
+            ) {
               // This is likely a successful response that couldn't be parsed as JSON
               result = `Skipped to next track${deviceId ? ` on device ${deviceId}` : ""}`;
             } else {
@@ -1230,7 +1248,10 @@ export const controlSpotifyPlayback = tool({
             result = `Skipped to previous track${deviceId ? ` on device ${deviceId}` : ""}`;
           } catch (skipError: any) {
             // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
-            if (skipError?.message?.includes('is not valid JSON') || skipError?.name === 'SyntaxError') {
+            if (
+              skipError?.message?.includes("is not valid JSON") ||
+              skipError?.name === "SyntaxError"
+            ) {
               // This is likely a successful response that couldn't be parsed as JSON
               result = `Skipped to previous track${deviceId ? ` on device ${deviceId}` : ""}`;
             } else {
@@ -1251,7 +1272,10 @@ export const controlSpotifyPlayback = tool({
             result = `Seeked to position ${Math.floor(positionMs / 1000)}s${deviceId ? ` on device ${deviceId}` : ""}`;
           } catch (seekError: any) {
             // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
-            if (seekError?.message?.includes('is not valid JSON') || seekError?.name === 'SyntaxError') {
+            if (
+              seekError?.message?.includes("is not valid JSON") ||
+              seekError?.name === "SyntaxError"
+            ) {
               // This is likely a successful response that couldn't be parsed as JSON
               result = `Seeked to position ${Math.floor(positionMs / 1000)}s${deviceId ? ` on device ${deviceId}` : ""}`;
             } else {
@@ -1275,7 +1299,10 @@ export const controlSpotifyPlayback = tool({
             result = `Set volume to ${volumePercent}%${deviceId ? ` on device ${deviceId}` : ""}`;
           } catch (volumeError: any) {
             // Spotify API returns 204 No Content on success, but SDK may try to parse as JSON
-            if (volumeError?.message?.includes('is not valid JSON') || volumeError?.name === 'SyntaxError') {
+            if (
+              volumeError?.message?.includes("is not valid JSON") ||
+              volumeError?.name === "SyntaxError"
+            ) {
               // This is likely a successful response that couldn't be parsed as JSON
               result = `Set volume to ${volumePercent}%${deviceId ? ` on device ${deviceId}` : ""}`;
             } else {
@@ -1306,7 +1333,10 @@ export const controlSpotifyPlayback = tool({
           context: "playback_control",
         });
       } catch (historyError) {
-        console.error("[controlSpotifyPlayback] History tracking failed:", historyError);
+        console.error(
+          "[controlSpotifyPlayback] History tracking failed:",
+          historyError
+        );
         // Don't fail the whole operation if history tracking fails
       }
 
