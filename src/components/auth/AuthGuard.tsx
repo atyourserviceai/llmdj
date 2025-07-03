@@ -81,7 +81,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
               <h2 className="text-xl font-semibold text-white mb-3">
                 Musical Intelligence That Gets It
               </h2>
-              <p className="text-gray-300 text-sm leading-relaxed">
+              <p className="text-gray-300 text-sm leading-relaxed mb-4">
                 <strong>
                   "Create a workout playlist with high-energy tracks from the
                   2000s rock revival"
@@ -92,57 +92,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
                 </strong>{" "}
                 — LLMDJ understands music, context, and meaning.
               </p>
-            </div>
 
-            <div className="mb-6 space-y-4 text-sm text-gray-300">
-              <div className="bg-green-900/20 p-3 rounded-lg border border-green-500/30">
-                <div className="flex items-start">
-                  <span className="text-green-400 mr-2 mt-0.5">🎯</span>
-                  <div>
-                    <strong className="text-white">
-                      Contextual Music Understanding
-                    </strong>
-                    <p className="text-xs mt-1 text-gray-400">
-                      "Play something chill for studying" or "I need driving
-                      music for a road trip" — LLMDJ gets the vibe and delivers
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-green-900/20 p-3 rounded-lg border border-green-500/30">
-                <div className="flex items-start">
-                  <span className="text-green-400 mr-2 mt-0.5">🧠</span>
-                  <div>
-                    <strong className="text-white">
-                      Musical Knowledge Engine
-                    </strong>
-                    <p className="text-xs mt-1 text-gray-400">
-                      "Find artists similar to Thom Yorke's solo work" or "What
-                      influenced the Seattle grunge scene?" — tap into deep
-                      musical understanding
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-green-900/20 p-3 rounded-lg border border-green-500/30">
-                <div className="flex items-start">
-                  <span className="text-green-400 mr-2 mt-0.5">💬</span>
-                  <div>
-                    <strong className="text-white">
-                      Intelligent Music Discovery
-                    </strong>
-                    <p className="text-xs mt-1 text-gray-400">
-                      "Look at my listening history and suggest something I've
-                      never heard but would love" — personalized recommendations
-                      through conversation
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-6 text-center">
-              <div className="inline-flex items-center bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-xs">
+              <div className="inline-flex items-center bg-green-500/20 text-green-300 px-3 py-1 rounded-full text-xs mb-4">
                 <span className="mr-1">✓</span>
                 Free credits to get you started
               </div>
@@ -157,17 +108,49 @@ export function AuthGuard({ children }: AuthGuardProps) {
             <button
               type="button"
               onClick={login}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2 hover:cursor-pointer"
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2 hover:cursor-pointer mb-6"
             >
               <span>🎵</span>
               <span>Sign in with AI @ Your Service</span>
             </button>
 
-            <div className="mt-6 text-center">
+            <div className="text-center mb-6">
               <p className="text-gray-400 text-xs">
                 We'll securely connect to your music accounts and provide AI
                 services. Your data is protected and never shared.
               </p>
+            </div>
+
+            <div className="border-t border-green-500/20 pt-6">
+              <h3 className="text-center text-white font-medium mb-4 text-sm">
+                What makes LLMDJ different?
+              </h3>
+              <div className="space-y-3 text-xs text-gray-300">
+                <div className="flex items-center">
+                  <span className="text-green-400 mr-2">🎯</span>
+                  <span>
+                    <strong className="text-white">
+                      Contextual Understanding:
+                    </strong>{" "}
+                    "Play something chill for studying" — gets the vibe
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-green-400 mr-2">🧠</span>
+                  <span>
+                    <strong className="text-white">Musical Knowledge:</strong>{" "}
+                    "Artists similar to Thom Yorke's solo work" — deep
+                    understanding
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-green-400 mr-2">💬</span>
+                  <span>
+                    <strong className="text-white">Personal Discovery:</strong>{" "}
+                    "Suggest something I've never heard but would love"
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
