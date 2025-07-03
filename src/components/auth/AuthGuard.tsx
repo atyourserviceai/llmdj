@@ -66,11 +66,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
         <div className="max-w-md w-full">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-white mb-3 leading-tight max-w-lg mx-auto">
-              The first AI DJ that actually <em>understands</em> what you're looking for
+              The first AI DJ that actually <em>understands</em> what you're
+              looking for
             </h1>
-            <p className="text-green-400 text-lg mb-1">
-              ✨ LLMDJ ✨
-            </p>
+            <p className="text-green-400 text-lg mb-1">✨ LLMDJ ✨</p>
           </div>
 
           <div className="bg-black/50 backdrop-blur-sm rounded-xl p-6 border border-green-500/20">
@@ -79,7 +78,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
                 Beyond Spotify's Algorithm
               </h2>
               <p className="text-gray-300 text-sm leading-relaxed">
-                Ask for <strong>"that song from the 60s about a bird and a jackal"</strong> or <strong>"create a playlist for a rainy Sunday morning"</strong> — and LLMDJ will find it and make it happen.
+                Ask for{" "}
+                <strong>
+                  "that song from the 60s about a bird and a jackal"
+                </strong>{" "}
+                or{" "}
+                <strong>"create a playlist for a rainy Sunday morning"</strong>{" "}
+                — and LLMDJ will find it and make it happen.
               </p>
             </div>
 
@@ -88,8 +93,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
                 <div className="flex items-start">
                   <span className="text-green-400 mr-2 mt-0.5">🎵</span>
                   <div>
-                    <strong className="text-white">Natural Language Music Control</strong>
-                    <p className="text-xs mt-1 text-gray-400">Describe any song, mood, or vibe in plain English and watch LLMDJ bring your music vision to life</p>
+                    <strong className="text-white">
+                      Natural Language Music Control
+                    </strong>
+                    <p className="text-xs mt-1 text-gray-400">
+                      Describe any song, mood, or vibe in plain English and
+                      watch LLMDJ bring your music vision to life
+                    </p>
                   </div>
                 </div>
               </div>
@@ -97,8 +107,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
                 <div className="flex items-start">
                   <span className="text-green-400 mr-2 mt-0.5">🎨</span>
                   <div>
-                    <strong className="text-white">Creative Playlist Generation</strong>
-                    <p className="text-xs mt-1 text-gray-400">AI that understands context and themes to craft entirely new playlists tailored to your exact request</p>
+                    <strong className="text-white">
+                      Creative Playlist Generation
+                    </strong>
+                    <p className="text-xs mt-1 text-gray-400">
+                      AI that understands context and themes to craft entirely
+                      new playlists tailored to your exact request
+                    </p>
                   </div>
                 </div>
               </div>
@@ -106,8 +121,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
                 <div className="flex items-start">
                   <span className="text-green-400 mr-2 mt-0.5">💬</span>
                   <div>
-                    <strong className="text-white">Conversational Music Discovery</strong>
-                    <p className="text-xs mt-1 text-gray-400">Have real conversations about music — not just passive recommendations, but interactive discovery sessions</p>
+                    <strong className="text-white">
+                      Conversational Music Discovery
+                    </strong>
+                    <p className="text-xs mt-1 text-gray-400">
+                      Have real conversations about music — not just passive
+                      recommendations, but interactive discovery sessions
+                    </p>
                   </div>
                 </div>
               </div>
