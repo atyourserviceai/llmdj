@@ -30,43 +30,6 @@ body {
   }
 }
 
-/* Mobile-specific optimizations */
-@media screen and (max-width: 768px) {
-  html {
-    /* Prevent document scrolling */
-    overflow: hidden;
-  }
-
-  body {
-    /* Prevent bounce scrolling on iOS */
-    overscroll-behavior: none;
-    /* Prevent any body scrolling that could cause layout issues */
-    overflow: hidden;
-    /* Prevent scroll-to-focus behavior */
-    scroll-behavior: auto;
-  }
-
-  #root {
-    overflow: hidden;
-    height: 100%;
-    height: calc(var(--vh, 1vh) * 100);
-  }
-
-  /* Prevent auto-zoom on input focus - ESSENTIAL for mobile UX */
-  input,
-  textarea,
-  select {
-    font-size: 16px !important; /* iOS won't zoom if font >= 16px */
-  }
-
-  /* Prevent scroll-to-focus behavior for inputs */
-  input:focus,
-  textarea:focus {
-    scroll-margin: 0;
-    scroll-snap-margin: 0;
-  }
-}
-
 /* Markdown Table Styling (Tailwind @apply) */
 .markdown-body table {
   @apply w-full border-collapse my-4 text-[0.95em];
