@@ -13,6 +13,8 @@ body {
   height: calc(var(--vh, 1vh) * 100);
   /* Prevent horizontal scroll on mobile */
   overflow-x: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 /* Support for modern dynamic viewport units as fallback */
@@ -23,31 +25,26 @@ body {
   }
 }
 
-/* Ensure mobile browsers hide URL bar when possible */
+/* Mobile-specific optimizations */
 @media screen and (max-width: 768px) {
-  html {
-    /* This encourages mobile browsers to hide the URL bar */
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-  }
-
   body {
     /* Prevent bounce scrolling on iOS */
     overscroll-behavior: none;
-    /* Smooth scrolling for better UX */
-    -webkit-overflow-scrolling: touch;
     /* Prevent any body scrolling that could cause layout issues */
     overflow: hidden;
-    /* Ensure no margin/padding causing gaps */
-    margin: 0;
-    padding: 0;
   }
 
-  /* Prevent any element from causing body scroll */
   #root {
     overflow: hidden;
     height: 100%;
     height: calc(var(--vh, 1vh) * 100);
+  }
+
+  /* Prevent auto-zoom on input focus - ESSENTIAL for mobile UX */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important; /* iOS won't zoom if font >= 16px */
   }
 }
 

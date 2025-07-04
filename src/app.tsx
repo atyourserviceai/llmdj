@@ -152,7 +152,7 @@ function Chat() {
   // Handle mobile viewport height issues with URL bar
   useEffect(() => {
     const setMobileViewportHeight = () => {
-      // Use the actual viewport height, accounting for mobile browser URL bars
+      // Always use current viewport height - this allows input to sit on keyboard
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty("--vh", `${vh}px`);
     };
@@ -160,29 +160,23 @@ function Chat() {
     // Set initial value
     setMobileViewportHeight();
 
-    // Add a small delay for initial load to ensure accurate measurement
-    const initialTimer = setTimeout(setMobileViewportHeight, 100);
-
-    // Define orientation change handler so we can properly remove it
-    const handleOrientationChange = () => {
-      // Add delay for orientation change to let browser settle
-      setTimeout(setMobileViewportHeight, 300);
-    };
-
-    // Update on resize (handles URL bar showing/hiding)
+    // Update on resize (handles URL bar and keyboard)
     window.addEventListener("resize", setMobileViewportHeight);
-    window.addEventListener("orientationchange", handleOrientationChange);
 
-    // Also listen for visual viewport changes (more modern approach)
+    // Handle orientation changes
+    window.addEventListener("orientationchange", () => {
+      setTimeout(setMobileViewportHeight, 100);
+    });
+
+    // Visual viewport API for better keyboard handling
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", setMobileViewportHeight);
     }
 
     // Cleanup
     return () => {
-      clearTimeout(initialTimer);
       window.removeEventListener("resize", setMobileViewportHeight);
-      window.removeEventListener("orientationchange", handleOrientationChange);
+      window.removeEventListener("orientationchange", setMobileViewportHeight);
       if (window.visualViewport) {
         window.visualViewport.removeEventListener(
           "resize",
