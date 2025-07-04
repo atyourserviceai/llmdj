@@ -1,6 +1,7 @@
 # 🎵 LLMDJ - AI Spotify DJ Agent
 
-![LLMDJ Header](https://github.com/user-attachments/assets/f6d99eeb-1803-4495-9c5e-3cf07a37b402)
+![LLMDJ Login](https://github.com/user-attachments/assets/62674393-1c5e-413d-8231-a60ce027f148)
+![LLMDJ Chat](https://github.com/user-attachments/assets/4f559b87-17c2-4754-8feb-788db9fdc6e0)
 
 <a href="https://deploy.workers.cloudflare.com/?url=https://github.com/atyourserviceai/llmdj"><img src="https://deploy.workers.cloudflare.com/button" alt="Deploy to Cloudflare"/></a>
 
