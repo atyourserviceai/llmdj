@@ -1,37 +1,49 @@
 @import "tailwindcss";
 
-/* Mobile viewport height support */
-:root {
-  /* Fallback for browsers that don't support custom properties */
-  --vh: 1vh;
-}
-
-/* Ensure the app takes full viewport height on mobile */
+/* Basic reset */
 html,
 body {
-  height: 100%;
-  height: calc(var(--vh, 1vh) * 100);
-  /* Prevent horizontal scroll on mobile */
+  height: 100vh;
   overflow-x: hidden;
   margin: 0;
   padding: 0;
 }
 
-/* Support for modern dynamic viewport units as fallback */
-@supports (height: 100dvh) {
+/* Mobile-only: Use calculated viewport height */
+@media screen and (max-width: 768px) {
+  :root {
+    --vh: 1vh;
+  }
+
   html,
-  body {
-    height: 100dvh;
+  body,
+  #root {
+    height: calc(var(--vh, 1vh) * 100) !important;
+    overflow: hidden !important;
+  }
+
+  /* Prevent auto-zoom on input focus */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
   }
 }
 
 /* Mobile-specific optimizations */
 @media screen and (max-width: 768px) {
+  html {
+    /* Prevent document scrolling */
+    overflow: hidden;
+  }
+
   body {
     /* Prevent bounce scrolling on iOS */
     overscroll-behavior: none;
     /* Prevent any body scrolling that could cause layout issues */
     overflow: hidden;
+    /* Prevent scroll-to-focus behavior */
+    scroll-behavior: auto;
   }
 
   #root {
@@ -45,6 +57,13 @@ body {
   textarea,
   select {
     font-size: 16px !important; /* iOS won't zoom if font >= 16px */
+  }
+
+  /* Prevent scroll-to-focus behavior for inputs */
+  input:focus,
+  textarea:focus {
+    scroll-margin: 0;
+    scroll-snap-margin: 0;
   }
 }
 

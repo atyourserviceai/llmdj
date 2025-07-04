@@ -149,41 +149,32 @@ function SuggestedActions({
 }
 
 function Chat() {
-  // Handle mobile viewport height issues with URL bar
+  // Mobile viewport height fix
   useEffect(() => {
-    const setMobileViewportHeight = () => {
-      // Always use current viewport height - this allows input to sit on keyboard
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty("--vh", `${vh}px`);
-    };
-
-    // Set initial value
-    setMobileViewportHeight();
-
-    // Update on resize (handles URL bar and keyboard)
-    window.addEventListener("resize", setMobileViewportHeight);
-
-    // Handle orientation changes
-    window.addEventListener("orientationchange", () => {
-      setTimeout(setMobileViewportHeight, 100);
-    });
-
-    // Visual viewport API for better keyboard handling
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", setMobileViewportHeight);
+    // Remove any existing debug elements
+    const debugEl = document.getElementById("viewport-debug");
+    if (debugEl) {
+      debugEl.remove();
     }
 
-    // Cleanup
-    return () => {
-      window.removeEventListener("resize", setMobileViewportHeight);
-      window.removeEventListener("orientationchange", setMobileViewportHeight);
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener(
-          "resize",
-          setMobileViewportHeight
-        );
-      }
-    };
+    // Only run on mobile
+    if (window.innerWidth <= 768) {
+      const setViewportHeight = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty("--vh", `${vh}px`);
+      };
+
+      setViewportHeight();
+      window.addEventListener("resize", setViewportHeight);
+      window.addEventListener("orientationchange", () => {
+        setTimeout(setViewportHeight, 100);
+      });
+
+      return () => {
+        window.removeEventListener("resize", setViewportHeight);
+        window.removeEventListener("orientationchange", setViewportHeight);
+      };
+    }
   }, []);
 
   // Add global error handlers for better error handling
@@ -1367,19 +1358,13 @@ function Chat() {
 
   return (
     <div
-      className="w-full p-2 md:p-4 flex justify-center items-center bg-fixed overflow-hidden"
-      style={{
-        height: "calc(var(--vh, 1vh) * 100)",
-        minHeight: "calc(var(--vh, 1vh) * 100)",
-      }}
+      className="w-full p-2 md:p-4 flex justify-center items-center md:items-center bg-fixed overflow-hidden"
+      style={{ height: "calc(var(--vh, 1vh) * 100)" }}
     >
       {/* Main Container - Responsive layout with chat and playbook */}
       <div
         className="w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0"
-        style={{
-          height: "calc(var(--vh, 1vh) * 100 - 1rem)",
-          maxHeight: "calc(var(--vh, 1vh) * 100 - 1rem)",
-        }}
+        style={{ height: "calc(var(--vh, 1vh) * 100 - 1rem)" }}
       >
         {/* Chat UI - Full width on mobile, shared width on desktop */}
         <ChatContainer
@@ -1425,7 +1410,10 @@ function Chat() {
 // Main App component with authentication
 export default function App() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-black to-green-900 dark:from-green-900 dark:via-black dark:to-green-900">
+    <div
+      className="bg-gradient-to-br from-green-900 via-black to-green-900 dark:from-green-900 dark:via-black dark:to-green-900"
+      style={{ height: "calc(var(--vh, 1vh) * 100)" }}
+    >
       <ErrorBoundary>
         <AuthProvider>
           <AuthGuard>
