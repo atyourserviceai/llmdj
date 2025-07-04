@@ -32,11 +32,6 @@ export function PlaybookContainer({
     }
   };
 
-  const formatCredits = (credits?: number) => {
-    if (typeof credits !== "number") return "0.00";
-    return credits.toFixed(4);
-  };
-
   return (
     <div className="h-full w-full md:w-80 lg:w-96 xl:w-[420px] flex-shrink-0 shadow-xl rounded-md overflow-hidden relative border border-neutral-300 dark:border-neutral-800">
       <div className="h-full flex flex-col">
@@ -59,6 +54,7 @@ export function PlaybookContainer({
                   viewBox="0 0 20 20"
                   aria-label="Agent info"
                 >
+                  <title>Agent info</title>
                   <path
                     fillRule="evenodd"
                     d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
@@ -93,6 +89,7 @@ export function PlaybookContainer({
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
+                      <title>User account</title>
                       <path
                         fillRule="evenodd"
                         d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
@@ -122,6 +119,7 @@ export function PlaybookContainer({
                     viewBox="0 0 24 24"
                     fill="currentColor"
                   >
+                    <title>Spotify</title>
                     <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.84-.179-.84-.66 0-.359.24-.66.54-.779 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.78.242 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z" />
                   </svg>
                   Spotify Integration
@@ -193,6 +191,7 @@ export function PlaybookContainer({
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
+                      <title>Music preferences</title>
                       <path
                         fillRule="evenodd"
                         d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM15.657 6.343a1 1 0 011.414 0A9.972 9.972 0 0119 12a9.972 9.972 0 01-1.929 5.657 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 12c0-2.21-.895-4.21-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 12a5.983 5.983 0 01-.757 2.829 1 1 0 01-1.415-1.414A3.987 3.987 0 0013.5 12a3.987 3.987 0 00-.672-2.171 1 1 0 010-1.414z"
@@ -211,9 +210,9 @@ export function PlaybookContainer({
                           <div className="flex flex-wrap gap-1">
                             {safeAgentState.musicPreferences.goals
                               .slice(0, 3)
-                              .map((goal, i) => (
+                              .map((goal) => (
                                 <span
-                                  key={i}
+                                  key={goal}
                                   className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs"
                                 >
                                   {goal}
@@ -241,9 +240,9 @@ export function PlaybookContainer({
                           <div className="flex flex-wrap gap-1">
                             {safeAgentState.musicPreferences.preferredGenres
                               .slice(0, 3)
-                              .map((genre, i) => (
+                              .map((genre) => (
                                 <span
-                                  key={i}
+                                  key={genre}
                                   className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded text-xs"
                                 >
                                   {genre}
@@ -274,6 +273,7 @@ export function PlaybookContainer({
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
+                      <title>Debug information</title>
                       <path
                         fillRule="evenodd"
                         d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
