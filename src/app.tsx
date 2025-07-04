@@ -818,6 +818,7 @@ function Chat() {
   }, [setMessages, agentMessages, reload, finalAgentConfig]);
 
   // Separate effect for OAuth callback check - only run once on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies(handleOAuthTokenExchange): OAuth callback check should only run once on mount
   useEffect(() => {
     const checkOAuthCallback = () => {
       console.log("[DEBUG] Checking for OAuth callback...");
@@ -896,7 +897,7 @@ function Chat() {
     };
 
     checkOAuthCallback();
-  }, []); // Empty dependency array ensures this runs only once on mount
+  }, []);
 
   // Handle action button clicks from the suggestActions tool
   useEffect(() => {
