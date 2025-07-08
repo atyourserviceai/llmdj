@@ -1,17 +1,20 @@
+import {
+  ToolCategory,
+  getFriendlyToolName,
+  getToolCategory,
+} from "@/agent/tools/utils";
+import { SpotifyAuth } from "@/components/auth/SpotifyAuth";
 import { Button } from "@/components/button/Button";
 import { Card } from "@/components/card/Card";
 import { Tooltip } from "@/components/tooltip/Tooltip";
 import { APPROVAL } from "@/shared";
 import { CaretDown, Eye, Robot } from "@phosphor-icons/react";
 import { useState } from "react";
-import {
-  getFriendlyToolName,
-  getToolCategory,
-  ToolCategory,
-} from "@/agent/tools/utils";
 import type { ToolInvocation } from "../../types/tool-invocation";
+import type { AppAgentState } from "../../agent/AppAgent";
 
 interface ToolInvocationCardProps {
+  agentState: AppAgentState | null;
   toolInvocation: ToolInvocation;
   toolCallId: string;
   needsConfirmation: boolean;
@@ -39,12 +42,33 @@ const getCategoryColorClass = (category: ToolCategory): string => {
 };
 
 export function ToolInvocationCard({
+  agentState,
   toolInvocation,
   toolCallId,
   needsConfirmation,
   addToolResult,
 }: ToolInvocationCardProps) {
-  const [isExpanded, setIsExpanded] = useState(needsConfirmation);
+  // Check if this is a Spotify auth tool that should be auto-expanded
+  const isSpotifyAuthTool =
+    toolInvocation.toolName === "showSpotifyAuth" &&
+    toolInvocation.result &&
+    typeof toolInvocation.result === "object" &&
+    "result" in toolInvocation.result &&
+    toolInvocation.result.result &&
+    typeof toolInvocation.result.result === "object" &&
+    "type" in toolInvocation.result.result &&
+    toolInvocation.result.result.type === "spotify_auth_ui";
+
+  // Check if this has an embedded player that should be auto-expanded
+  const hasEmbeddedPlayer =
+    toolInvocation.result &&
+    typeof toolInvocation.result === "object" &&
+    "showEmbeddedPlayer" in toolInvocation.result &&
+    toolInvocation.result.showEmbeddedPlayer === true;
+
+  const [isExpanded, setIsExpanded] = useState(
+    needsConfirmation || isSpotifyAuthTool || hasEmbeddedPlayer
+  );
   const [showRawData, setShowRawData] = useState(false);
 
   // Special handling for suggestActions tool - don't render it at all
@@ -57,13 +81,16 @@ export function ToolInvocationCard({
     return null;
   }
 
-  // Check if the tool invocation has an error
+  // Check if the tool invocation has an error (either execution error or logical failure)
   const hasError =
     toolInvocation.state === "result" &&
     toolInvocation.result &&
     typeof toolInvocation.result === "object" &&
-    toolInvocation.result.success === false &&
-    toolInvocation.result.error;
+    // Traditional error with error field
+    ((toolInvocation.result.success === false && toolInvocation.result.error) ||
+      // Logical failure: success=false with a message (our Spotify tools pattern)
+      (toolInvocation.result.success === false &&
+        "message" in toolInvocation.result));
 
   // Format a human-readable summary of the tool action
   const getActionSummary = () => {
@@ -92,11 +119,17 @@ export function ToolInvocationCard({
     const result = toolInvocation.result;
 
     // Handle error results
-    if (hasError && result.error) {
-      // Return a cleaner error message without the stack trace
-      const errorMessage = result.error.message;
-      // Extract just the first line of the error message if it contains newlines
-      return `Error: ${errorMessage.split("\n")[0]}`;
+    if (hasError) {
+      if (result.error) {
+        // Traditional error with error object
+        const errorMessage = result.error.message;
+        // Extract just the first line of the error message if it contains newlines
+        return `Error: ${errorMessage.split("\n")[0]}`;
+      }
+      if ("message" in result && typeof result.message === "string") {
+        // Logical failure with message field (our Spotify tools pattern)
+        return result.message;
+      }
     }
 
     // If it has content array, extract meaningful text
@@ -264,25 +297,74 @@ export function ToolInvocationCard({
           {/* Show result for completed tool invocations */}
           {!needsConfirmation && toolInvocation.state === "result" && (
             <div className="mt-1">
-              <p className="text-sm mb-2">{getResultSummary()}</p>
+              {/* Special handling for Spotify auth UI */}
+              {(() => {
+                // Check if this is a Spotify auth tool result with the correct structure
+                return (
+                  toolInvocation.toolName === "showSpotifyAuth" &&
+                  toolInvocation.result &&
+                  typeof toolInvocation.result === "object" &&
+                  "result" in toolInvocation.result &&
+                  toolInvocation.result.result &&
+                  typeof toolInvocation.result.result === "object" &&
+                  "type" in toolInvocation.result.result &&
+                  toolInvocation.result.result.type === "spotify_auth_ui"
+                );
+              })() ? (
+                <div className="mb-4">
+                  <SpotifyAuth
+                    onAuthSuccess={(tokens) => {
+                      // Call the connectSpotifyAccount tool with the received tokens
+                      // This will be handled by the app's message system
+                      const event = new CustomEvent("spotify-auth-success", {
+                        detail: { tokens },
+                      });
+                      window.dispatchEvent(event);
+                    }}
+                    onAuthError={(error) => {
+                      console.error("Spotify auth error:", error);
+                      // Could show an error message or dispatch an error event
+                    }}
+                    agentState={agentState}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm mb-2">{getResultSummary()}</p>
+              )}
 
               {/* Error details when error is present */}
-              {hasError && toolInvocation.result?.error && (
+              {hasError && toolInvocation.result && (
                 <div className="bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 p-3 rounded-md text-sm text-red-700 dark:text-red-300 mb-3">
-                  <p className="font-semibold mb-1">
-                    Error:{" "}
-                    {formatErrorDetails(toolInvocation.result.error.message)}
-                  </p>
-                  {toolInvocation.result.error.details && (
-                    <p className="text-xs mt-1 text-red-600 dark:text-red-400 font-mono whitespace-pre-wrap">
-                      {formatErrorDetails(toolInvocation.result.error.details)}
-                    </p>
+                  {toolInvocation.result.error ? (
+                    <>
+                      <p className="font-semibold mb-1">
+                        Error:{" "}
+                        {formatErrorDetails(
+                          toolInvocation.result.error.message
+                        )}
+                      </p>
+                      {toolInvocation.result.error.details && (
+                        <p className="text-xs mt-1 text-red-600 dark:text-red-400 font-mono whitespace-pre-wrap">
+                          {formatErrorDetails(
+                            toolInvocation.result.error.details
+                          )}
+                        </p>
+                      )}
+                      <p className="text-xs mt-1 text-red-600/70 dark:text-red-400/70">
+                        {new Date(
+                          toolInvocation.result.error.timestamp
+                        ).toLocaleString()}
+                      </p>
+                    </>
+                  ) : "message" in toolInvocation.result &&
+                    typeof toolInvocation.result.message === "string" ? (
+                    <>
+                      <p className="font-semibold mb-1">Operation Failed</p>
+                      <p className="text-sm">{toolInvocation.result.message}</p>
+                    </>
+                  ) : (
+                    <p className="font-semibold">Unknown error occurred</p>
                   )}
-                  <p className="text-xs mt-1 text-red-600/70 dark:text-red-400/70">
-                    {new Date(
-                      toolInvocation.result.error.timestamp
-                    ).toLocaleString()}
-                  </p>
                 </div>
               )}
 

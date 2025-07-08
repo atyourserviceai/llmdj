@@ -7,18 +7,23 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [
     cloudflare({
-      inspectorPort: 9329, // Set inspector port to avoid conflicts
+      inspectorPort: 9529, // Set inspector port to avoid conflicts
     }),
-    react(),
-    tailwindcss(),
+    react() as any,
+    tailwindcss() as any,
   ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    sourcemap: true, // Enable source maps for better error debugging
+  },
   server: {
-    port: 5273,
+    port: 5473,
+    host: "127.0.0.1", // Bind to 127.0.0.1 so Cloudflare tunnel can connect
     strictPort: true,
+    allowedHosts: ["llmdj.motin.eu"],
   },
 });

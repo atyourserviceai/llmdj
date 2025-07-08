@@ -2,14 +2,54 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <meta
       name="description"
-      content="AI-powered chat agent built with Cloudflare Agents"
+      content="LLMDJ - AI-powered Spotify DJ agent. Control your music through natural language conversation."
     />
     <meta name="theme-color" content="#000000" />
+    <meta
+      name="theme-color"
+      content="#000000"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#000000"
+      media="(prefers-color-scheme: dark)"
+    />
+    <meta
+      name="keywords"
+      content="AI, DJ, Spotify, music, playlist, agent, artificial intelligence"
+    />
 
-    <title>AI Chat Agent</title>
+    <!-- Open Graph / Social Media Meta Tags -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="LLMDJ - AI Spotify DJ Agent" />
+    <meta
+      property="og:description"
+      content="Control your Spotify music through natural language conversation with an AI DJ agent."
+    />
+    <meta property="og:image" content="/favicon.ico" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LLMDJ - AI Spotify DJ Agent" />
+    <meta
+      name="twitter:description"
+      content="Control your Spotify music through natural language conversation with an AI DJ agent."
+    />
+
+    <!-- Audio/Music specific meta tags -->
+    <meta name="music" content="enabled" />
+    <meta name="audio" content="enabled" />
+
+    <title>LLMDJ - AI Spotify DJ</title>
+
+    <!-- Spotify Web Playback SDK - Loaded only when needed for playback control -->
 
     <script>
       document.documentElement.classList.toggle(
@@ -29,12 +69,23 @@
 
     <!-- Prevent flash of unstyled content -->
     <style>
-      html {
-        background: var(--background);
+      html,
+      body {
+        background: linear-gradient(to bottom right, #14532d, #000000, #14532d);
+        background-attachment: fixed;
+        margin: 0;
+        padding: 0;
       }
       @media (prefers-color-scheme: dark) {
-        html {
-          background: var(--background);
+        html,
+        body {
+          background: linear-gradient(
+            to bottom right,
+            #14532d,
+            #000000,
+            #14532d
+          );
+          background-attachment: fixed;
         }
       }
     </style>

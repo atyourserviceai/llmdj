@@ -13,6 +13,7 @@ import * as onboardingTools from "./onboarding";
 import * as schedulingTools from "./scheduling";
 import * as searchTools from "./search";
 import * as simpleFetchTools from "./simpleFetch";
+import * as spotifyTools from "./spotify";
 import * as stateTools from "./state";
 
 /**
@@ -54,6 +55,11 @@ export const tools = {
 
   // Search tools
   runResearch: searchTools.runResearch,
+
+  // Spotify tools
+  showSpotifyAuth: spotifyTools.showSpotifyAuth,
+  connectSpotifyAccount: spotifyTools.connectSpotifyAccount,
+  getSpotifyConnectionStatus: spotifyTools.getSpotifyConnectionStatus,
 };
 
 /**
@@ -75,4 +81,5 @@ export * from "./browserbase";
 export * from "./simpleFetch";
 export * from "./messaging";
 export * from "./search";
+export * from "./spotify";
 export * from "./state";

@@ -1,29 +1,24 @@
-import { useEffect, useCallback, useState, useRef } from "react";
-import type { AgentMode, AppAgentState } from "../agent/AppAgent";
 import { useAgent } from "agents/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { AgentMode, AppAgentState } from "../agent/AppAgent";
 
-export function useAgentState(initialMode: AgentMode = "onboarding") {
+export function useAgentState(
+  externalConfig: {
+    agent: string;
+    name: string;
+    query?: Record<string, string>;
+  },
+  initialMode: AgentMode = "onboarding"
+) {
   const [agentState, setAgentState] = useState<AppAgentState | null>(null);
   const [agentMode, setAgentMode] = useState<AgentMode>(initialMode);
 
   // Add ref to track initial agent state load
   const initialStateLoaded = useRef(false);
 
-  // Move getNameFromURL to a useCallback to avoid dependency issues
-  const getNameFromURL = useCallback(() => {
-    // Extract name from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get("room");
-  }, []);
-
   const [agentConfig] = useState(() => {
-    // Get initial config from URL
-    const name = getNameFromURL() || "default-room";
-    console.log(`[UI] Initial agent config: ${name}`);
-    return {
-      agent: "app-agent",
-      name,
-    };
+    console.log(`[UI] Using external agent config: ${externalConfig.name}`);
+    return externalConfig;
   });
 
   // Update agent configuration with proper typing
@@ -38,25 +33,13 @@ export function useAgentState(initialMode: AgentMode = "onboarding") {
     []
   );
 
-  // Listen for URL changes and update agent config when room param changes
-  useEffect(() => {
-    const handleURLChange = () => {
-      const newName = getNameFromURL();
-      if (newName !== agentConfig.name) {
-        changeAgentConfig(agentConfig.agent, newName);
-      }
-    };
-
-    window.addEventListener("popstate", handleURLChange);
-    return () => {
-      window.removeEventListener("popstate", handleURLChange);
-    };
-  }, [agentConfig.agent, agentConfig.name, changeAgentConfig, getNameFromURL]);
+  // URL changes are no longer relevant since authentication is required
 
   // Initialize the agent EARLY to get mode info as soon as possible
   const agent = useAgent({
     agent: agentConfig.agent,
     name: agentConfig.name,
+    query: agentConfig.query, // Include authentication query params
     onStateUpdate: (newState: AppAgentState) => {
       console.log("[UI] Agent state updated:", newState);
 
@@ -127,8 +110,19 @@ export function useAgentState(initialMode: AgentMode = "onboarding") {
       // Instead of directly updating state, call the agent's setMode method
       // which will properly inject transition messages
       if (agent) {
-        // Log the endpoint URL we're actually using
-        const setModeUrl = `/agents/${agentConfig.agent}/${agentConfig.name}/set-mode`;
+        // Build the endpoint URL with authentication token
+        const baseUrl = `/agents/${agentConfig.agent}/${agentConfig.name}/set-mode`;
+        const urlParams = new URLSearchParams();
+
+        // Include authentication token from agent config
+        if (agentConfig.query?.token) {
+          urlParams.append("token", agentConfig.query.token);
+        }
+
+        const setModeUrl = urlParams.toString()
+          ? `${baseUrl}?${urlParams.toString()}`
+          : baseUrl;
+
         console.log(
           `[UI] Calling agent's setMode method to ${actionDescription.toLowerCase()} ${agentMode} to ${newMode}`
         );

@@ -41,7 +41,8 @@ export function ChatInput({
     if (pendingConfirmation)
       return "Please respond to the tool confirmation above...";
     if (isLoading) return "AI is thinking...";
-    return "Type your message... (Shift+Enter for new line, Enter to send)";
+
+    return "Type your message...";
   };
 
   // Handle key press events
@@ -58,7 +59,7 @@ export function ChatInput({
         e.preventDefault();
         onSubmit(e);
       }}
-      className="p-3 bg-white dark:bg-neutral-900 absolute bottom-0 left-0 right-0 z-20 border-t border-neutral-300 dark:border-neutral-800 md:pb-3"
+      className="p-3 bg-white dark:bg-neutral-900 border-t border-neutral-300 dark:border-neutral-800"
     >
       <div className="flex items-center gap-2">
         <div className="flex-1 relative">
@@ -72,6 +73,12 @@ export function ChatInput({
             onKeyDown={handleKeyDown}
             rows={1}
           />
+          {/* Desktop-only keyboard shortcut hint */}
+          {!pendingConfirmation && !isLoading && !value && (
+            <div className="hidden md:block absolute right-4 bottom-2 text-xs text-neutral-400 dark:text-neutral-500 pointer-events-none">
+              Shift+Enter for new line
+            </div>
+          )}
           {isLoading && (
             <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
               <div className="animate-spin h-4 w-4 border-2 border-neutral-300 dark:border-neutral-600 border-t-[#F48120] rounded-full" />

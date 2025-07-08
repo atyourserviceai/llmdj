@@ -5,9 +5,12 @@
  * All tools are wrapped with error handling here to ensure consistent behavior.
  */
 
+import { tool } from "ai";
+import { z } from "zod";
 // Import raw, unwrapped tools from their source modules
 import * as rawBrowserTools from "./browser";
 import * as rawBrowserbaseTools from "./browserbase";
+import { getGmailTools as getRawGmailTools } from "./composio";
 import * as rawContextTools from "./context";
 import * as rawIntegrationTools from "./integration";
 import * as rawMessagingTools from "./messaging";
@@ -16,10 +19,8 @@ import * as rawOnboardingTools from "./onboarding";
 import * as rawSchedulingTools from "./scheduling";
 import * as rawSearchTools from "./search";
 import * as rawSimpleFetchTools from "./simpleFetch";
+import { spotifyTools as rawSpotifyTools } from "./spotify";
 import * as rawStateTools from "./state";
-import { getGmailTools as getRawGmailTools } from "./composio";
-import { z } from "zod";
-import { tool } from "ai";
 
 // Import the wrapper function
 import {
@@ -81,6 +82,9 @@ export const simpleFetchTools = wrapAllToolsWithErrorHandling(
 export const stateTools = wrapAllToolsWithErrorHandling(
   rawStateTools as unknown as ToolCollection
 );
+export const spotifyTools = wrapAllToolsWithErrorHandling(
+  rawSpotifyTools as unknown as ToolCollection
+);
 export const testErrorTool = wrapToolWithErrorHandling(
   rawTestErrorTool as unknown as Tool
 );
@@ -111,6 +115,7 @@ const toolCounts = {
   search: countTools(searchTools),
   simpleFetch: countTools(simpleFetchTools),
   state: countTools(stateTools),
+  spotify: countTools(spotifyTools),
   special: 2, // testErrorTool and suggestActions
 };
 
@@ -151,6 +156,7 @@ export const tools = {
   completeOnboarding: onboardingTools.completeOnboarding,
   checkExistingConfig: onboardingTools.checkExistingConfig,
   getOnboardingStatus: onboardingTools.getOnboardingStatus,
+  getMusicPreferences: onboardingTools.getMusicPreferences,
 
   // Integration tools
   recordTestResult: integrationTools.recordTestResult,
@@ -169,6 +175,25 @@ export const tools = {
   // Search tools
   ...searchTools,
   runResearch,
+
+  // Spotify tools (music functionality)
+  showSpotifyAuth: spotifyTools.showSpotifyAuth,
+  connectSpotifyAccount: spotifyTools.connectSpotifyAccount,
+  getSpotifyConnectionStatus: spotifyTools.getSpotifyConnectionStatus,
+  searchSpotifyContent: spotifyTools.searchSpotifyContent,
+  getTrackDetails: spotifyTools.getTrackDetails,
+  getSpotifyRecommendations: spotifyTools.getSpotifyRecommendations,
+  getSpotifyDevices: spotifyTools.getSpotifyDevices,
+  getCurrentPlayback: spotifyTools.getCurrentPlayback,
+  controlSpotifyPlayback: spotifyTools.controlSpotifyPlayback,
+  getUserTopTracks: spotifyTools.getUserTopTracks,
+  getUserTopArtists: spotifyTools.getUserTopArtists,
+  getUserPlaylists: spotifyTools.getUserPlaylists,
+  analyzeMusicTaste: spotifyTools.analyzeMusicTaste,
+  createSpotifyPlaylist: spotifyTools.createSpotifyPlaylist,
+  addTracksToPlaylist: spotifyTools.addTracksToPlaylist,
+  removeTracksFromPlaylist: spotifyTools.removeTracksFromPlaylist,
+  updatePlaylistDetails: spotifyTools.updatePlaylistDetails,
 
   // Test error tool
   testErrorTool,

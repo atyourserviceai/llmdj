@@ -1,5 +1,5 @@
 {
-  "name": "foo-agent",
+  "name": "llmdj",
   "main": "src/server.ts",
   "compatibility_date": "2025-05-07",
   "compatibility_flags": [
@@ -24,36 +24,70 @@
     },
   ],
   "vars": {
-    "GATEWAY_BASE_URL": "https://gateway.atyourservice.ai",
+    "GATEWAY_BASE_URL": "https://atyourserviceai-gateway.motin.eu",
     "SETTINGS_ENVIRONMENT": "dev",
     "COMPOSIO_API_KEY": "",
     "BROWSERBASE_API_KEY": "",
+    "SPOTIFY_REDIRECT_URI": "https://llmdj.augmentedmind.workers.dev/spotify/callback",
+    "OAUTH_PROVIDER_BASE_URL": "https://atyourserviceai-website.motin.eu",
+    "ATYOURSERVICE_OAUTH_CLIENT_ID": "llmdj",
+    "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj.augmentedmind.workers.dev/auth/callback",
   },
   "env": {
     "staging": {
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "AppAgent",
+            "class_name": "AppAgent",
+          },
+        ],
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["AppAgent"],
+        },
+      ],
       "vars": {
-        "GATEWAY_BASE_URL": "https://gateway.atyourservice.ai",
+        "GATEWAY_BASE_URL": "https://staging.gateway.atyourservice.ai",
         "SETTINGS_ENVIRONMENT": "staging",
         "COMPOSIO_API_KEY": "",
         "BROWSERBASE_API_KEY": "",
+        "SPOTIFY_REDIRECT_URI": "https://llmdj-staging.augmentedmind.workers.dev/spotify/callback",
+        "OAUTH_PROVIDER_BASE_URL": "https://dev.atyourserviceai.pages.dev",
+        "ATYOURSERVICE_OAUTH_CLIENT_ID": "llmdj--staging--vyywjh",
+        "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj-staging.augmentedmind.workers.dev/auth/callback",
       },
-      "routes": [
-        {
-          "pattern": "foo-agent-staging.atyourservice.ai",
-          "custom_domain": true,
-        },
-      ],
     },
     "production": {
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "AppAgent",
+            "class_name": "AppAgent",
+          },
+        ],
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["AppAgent"],
+        },
+      ],
       "vars": {
         "GATEWAY_BASE_URL": "https://gateway.atyourservice.ai",
         "SETTINGS_ENVIRONMENT": "production",
         "COMPOSIO_API_KEY": "",
         "BROWSERBASE_API_KEY": "",
+        "SPOTIFY_REDIRECT_URI": "https://llmdj.com/spotify/callback",
+        "OAUTH_PROVIDER_BASE_URL": "https://atyourservice.ai",
+        "ATYOURSERVICE_OAUTH_CLIENT_ID": "llmdj-oiki8k",
+        "ATYOURSERVICE_OAUTH_REDIRECT_URI": "https://llmdj.com/auth/callback",
       },
       "routes": [
         {
-          "pattern": "foo-agent.atyourservice.ai",
+          "pattern": "llmdj.com",
           "custom_domain": true,
         },
       ],

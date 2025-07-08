@@ -13,7 +13,14 @@ export function MessageList({ children, className = "" }: MessageListProps) {
 
   // Function to scroll to the bottom of the message list - memoized with useCallback
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll within the container instead of the entire viewport
+    if (containerRef.current) {
+      // Use smooth scrolling behavior
+      containerRef.current.scrollTo({
+        top: containerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, []);
 
   // Scroll to bottom when children change (new messages added)
@@ -47,7 +54,7 @@ export function MessageList({ children, className = "" }: MessageListProps) {
   return (
     <div
       ref={containerRef}
-      className={`flex-1 overflow-y-auto p-4 space-y-4 pb-28 md:pb-24 max-h-[calc(100vh-10rem)] ${className}`}
+      className={`flex-1 overflow-y-auto p-4 space-y-4 ${className}`}
     >
       {children}
       <div ref={messagesEndRef} />

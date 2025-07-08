@@ -1,25 +1,33 @@
 import type { Message } from "@ai-sdk/react";
 import { useAgentChat } from "agents/ai-react";
-import { use, useEffect, useRef, useState } from "react";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ToolTypes } from "./agent/tools/types";
 import { useAgentState } from "./hooks/useAgentState";
 import { useErrorHandling } from "./hooks/useErrorHandling";
 import { useMessageEditing } from "./hooks/useMessageEditing";
 
+import { AuthGuard } from "./components/auth/AuthGuard";
+// OAuth imports
+import { AuthProvider, useAuth } from "./components/auth/AuthProvider";
+import { ErrorBoundary } from "./components/error/ErrorBoundary";
+import { useAgentAuth } from "./hooks/useAgentAuth";
+
+import { ActionButtons } from "@/components/action-buttons/ActionButtons";
 import { Avatar } from "@/components/avatar/Avatar";
 // Component imports
 import { Card } from "@/components/card/Card";
 import { ChatContainer } from "@/components/chat/ChatContainer";
 import { ChatMessage } from "@/components/chat/ChatMessage";
-import { ChatTabs } from "@/components/chat/ChatTabs";
+
 import { EmptyChat } from "@/components/chat/EmptyChat";
 import { ErrorMessage } from "@/components/chat/ErrorMessage";
 import { LoadingIndicator } from "@/components/chat/LoadingIndicator";
 import { MissingResponseIndicator } from "@/components/chat/MissingResponseIndicator";
 import { PlaybookContainer } from "@/components/chat/PlaybookContainer";
+import { SpotifyPlayerCard } from "@/components/chat/SpotifyPlayerCard";
 import { MemoizedMarkdown } from "@/components/memoized-markdown";
 import { ToolInvocationCard } from "@/components/tool-invocation-card/ToolInvocationCard";
-import { ActionButtons } from "@/components/action-buttons/ActionButtons";
 
 // Define agent data interface for typing
 interface AgentData {
@@ -43,8 +51,11 @@ function SuggestedActions({
   addToolResult: (args: { toolCallId: string; result: string }) => void;
   reload: () => void;
 }) {
+  // SAFETY: Ensure messages is an array before processing
+  const safeMessages = Array.isArray(messages) ? messages : [];
+
   // Find the latest message with suggestActions
-  const lastAssistantMessage = [...messages]
+  const lastAssistantMessage = [...safeMessages]
     .reverse()
     .find((msg) => msg.role === "assistant");
 
@@ -137,7 +148,85 @@ function SuggestedActions({
   );
 }
 
-export default function Chat() {
+function Chat() {
+  // Mobile viewport height fix
+  useEffect(() => {
+    // Remove any existing debug elements
+    const debugEl = document.getElementById("viewport-debug");
+    if (debugEl) {
+      debugEl.remove();
+    }
+
+    // Only run on mobile
+    if (window.innerWidth <= 768) {
+      const setViewportHeight = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty("--vh", `${vh}px`);
+      };
+
+      setViewportHeight();
+      window.addEventListener("resize", setViewportHeight);
+      window.addEventListener("orientationchange", () => {
+        setTimeout(setViewportHeight, 100);
+      });
+
+      return () => {
+        window.removeEventListener("resize", setViewportHeight);
+        window.removeEventListener("orientationchange", setViewportHeight);
+      };
+    }
+  }, []);
+
+  // Add global error handlers for better error handling
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error("Unhandled promise rejection:", event.reason);
+
+      // Check if it's a JSON parsing error
+      if (event.reason?.message?.includes("JSON")) {
+        console.error("JSON parsing error detected:", event.reason);
+        // Prevent the error from causing a blank screen
+        event.preventDefault();
+      }
+    };
+
+    const handleError = (event: ErrorEvent) => {
+      console.error("Global error caught:", event.error);
+
+      // Check if it's a JSON parsing error
+      if (event.error?.message?.includes("JSON")) {
+        console.error("JSON parsing error detected:", event.error);
+      }
+    };
+
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+    window.addEventListener("error", handleError);
+
+    return () => {
+      window.removeEventListener(
+        "unhandledrejection",
+        handleUnhandledRejection
+      );
+      window.removeEventListener("error", handleError);
+    };
+  }, []);
+
+  // Get authenticated agent configuration
+  const agentConfig = useAgentAuth();
+
+  // Use the agent configuration (only available when authenticated)
+  if (!agentConfig) {
+    // This should never happen inside AuthGuard, but just in case
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-900 via-black to-green-900 dark:from-green-900 dark:via-black dark:to-green-900">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-white mb-4">Loading...</h1>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
   // UI-related state
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     // Check localStorage first, default to dark if not found
@@ -145,10 +234,11 @@ export default function Chat() {
     return (savedTheme as "dark" | "light") || "dark";
   });
   const [showDebug, setShowDebug] = useState(false);
-  const [activeTab, setActiveTab] = useState<"chat" | "playbook">("chat");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Add temporary loading state for smoother mode transitions
   const [temporaryLoading, setTemporaryLoading] = useState(false);
+  // Get auth context for token expiration checks (must be at top level due to Rules of Hooks)
+  const auth = useAuth();
 
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
@@ -169,23 +259,25 @@ export default function Chat() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  // Use the agent state hook instead of implementing the logic directly
-  const { agent, agentState, agentMode, changeAgentMode } =
-    useAgentState("onboarding");
+  // Use the agent state hook with authenticated config
+  const {
+    agent,
+    agentState,
+    agentMode,
+    agentConfig: finalAgentConfig,
+    changeAgentMode,
+  } = useAgentState(agentConfig!, "onboarding"); // Non-null assertion: agentConfig is guaranteed to exist here due to AuthGuard
 
   // Use the error handling hook
   const { isErrorMessage, parseErrorData, formatErrorForMessage } =
     useErrorHandling();
 
-  // Debug effect to log dropdown values on every render
-  useEffect(() => {
-    console.log(
-      `[UI Debug] Dropdown values - agentMode: ${agentMode}, agentState?.mode: ${agentState?.mode || "none"}`
-    );
-  }, [agentMode, agentState]);
+  // Removed excessive debug logging that was cluttering console on every render
 
+  // IMPORTANT: Check for auth errors BEFORE calling useAgentChat
+  // This prevents the hook from trying to process error objects
   const {
-    messages: agentMessages,
+    messages: agentMessagesRaw,
     input: agentInput,
     handleInputChange: handleAgentInputChange,
     handleSubmit: handleAgentSubmit,
@@ -373,6 +465,27 @@ export default function Chat() {
     },
   });
 
+  // SAFETY: Ensure agentMessages is always an array to prevent "messages.map is not a function" errors
+  // Also detect API errors and throw proper auth errors for the Error Boundary to catch
+  const hasApiError =
+    agentMessagesRaw &&
+    typeof agentMessagesRaw === "object" &&
+    !Array.isArray(agentMessagesRaw) &&
+    "error" in agentMessagesRaw;
+
+  if (hasApiError) {
+    const errorMessage =
+      (agentMessagesRaw as { error?: string })?.error || "Unknown API error";
+    const authError = new Error(
+      `Authentication failed: ${errorMessage}`
+    ) as Error & { isAuthError?: boolean };
+    authError.isAuthError = true; // Mark as auth error
+    throw authError; // Throw immediately - prevents .map() from being called
+  }
+
+  // The backend now guarantees arrays, but this is a safety measure
+  const agentMessages = Array.isArray(agentMessagesRaw) ? agentMessagesRaw : [];
+
   // Use the message editing hook to manage message editing and retry logic
   const {
     editingMessageId,
@@ -392,18 +505,12 @@ export default function Chat() {
     handleRetryLastUserMessage,
   } = useMessageEditing(agentMessages, setMessages, agentInput, reload);
 
-  console.log(`[Chat] agentData: ${JSON.stringify(agentData)}`);
-
   // Handle custom event for setting chat input from PlaybookPanel
   useEffect(() => {
     // Function to set input and switch to chat tab if needed
     function handleSetChatInput(event: CustomEvent) {
       if (event.detail) {
         setInput(event.detail.text || "");
-        // If we're not in chat tab, switch to it
-        if (activeTab !== "chat") {
-          setActiveTab("chat");
-        }
       }
     }
 
@@ -420,7 +527,368 @@ export default function Chat() {
         handleSetChatInput as EventListener
       );
     };
-  }, [setInput, activeTab]);
+  }, [setInput]);
+
+  // Handle OAuth token exchange
+  const handleOAuthTokenExchange = useCallback(
+    async (code: string, state: string) => {
+      try {
+        console.log("[DEBUG] Starting OAuth token exchange...");
+        console.log("[DEBUG] Received state:", `${state?.substring(0, 10)}...`);
+
+        // Get the stored code verifier and state from sessionStorage
+        const storedCodeVerifier = sessionStorage.getItem(
+          "spotify_code_verifier"
+        );
+        const storedState = sessionStorage.getItem("spotify_state");
+
+        console.log(
+          "[DEBUG] Stored state:",
+          `${storedState?.substring(0, 10)}...`
+        );
+        console.log("[DEBUG] Code verifier exists:", !!storedCodeVerifier);
+        console.log(
+          "[DEBUG] Code verifier length:",
+          storedCodeVerifier?.length
+        );
+
+        if (!storedCodeVerifier || storedState !== state) {
+          console.error("[DEBUG] Invalid OAuth state or missing code verifier");
+          console.error("[DEBUG] State match:", storedState === state);
+          console.error("[DEBUG] Code verifier exists:", !!storedCodeVerifier);
+          console.error(
+            "[DEBUG] Expected state:",
+            `${storedState?.substring(0, 10)}...`
+          );
+          console.error(
+            "[DEBUG] Received state:",
+            `${state?.substring(0, 10)}...`
+          );
+          return;
+        }
+
+        console.log(
+          "[DEBUG] PKCE validation passed, proceeding with token exchange"
+        );
+
+        // Get Spotify config
+        console.log("[DEBUG] Fetching Spotify config...");
+        const configResponse = await fetch("/spotify/config");
+        if (!configResponse.ok) {
+          throw new Error("Failed to load Spotify configuration");
+        }
+        const config = (await configResponse.json()) as {
+          SPOTIFY_CLIENT_ID: string;
+          SPOTIFY_REDIRECT_URI: string;
+        };
+        console.log("[DEBUG] Spotify config loaded:", config);
+
+        // Exchange authorization code for tokens
+        console.log("[DEBUG] Exchanging code for tokens with Spotify API...");
+        const tokenResponse = await fetch(
+          "https://accounts.spotify.com/api/token",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code: code,
+              redirect_uri: config.SPOTIFY_REDIRECT_URI,
+              client_id: config.SPOTIFY_CLIENT_ID,
+              code_verifier: storedCodeVerifier,
+            }),
+          }
+        );
+
+        console.log(
+          "[DEBUG] Spotify token response status:",
+          tokenResponse.status,
+          tokenResponse.ok
+        );
+
+        if (!tokenResponse.ok) {
+          const errorData = (await tokenResponse.json()) as {
+            error?: string;
+            error_description?: string;
+          };
+          console.error("[DEBUG] Spotify token exchange error:", errorData);
+          throw new Error(
+            `Token exchange failed: ${errorData.error_description || errorData.error}`
+          );
+        }
+
+        const tokens = (await tokenResponse.json()) as {
+          access_token: string;
+          refresh_token?: string;
+          expires_in?: number;
+          token_type?: string;
+          scope?: string;
+        };
+        console.log("[DEBUG] Token exchange successful, tokens received:", {
+          hasAccessToken: !!tokens.access_token,
+          hasRefreshToken: !!tokens.refresh_token,
+          expiresIn: tokens.expires_in,
+          scope: tokens.scope,
+        });
+
+        // Clean up sessionStorage
+        sessionStorage.removeItem("spotify_code_verifier");
+        sessionStorage.removeItem("spotify_state");
+        console.log("[DEBUG] Cleaned up sessionStorage");
+
+        // Dispatch the success event with tokens
+        console.log("[DEBUG] Dispatching spotify-auth-success event");
+        const event = new CustomEvent("spotify-auth-success", {
+          detail: { tokens },
+        });
+        window.dispatchEvent(event);
+      } catch (error) {
+        console.error("[DEBUG] OAuth token exchange failed:", error);
+      }
+    },
+    []
+  );
+
+  // Handle Spotify authentication success
+  useEffect(() => {
+    function handleSpotifyAuthSuccess(event: CustomEvent) {
+      const { tokens } = event.detail;
+      console.log("[DEBUG] handleSpotifyAuthSuccess called with tokens:", {
+        hasAccessToken: !!tokens?.access_token,
+        hasRefreshToken: !!tokens?.refresh_token,
+        expiresIn: tokens?.expires_in,
+        tokenType: tokens?.token_type,
+        scope: tokens?.scope,
+      });
+
+      // Call the agent endpoint to store tokens securely
+      const storeTokens = async () => {
+        console.log("[DEBUG] Starting token storage process...");
+        try {
+          // Get the user's AtYourService.ai OAuth token for authentication
+          const authMethodStr = localStorage.getItem("auth_method");
+          console.log(
+            "[DEBUG] Auth method from localStorage:",
+            !!authMethodStr
+          );
+
+          if (!authMethodStr) {
+            throw new Error("No authentication found. Please sign in first.");
+          }
+
+          const authMethod = JSON.parse(authMethodStr);
+          console.log("[DEBUG] Parsed auth method:", {
+            hasApiKey: !!authMethod?.apiKey,
+            type: authMethod?.type,
+            hasUserInfo: !!authMethod?.userInfo,
+          });
+
+          if (!authMethod?.apiKey) {
+            throw new Error(
+              "Invalid authentication data. Please sign in again."
+            );
+          }
+
+          const endpoint = `/agents/${finalAgentConfig.agent}/${finalAgentConfig.name}/store-spotify-tokens`;
+          console.log("[DEBUG] Calling endpoint:", endpoint);
+
+          const requestBody = {
+            access_token: tokens.access_token,
+            refresh_token: tokens.refresh_token,
+            expires_in: tokens.expires_in,
+            token_type: tokens.token_type,
+            scope: tokens.scope,
+          };
+          console.log("[DEBUG] Request body:", {
+            hasAccessToken: !!requestBody.access_token,
+            hasRefreshToken: !!requestBody.refresh_token,
+            expiresIn: requestBody.expires_in,
+            tokenType: requestBody.token_type,
+            scope: requestBody.scope,
+          });
+
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authMethod.apiKey}`,
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          console.log(
+            "[DEBUG] Store tokens response:",
+            response.status,
+            response.ok
+          );
+
+          if (!response.ok) {
+            console.error(
+              "[DEBUG] Store tokens response not ok:",
+              response.status,
+              response.statusText
+            );
+            throw new Error(`Failed to store tokens: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          console.log("[DEBUG] Tokens stored successfully:", result);
+
+          // Create a user message indicating authentication completed
+          const authMessage =
+            "I've successfully completed Spotify authentication.";
+
+          console.log("[DEBUG] Creating user message:", authMessage);
+
+          const newMessage = {
+            id: crypto.randomUUID(),
+            role: "user" as const,
+            createdAt: new Date(),
+            content: authMessage,
+            parts: [
+              {
+                type: "text" as const,
+                text: authMessage,
+              },
+            ],
+          };
+
+          // Add the message to the chat
+          console.log(
+            "[DEBUG] Adding message to chat and triggering reload..."
+          );
+          setMessages([...agentMessages, newMessage]);
+
+          // Trigger the agent to respond
+          setTimeout(() => {
+            reload();
+          }, 100);
+        } catch (error) {
+          console.error("[DEBUG] Error storing Spotify tokens:", error);
+          // Show error message to user
+          const errorMessage = `Failed to store Spotify authentication. Error: ${error instanceof Error ? error.message : String(error)}`;
+
+          console.log("[DEBUG] Creating error message:", errorMessage);
+
+          const newMessage = {
+            id: crypto.randomUUID(),
+            role: "user" as const,
+            createdAt: new Date(),
+            content: errorMessage,
+            parts: [
+              {
+                type: "text" as const,
+                text: errorMessage,
+              },
+            ],
+          };
+
+          setMessages([...agentMessages, newMessage]);
+          setTimeout(() => {
+            reloadWithTokenCheck();
+          }, 100);
+        }
+      };
+
+      storeTokens();
+    }
+
+    window.addEventListener(
+      "spotify-auth-success",
+      handleSpotifyAuthSuccess as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "spotify-auth-success",
+        handleSpotifyAuthSuccess as EventListener
+      );
+    };
+  }, [setMessages, agentMessages, reload, finalAgentConfig]);
+
+  // Separate effect for OAuth callback check - only run once on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies(handleOAuthTokenExchange): OAuth callback check should only run once on mount
+  useEffect(() => {
+    const checkOAuthCallback = () => {
+      console.log("[DEBUG] Checking for OAuth callback...");
+
+      // Check URL parameters (for direct OAuth returns)
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get("code");
+      const state = urlParams.get("state");
+      const error = urlParams.get("error");
+      const errorDescription = urlParams.get("error_description");
+
+      // Check for Spotify-specific callback parameters
+      const spotifyCode = urlParams.get("spotify_code");
+      const spotifyState = urlParams.get("spotify_state");
+      const spotifyCallback = urlParams.get("spotify_callback");
+
+      console.log("[DEBUG] URL parameters:", {
+        code: `${code?.substring(0, 10)}...`,
+        state: `${state?.substring(0, 10)}...`,
+        error,
+        errorDescription,
+        spotifyCode: `${spotifyCode?.substring(0, 10)}...`,
+        spotifyState: `${spotifyState?.substring(0, 10)}...`,
+        spotifyCallback,
+      });
+
+      // Check localStorage for Spotify callback data (from server callback - backup method)
+      const storedSpotifyData = localStorage.getItem("spotify_callback_data");
+      console.log(
+        "[DEBUG] Spotify callback data in localStorage:",
+        storedSpotifyData
+      );
+
+      // Handle Spotify OAuth callback (URL parameters method)
+      if (spotifyCallback === "true" && spotifyCode && spotifyState) {
+        console.log(
+          "[DEBUG] Spotify OAuth callback detected via URL parameters"
+        );
+
+        // Clean up URL parameters
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete("spotify_code");
+        newUrl.searchParams.delete("spotify_state");
+        newUrl.searchParams.delete("spotify_callback");
+        window.history.replaceState({}, "", newUrl.toString());
+
+        // Process the OAuth callback
+        handleOAuthTokenExchange(spotifyCode, spotifyState);
+        return;
+      }
+
+      // Handle Spotify OAuth callback (localStorage method - fallback)
+      if (storedSpotifyData) {
+        console.log("[DEBUG] Spotify OAuth callback detected via localStorage");
+        try {
+          const { code: storedCode, state: storedState } =
+            JSON.parse(storedSpotifyData);
+          localStorage.removeItem("spotify_callback_data");
+          handleOAuthTokenExchange(storedCode, storedState);
+          return;
+        } catch (error) {
+          console.error("[DEBUG] Error parsing stored Spotify data:", error);
+        }
+      }
+
+      // Handle AtYourService.ai OAuth callback
+      if (code && state && !spotifyCallback) {
+        console.log("[DEBUG] AtYourService.ai OAuth callback detected");
+        handleOAuthTokenExchange(code, state);
+        return;
+      }
+
+      console.log(
+        "[DEBUG] No OAuth callback data found in URL or localStorage"
+      );
+    };
+
+    checkOAuthCallback();
+  }, []);
 
   // Handle action button clicks from the suggestActions tool
   useEffect(() => {
@@ -476,7 +944,7 @@ export default function Chat() {
 
             // Trigger the agent to respond
             setTimeout(() => {
-              reload();
+              reloadWithTokenCheck();
             }, 50);
           }, 10);
         }
@@ -496,7 +964,7 @@ export default function Chat() {
         handleActionButtonClick as EventListener
       );
     };
-  }, [setMessages, agentMessages, setInput, reload]);
+  }, [setMessages, agentMessages, setInput]);
 
   // Reset textarea height when input is empty
   useEffect(() => {
@@ -522,7 +990,8 @@ export default function Chat() {
 
   // Handle message rendering loop
   const renderMessages = () => {
-    if (agentMessages.length === 0) {
+    // SAFETY: Double-check that agentMessages is a valid array
+    if (!Array.isArray(agentMessages) || agentMessages.length === 0) {
       return <EmptyChat />;
     }
 
@@ -542,7 +1011,7 @@ export default function Chat() {
           <div key={message.id}>
             <ErrorMessage
               errorData={errorData}
-              onRetry={() => handleRetry(index)}
+              onRetry={() => handleRetryWithTokenCheck(index)}
               isLoading={isLoading}
               formatTime={formatTime}
               createdAt={message.createdAt}
@@ -618,14 +1087,52 @@ export default function Chat() {
                       return null;
                     }
 
+                    // Check if this tool result has embedded player data
+                    const hasEmbeddedPlayer =
+                      toolInvocation.state === "result" &&
+                      toolInvocation.result &&
+                      typeof toolInvocation.result === "object" &&
+                      "showEmbeddedPlayer" in toolInvocation.result &&
+                      toolInvocation.result.showEmbeddedPlayer === true &&
+                      "embeddedPlayerData" in toolInvocation.result &&
+                      toolInvocation.result.embeddedPlayerData &&
+                      typeof toolInvocation.result.embeddedPlayerData ===
+                        "object";
+
                     return (
-                      <ToolInvocationCard
-                        key={`${message.id}-tool-${toolCallId}`}
-                        toolInvocation={toolInvocation}
-                        toolCallId={toolCallId}
-                        needsConfirmation={needsConfirmation}
-                        addToolResult={addToolResult}
-                      />
+                      <div key={`${message.id}-tool-${toolCallId}`}>
+                        <ToolInvocationCard
+                          agentState={agentState}
+                          toolInvocation={toolInvocation}
+                          toolCallId={toolCallId}
+                          needsConfirmation={needsConfirmation}
+                          addToolResult={addToolResult}
+                        />
+
+                        {/* Render Spotify player directly in chat when available */}
+                        {hasEmbeddedPlayer && (
+                          <div className="mt-3">
+                            <SpotifyPlayerCard
+                              uri={
+                                (toolInvocation.result as any)
+                                  .embeddedPlayerData.uri
+                              }
+                              title={
+                                (toolInvocation.result as any)
+                                  .embeddedPlayerData.title
+                              }
+                              description={
+                                (toolInvocation.result as any)
+                                  .embeddedPlayerData.description
+                              }
+                              reason={
+                                (toolInvocation.result as any)
+                                  .embeddedPlayerData.reason
+                              }
+                            />
+                          </div>
+                        )}
+                      </div>
                     );
                   }
 
@@ -652,7 +1159,7 @@ export default function Chat() {
         messageElements.push(
           <div key="missing-response">
             <MissingResponseIndicator
-              onTryAgain={handleRetryLastUserMessage}
+              onTryAgain={handleRetryLastUserMessageWithTokenCheck}
               isLoading={isLoading}
               formatTime={formatTime}
             />
@@ -726,7 +1233,7 @@ export default function Chat() {
         key="suggested-actions"
         messages={agentMessages}
         addToolResult={addToolResult}
-        reload={reload}
+        reload={reloadWithTokenCheck}
       />
     );
 
@@ -761,8 +1268,40 @@ export default function Chat() {
     }
   };
 
+  // Wrapper for reload with token expiration check
+  const reloadWithTokenCheck = useCallback(() => {
+    // Check for token expiration before reloading (with safety check)
+    if (auth?.checkTokenExpiration()) {
+      return; // Token expired, user will be prompted to re-authenticate
+    }
+    reload();
+  }, [auth, reload]);
+
+  // Update retry handlers to check token expiration
+  const handleRetryWithTokenCheck = (index: number) => {
+    // Check for token expiration before retrying (with safety check)
+    if (auth?.checkTokenExpiration()) {
+      return; // Token expired, user will be prompted to re-authentication
+    }
+    handleRetry(index);
+  };
+
+  const handleRetryLastUserMessageWithTokenCheck = () => {
+    // Check for token expiration before retrying (with safety check)
+    if (auth?.checkTokenExpiration()) {
+      return; // Token expired, user will be prompted to re-authenticate
+    }
+
+    handleRetryLastUserMessage();
+  };
+
   // Update handleSubmitWithRetry to properly handle options
   const handleSubmitWithRetry = (e: React.FormEvent) => {
+    // Check for token expiration before submitting (with safety check)
+    if (auth?.checkTokenExpiration()) {
+      return; // Token expired, user will be prompted to re-authenticate
+    }
+
     setIsRetrying(false); // Clear retrying state when sending a new message
     handleAgentSubmit(e);
   };
@@ -771,7 +1310,12 @@ export default function Chat() {
   useEffect(() => {
     // If we have no messages but the agent is connected, show a loading indicator
     // This helps with the initial loading experience for new chatrooms
-    if (agent && agentMessages.length === 0 && !isLoading) {
+    if (
+      agent &&
+      Array.isArray(agentMessages) &&
+      agentMessages.length === 0 &&
+      !isLoading
+    ) {
       setTemporaryLoading(true);
 
       // Set a timeout to clear the loading state if no messages arrive
@@ -781,11 +1325,16 @@ export default function Chat() {
 
       return () => clearTimeout(timeout);
     }
-  }, [agent, agentMessages.length, isLoading]);
+  }, [agent, agentMessages, isLoading]);
 
   // Single simplified auto-response for system messages (welcome or transition)
   useEffect(() => {
-    if (agentMessages.length > 0 && !isLoading && !temporaryLoading) {
+    if (
+      Array.isArray(agentMessages) &&
+      agentMessages.length > 0 &&
+      !isLoading &&
+      !temporaryLoading
+    ) {
       const lastMessage = agentMessages[agentMessages.length - 1];
 
       // Check if last message is a system message with isModeMessage data
@@ -801,19 +1350,23 @@ export default function Chat() {
             `[UI] Auto-triggering AI response for ${messageData.modeType} message`
           );
           // Trigger AI response just like a user sent a message
-          reload();
+          reloadWithTokenCheck();
         }
       }
     }
-  }, [agentMessages, isLoading, temporaryLoading, reload]);
+  }, [agentMessages, isLoading, temporaryLoading, reloadWithTokenCheck]);
 
   return (
-    <div className="h-[100vh] w-full p-4 flex justify-center items-center bg-fixed overflow-hidden">
-      <HasOpenAIKey />
-
+    <div
+      className="w-full p-2 md:p-4 flex justify-center items-center md:items-center bg-fixed overflow-hidden"
+      style={{ height: "calc(var(--vh, 1vh) * 100)" }}
+    >
       {/* Main Container - Responsive layout with chat and playbook */}
-      <div className="h-[calc(100vh-2rem)] w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 pb-14 md:pb-0">
-        {/* Chat UI */}
+      <div
+        className="w-full mx-auto max-w-7xl flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0"
+        style={{ height: "calc(var(--vh, 1vh) * 100 - 1rem)" }}
+      >
+        {/* Chat UI - Full width on mobile, shared width on desktop */}
         <ChatContainer
           theme={theme}
           showDebug={showDebug}
@@ -821,7 +1374,6 @@ export default function Chat() {
           inputValue={agentInput}
           isLoading={isLoading}
           pendingConfirmation={pendingToolCallConfirmation}
-          activeTab={activeTab}
           onToggleTheme={toggleTheme}
           onToggleDebug={() => setShowDebug((prev) => !prev)}
           onChangeMode={(newMode) => {
@@ -842,89 +1394,33 @@ export default function Chat() {
           {renderMessages()}
         </ChatContainer>
 
-        {/* Playbook Panel */}
-        <PlaybookContainer
-          activeTab={activeTab}
-          agentMode={agentMode}
-          agentState={agentState}
-          showDebug={showDebug}
-        />
+        {/* Playbook Panel - Desktop only */}
+        <div className="hidden md:block">
+          <PlaybookContainer
+            agentMode={agentMode}
+            agentState={agentState}
+            showDebug={showDebug}
+          />
+        </div>
       </div>
-
-      {/* Mobile Tabs at the bottom */}
-      <ChatTabs activeTab={activeTab} setActiveTab={setActiveTab} />
     </div>
   );
 }
 
-const hasOpenAiKeyPromise = fetch("/check-open-ai-key").then((res) =>
-  res.json<{ success: boolean }>()
-);
-
-function HasOpenAIKey() {
-  const hasOpenAiKey = use(hasOpenAiKeyPromise);
-
-  if (!hasOpenAiKey || !hasOpenAiKey.success) {
-    return (
-      <div className="fixed top-0 left-0 right-0 z-50 bg-red-500/10 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto p-4">
-          <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-lg border border-red-200 dark:border-red-900 p-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth="1.5"
-                  stroke="currentColor"
-                  className="w-5 h-5 text-red-600 dark:text-red-400"
-                  aria-labelledby="warningIcon"
-                >
-                  <title id="warningIcon">Warning Icon</title>
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                  <line x1="12" y1="9" x2="12" y2="13" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-2">
-                  OpenAI API Key Not Configured
-                </h3>
-                <p className="text-neutral-600 dark:text-neutral-300 mb-1">
-                  Requests to the API, including from the frontend UI, will not
-                  work until an OpenAI API key is configured.
-                </p>
-                <p className="text-neutral-600 dark:text-neutral-300">
-                  Please configure an OpenAI API key by setting a{" "}
-                  <a
-                    href="https://developers.cloudflare.com/workers/configuration/secrets/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-red-600 dark:text-red-400"
-                  >
-                    secret
-                  </a>{" "}
-                  named{" "}
-                  <code className="bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded text-red-600 dark:text-red-400 font-mono text-sm">
-                    OPENAI_API_KEY
-                  </code>
-                  . <br />
-                  You can also use a different model provider by following these{" "}
-                  <a
-                    href="https://github.com/cloudflare/agents-starter?tab=readme-ov-file#use-a-different-ai-model-provider"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-red-600 dark:text-red-400"
-                  >
-                    instructions.
-                  </a>
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return null;
+// Main App component with authentication
+export default function App() {
+  return (
+    <div
+      className="bg-gradient-to-br from-green-900 via-black to-green-900 dark:from-green-900 dark:via-black dark:to-green-900"
+      style={{ height: "calc(var(--vh, 1vh) * 100)" }}
+    >
+      <ErrorBoundary>
+        <AuthProvider>
+          <AuthGuard>
+            <Chat />
+          </AuthGuard>
+        </AuthProvider>
+      </ErrorBoundary>
+    </div>
+  );
 }

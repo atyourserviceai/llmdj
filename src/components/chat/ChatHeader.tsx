@@ -2,6 +2,7 @@ import { Button } from "@/components/button/Button";
 import { Toggle } from "@/components/toggle/Toggle";
 import { Bug, Moon, Sun, Trash } from "@phosphor-icons/react";
 import type { AgentMode } from "../../agent/AppAgent";
+import { UserProfile } from "../auth/UserProfile";
 
 type ChatHeaderProps = {
   theme: "dark" | "light";
@@ -23,12 +24,12 @@ export function ChatHeader({
   onClearHistory,
 }: ChatHeaderProps) {
   return (
-    <div className="px-4 py-3 border-b border-neutral-300 dark:border-neutral-800 flex items-center gap-3 sticky top-0 z-10 bg-white dark:bg-neutral-900">
-      <div className="flex items-center justify-center h-8 w-8">
+    <div className="px-3 md:px-4 py-2 md:py-3 border-b border-neutral-300 dark:border-neutral-800 flex items-center gap-2 md:gap-3 sticky top-0 z-10 bg-white dark:bg-neutral-900">
+      <div className="flex items-center justify-center h-6 w-6 md:h-8 md:w-8 flex-shrink-0">
         <svg
-          width="28px"
-          height="28px"
-          className="text-[#F48120]"
+          width="24px"
+          height="24px"
+          className="text-[#F48120] md:w-7 md:h-7"
           data-icon="agents"
         >
           <title>Cloudflare Agents</title>
@@ -42,29 +43,29 @@ export function ChatHeader({
         </svg>
       </div>
 
-      <div className="flex-1">
-        <h2 className="font-semibold text-base">Foo Agent</h2>
+      <div className="flex-1 min-w-0">
+        <h2 className="font-semibold text-sm md:text-base truncate">LLMDJ</h2>
       </div>
 
       {/* Mode selector */}
-      <div className="flex items-center gap-2">
+      <div className="hidden sm:flex items-center gap-2">
         {/* Hidden debug element for logging mode - using key to force re-render */}
         <div key={`debug-${agentMode}`} style={{ display: "none" }} />
         <select
-          className="bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md px-2 py-1 text-sm"
+          className="bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 rounded-md px-2 py-1 text-xs md:text-sm"
           value={agentMode}
           onChange={(e) => onChangeMode(e.target.value as AgentMode)}
         >
-          <option value="onboarding">Onboarding Mode</option>
-          <option value="integration">Integration Mode</option>
-          <option value="plan">Plan Mode</option>
-          <option value="act">Act Mode</option>
+          <option value="onboarding">Onboarding</option>
+          <option value="integration">Integration</option>
+          <option value="plan">Plan</option>
+          <option value="act">Act</option>
         </select>
       </div>
 
       {/* Debug toggle */}
-      <div className="hidden md:flex items-center gap-2 mr-2">
-        <Bug size={16} />
+      <div className="hidden lg:flex items-center gap-1 mr-1">
+        <Bug size={14} />
         <Toggle
           toggled={showDebug}
           aria-label="Toggle debug mode"
@@ -77,10 +78,14 @@ export function ChatHeader({
         variant="ghost"
         size="md"
         shape="square"
-        className="rounded-full h-9 w-9"
+        className="rounded-full h-8 w-8 md:h-9 md:w-9 flex-shrink-0"
         onClick={onToggleTheme}
       >
-        {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+        {theme === "dark" ? (
+          <Sun size={16} className="md:w-5 md:h-5" />
+        ) : (
+          <Moon size={16} className="md:w-5 md:h-5" />
+        )}
       </Button>
 
       {/* Clear history */}
@@ -88,11 +93,14 @@ export function ChatHeader({
         variant="ghost"
         size="md"
         shape="square"
-        className="rounded-full h-9 w-9"
+        className="rounded-full h-8 w-8 md:h-9 md:w-9 flex-shrink-0"
         onClick={onClearHistory}
       >
-        <Trash size={20} />
+        <Trash size={16} className="md:w-5 md:h-5" />
       </Button>
+
+      {/* User Profile */}
+      <UserProfile />
     </div>
   );
 }

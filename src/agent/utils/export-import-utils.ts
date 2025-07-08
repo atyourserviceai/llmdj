@@ -144,6 +144,7 @@ export async function exportAgentData(
 
   // Define table names and their queries
   const tableQueries = [
+    // Core system tables
     {
       name: "cf_agents_state",
       schemaQuery: agent.sql`PRAGMA table_info(cf_agents_state)`,
@@ -159,47 +160,107 @@ export async function exportAgentData(
       schemaQuery: agent.sql`PRAGMA table_info(cf_agents_schedules)`,
       dataQuery: agent.sql`SELECT * FROM cf_agents_schedules`,
     },
+    // Custom tables
     {
-      name: "companies",
-      schemaQuery: agent.sql`PRAGMA table_info(companies)`,
-      dataQuery: agent.sql`SELECT * FROM companies`,
+      name: "settings",
+      schemaQuery: agent.sql`PRAGMA table_info(settings)`,
+      dataQuery: agent.sql`SELECT * FROM settings`,
     },
     {
-      name: "leads",
-      schemaQuery: agent.sql`PRAGMA table_info(leads)`,
-      dataQuery: agent.sql`SELECT * FROM leads`,
+      name: "user_info",
+      schemaQuery: agent.sql`PRAGMA table_info(user_info)`,
+      dataQuery: agent.sql`SELECT * FROM user_info`,
+    },
+    {
+      name: "tasks",
+      schemaQuery: agent.sql`PRAGMA table_info(tasks)`,
+      dataQuery: agent.sql`SELECT * FROM tasks`,
     },
     {
       name: "interaction_history",
       schemaQuery: agent.sql`PRAGMA table_info(interaction_history)`,
       dataQuery: agent.sql`SELECT * FROM interaction_history`,
     },
+    {
+      name: "spotify_tokens",
+      schemaQuery: agent.sql`PRAGMA table_info(spotify_tokens)`,
+      dataQuery: agent.sql`SELECT * FROM spotify_tokens`,
+    },
+    {
+      name: "spotify_profiles",
+      schemaQuery: agent.sql`PRAGMA table_info(spotify_profiles)`,
+      dataQuery: agent.sql`SELECT * FROM spotify_profiles`,
+    },
+    {
+      name: "music_preferences",
+      schemaQuery: agent.sql`PRAGMA table_info(music_preferences)`,
+      dataQuery: agent.sql`SELECT * FROM music_preferences`,
+    },
+    {
+      name: "listening_history",
+      schemaQuery: agent.sql`PRAGMA table_info(listening_history)`,
+      dataQuery: agent.sql`SELECT * FROM listening_history`,
+    },
+    {
+      name: "playlist_data",
+      schemaQuery: agent.sql`PRAGMA table_info(playlist_data)`,
+      dataQuery: agent.sql`SELECT * FROM playlist_data`,
+    },
+    {
+      name: "music_sessions",
+      schemaQuery: agent.sql`PRAGMA table_info(music_sessions)`,
+      dataQuery: agent.sql`SELECT * FROM music_sessions`,
+    },
+    {
+      name: "music_session_history",
+      schemaQuery: agent.sql`PRAGMA table_info(music_session_history)`,
+      dataQuery: agent.sql`SELECT * FROM music_session_history`,
+    },
+    {
+      name: "playlist_history",
+      schemaQuery: agent.sql`PRAGMA table_info(playlist_history)`,
+      dataQuery: agent.sql`SELECT * FROM playlist_history`,
+    },
   ];
 
   // Process each table
   for (const table of tableQueries) {
-    // Schema query returns an array of column info
-    const schema = await table.schemaQuery;
-    const rows = await table.dataQuery;
+    try {
+      // Schema query returns an array of column info
+      const schema = await table.schemaQuery;
+      const rows = await table.dataQuery;
 
-    // Convert schema to SchemaColumn type
-    const schemaColumns: SchemaColumn[] = Array.isArray(schema)
-      ? schema.map((col) => ({
-          name: String(col.name || ""),
-          type: String(col.type || "TEXT"),
-          notnull: Boolean(col.notnull),
-          pk: Boolean(col.pk),
-          dflt_value:
-            col.dflt_value !== undefined ? String(col.dflt_value) : null,
-          cid: typeof col.cid === "number" ? col.cid : 0,
-        }))
-      : [];
+      // Convert schema to SchemaColumn type
+      const schemaColumns: SchemaColumn[] = Array.isArray(schema)
+        ? schema.map((col) => ({
+            name: String(col.name || ""),
+            type: String(col.type || "TEXT"),
+            notnull: Boolean(col.notnull),
+            pk: Boolean(col.pk),
+            dflt_value:
+              col.dflt_value !== undefined ? String(col.dflt_value) : null,
+            cid: typeof col.cid === "number" ? col.cid : 0,
+          }))
+        : [];
 
-    result.tables[table.name] = {
-      schema: schemaColumns,
-      rows,
-      description: getTableDescription(table.name),
-    };
+      result.tables[table.name] = {
+        schema: schemaColumns,
+        rows,
+        description: getTableDescription(table.name),
+      };
+    } catch (error) {
+      // If table doesn't exist or there's an error, record it but continue
+      console.warn(
+        `[export-import] Error exporting table ${table.name}:`,
+        error
+      );
+      result.tables[table.name] = {
+        schema: [],
+        rows: [],
+        description: getTableDescription(table.name),
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   return result;
