@@ -2,6 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Cookieless GA4 — no consent banner required -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FH0XGZDJ43"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'granted' });
+      gtag('js', new Date());
+      gtag('config', 'G-FH0XGZDJ43', { client_storage: 'none', anonymize_ip: true, allow_google_signals: false, allow_ad_personalization_signals: false });
+    </script>
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
