@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import type { Message } from "@ai-sdk/ui-utils";
-// import { createAnthropic } from "@ai-sdk/anthropic";
+import { createAnthropic } from "@ai-sdk/anthropic";
 // import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { Schedule } from "agents";
 import type { AgentContext } from "agents";
@@ -34,7 +34,9 @@ import {
 import { processToolCalls } from "./utils/tool-utils";
 
 // AI @ Your Service Gateway configuration
-const getOpenAI = (env: Env, apiKey?: string) => {
+// OpenAI route kept for reference; the default model is Claude (see getAIProvider)
+// @ts-expect-error Kept for reference - may be used in future
+const _getOpenAI = (env: Env, apiKey?: string) => {
   if (!apiKey) {
     throw new Error("API key is required for AI requests");
   }
@@ -44,7 +46,31 @@ const getOpenAI = (env: Env, apiKey?: string) => {
   });
 };
 
-/*
+// Claude Haiku 5.5 rejects sampling parameters (400 "`temperature` is deprecated
+// for this model"), but AI SDK v4 always sends temperature (default 0). Strip
+// them from the request body before it leaves the worker.
+const SAMPLING_PARAMS = ["temperature", "top_p", "top_k"];
+const fetchWithoutSamplingParams: typeof fetch = async (input, init) => {
+  if (init?.body && typeof init.body === "string") {
+    try {
+      const body = JSON.parse(init.body);
+      let changed = false;
+      for (const key of SAMPLING_PARAMS) {
+        if (key in body) {
+          delete body[key];
+          changed = true;
+        }
+      }
+      if (changed) {
+        return fetch(input, { ...init, body: JSON.stringify(body) });
+      }
+    } catch {
+      // Not JSON: send as-is
+    }
+  }
+  return fetch(input, init);
+};
+
 // AI @ Your Service Gateway configuration for Anthropic
 const getAnthropic = (env: Env, apiKey?: string) => {
   if (!apiKey) {
@@ -53,9 +79,9 @@ const getAnthropic = (env: Env, apiKey?: string) => {
   return createAnthropic({
     apiKey: apiKey,
     baseURL: `${env.GATEWAY_BASE_URL}/v1/anthropic`,
+    fetch: fetchWithoutSamplingParams
   });
 };
-*/
 
 /*
 // AI @ Your Service Gateway configuration for Gemini
@@ -253,14 +279,14 @@ export class AppAgent extends AIChatAgent<Env> {
     const userApiKey = state.userInfo?.api_key;
 
     if (userApiKey) {
-      const redactedApiKey = `${userApiKey.substring(0, 20)}...${userApiKey.substring(-8)}`;
+      const redactedApiKey = `${userApiKey.substring(0, 20)}...${userApiKey.slice(-8)}`;
       console.log(
         `[AppAgent] Using user-specific API key for user: ${state.userInfo?.id}`
       );
       console.log(
         `[AppAgent] API key being used for AI requests: ${redactedApiKey}`
       );
-      return getOpenAI(this.env, userApiKey);
+      return getAnthropic(this.env, userApiKey);
     }
     const errorMsg =
       "No user API key available. User must be authenticated to use AI features.";
@@ -502,8 +528,8 @@ export class AppAgent extends AIChatAgent<Env> {
 
         while (retryCount <= maxRetries) {
           try {
-            const openai = this.getAIProvider();
-            const model = openai("gpt-4.1-mini-2025-04-14");
+            const anthropic = this.getAIProvider();
+            const model = anthropic("claude-haiku-5-5");
 
             // Stream the AI response
             result = streamText({
