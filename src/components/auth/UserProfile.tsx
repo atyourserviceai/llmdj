@@ -2,6 +2,11 @@ import { SignOut } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "./AuthProvider";
 
+// Most balances are well under $1 and one message costs a fraction of a cent,
+// so two decimals would hide every charge. Show cents only from $10 up.
+const formatBalance = (credits: number) =>
+  credits >= 10 ? credits.toFixed(2) : credits.toFixed(4);
+
 export function UserProfile() {
   const { authMethod, logout, refreshUserInfo, oauthConfig } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
@@ -98,7 +103,7 @@ export function UserProfile() {
             {userInfo.credits !== undefined ? (
               <>
                 <div className="text-lg font-semibold text-green-600 dark:text-green-400">
-                  ${userInfo.credits.toFixed(2)}
+                  ${formatBalance(userInfo.credits)}
                 </div>
                 {userInfo.credits < 1 && (
                   <div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
